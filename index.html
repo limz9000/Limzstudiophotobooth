@@ -3,258 +3,2993 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Limz Studio Photobooth - Management System & Guest Gallery</title>
+  <title>Limz Studio Photobooth - Cloud Management & Guest Gallery</title>
 
   <!-- PWA & Mobile Web Capabilities -->
-  <meta name="theme-color" content="#0b0f19">
+  <meta name="theme-color" content="#191410">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Limz Photobooth">
   <meta name="description" content="Limz Studio Photobooth - Cloud Foto, Live Monitor Slideshow, dan Galeri Event Instan.">
 
-  <!-- Typography -->
+  <!-- Typography & Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Cinzel:wght@700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Cinzel:wght@600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&family=Great+Vibes&family=Alex+Brush&display=swap" rel="stylesheet">
+
+  <!-- Eksternal Helper Libraries (Flyer 4R Export & Burst GIF Generator) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gifshot/0.3.2/gifshot.min.js"></script>
 
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
+    :root {
+      --bg-dark: #191410;
+      --bg-sidebar: #140f0c;
+      --bg-body: #f7f4ee;
+      --bg-card: #ffffff;
+      --accent-gold: #d49438;
+      --accent-gold-hover: #b87b28;
+      --accent-blue: #2563eb;
+      --accent-green: #10b981;
+      --accent-orange: #f59e0b;
+      --accent-teal: #0d9488;
+      --accent-purple: #6366f1;
+      --accent-red: #ef4444;
+      --text-main: #191410;
+      --text-muted: #786d5f;
+      --text-light: #fbf9f5;
+      --border-subtle: #e8e2d5;
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --shadow-card: 0 4px 20px rgba(25, 20, 16, 0.05);
+      --shadow-hover: 0 8px 30px rgba(25, 20, 16, 0.12);
     }
 
-    html, body {
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      background-color: #0b0f19;
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
       font-family: 'Plus Jakarta Sans', sans-serif;
-      color: #ffffff;
+      background: var(--bg-body);
+      color: var(--text-main);
+      overflow-x: hidden;
+      min-height: 100vh;
       -webkit-font-smoothing: antialiased;
-      -webkit-tap-highlight-color: transparent;
     }
 
-    /* Fullscreen Responsive Iframe */
-    #gas-app-frame {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      border: none;
-      outline: none;
-      z-index: 10;
-      background-color: #0b0f19;
-      display: block;
-    }
-
-    /* Branded Modern Loading Screen */
-    #wrapper-loader {
-      position: fixed;
-      inset: 0;
-      background: radial-gradient(circle at center, #151b26 0%, #0b0f19 100%);
-      z-index: 9999;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      transition: opacity 0.45s ease, visibility 0.45s ease;
-      padding: 20px;
-    }
-
-    #wrapper-loader.fade-out {
-      opacity: 0;
-      visibility: hidden;
-      pointer-events: none;
-    }
-
-    .loader-content {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-      max-width: 380px;
-    }
-
-    .loader-brand-icon {
-      font-size: 38px;
-      color: #d49438;
-      margin-bottom: 12px;
-      animation: pulse-glow 2s infinite ease-in-out;
-    }
-
-    .loader-brand-title {
-      font-family: 'Cinzel', serif;
-      font-size: 17px;
-      font-weight: 700;
-      letter-spacing: 2.5px;
-      color: #ffffff;
-      margin-bottom: 6px;
-      text-transform: uppercase;
-    }
-
-    .loader-brand-subtitle {
-      font-size: 12px;
-      font-weight: 500;
-      color: #94a3b8;
-      letter-spacing: 1px;
-      margin-bottom: 26px;
-    }
-
-    .spinner-ring {
-      width: 44px;
-      height: 44px;
-      border: 3px solid rgba(212, 148, 56, 0.18);
-      border-top-color: #d49438;
-      border-radius: 50%;
-      animation: spin 0.85s linear infinite;
-      margin-bottom: 18px;
-    }
-
-    .loader-status-text {
-      font-size: 12px;
-      color: #cbd5e1;
-      font-weight: 600;
-      letter-spacing: 0.5px;
-    }
-
-    /* Fallback Direct Access Button */
-    .fallback-box {
-      margin-top: 24px;
-      display: none;
-      animation: fadeIn 0.4s ease;
-    }
-
-    .btn-fallback {
+    /* Buttons */
+    .btn {
       display: inline-flex;
       align-items: center;
+      justify-content: center;
       gap: 8px;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(212, 148, 56, 0.5);
-      color: #d49438;
-      padding: 9px 18px;
-      border-radius: 8px;
-      font-size: 12px;
-      font-weight: 700;
+      padding: 10px 18px;
+      border-radius: var(--radius-sm);
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      border: none;
+      transition: all 0.25s ease;
+      text-decoration: none;
+    }
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .btn-gold { background: var(--accent-gold); color: #fff; }
+    .btn-gold:hover { background: var(--accent-gold-hover); }
+    .btn-blue { background: var(--accent-blue); color: #fff; }
+    .btn-blue:hover { background: #1d4ed8; }
+    .btn-teal { background: var(--accent-teal); color: #fff; }
+    .btn-teal:hover { background: #0f766e; }
+    .btn-outline { background: transparent; border: 1px solid var(--border-subtle); color: var(--text-main); }
+    .btn-outline:hover { background: rgba(0,0,0,0.03); }
+    .btn-dark { background: var(--bg-dark); color: #fff; }
+    .btn-dark:hover { background: #2c241c; }
+    .btn-danger { background: var(--accent-red); color: #fff; }
+    .btn-danger:hover { background: #dc2626; }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+    .landing-wrapper {
+      min-height: 100vh;
+      background-color: #0b0a08;
+      color: #ffffff;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow-x: hidden;
+    }
+    .landing-navbar {
+      width: 100%;
+      background: rgba(10, 9, 7, 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .landing-nav-container {
+      max-width: 1220px;
+      margin: 0 auto;
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .landing-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
       text-decoration: none;
       cursor: pointer;
+    }
+    .landing-brand-icon-box {
+      width: 38px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .landing-brand-custom-img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+    .landing-brand-text { display: flex; flex-direction: column; line-height: 1; }
+    .landing-brand-script {
+      font-family: 'Alex Brush', cursive;
+      font-size: 31px;
+      color: #e04a2f;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      margin-bottom: -4px;
+    }
+    .landing-brand-sub {
+      font-size: 8.5px;
+      font-weight: 800;
+      letter-spacing: 2.2px;
+      color: #ffffff;
+      text-transform: uppercase;
+    }
+    .landing-nav-links { display: flex; align-items: center; gap: 24px; }
+    .landing-nav-link {
+      color: #e5e0d8;
+      font-size: 13.5px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      transition: color 0.2s ease;
+    }
+    .landing-nav-link:hover { color: #e5b869; }
+    .btn-landing-nav {
+      background: linear-gradient(135deg, #ebd197 0%, #d8a657 100%);
+      color: #18130d;
+      font-weight: 700;
+      font-size: 13px;
+      padding: 10px 22px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      box-shadow: 0 4px 15px rgba(216, 166, 87, 0.25);
+    }
+    .btn-landing-nav:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(216, 166, 87, 0.35);
+    }
+
+    .landing-hero {
+      flex: 1;
+      position: relative;
+      display: flex;
+      align-items: center;
+      padding: 60px 28px 80px;
+      background-image: url('https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1920&q=85');
+      background-size: cover;
+      background-position: center 30%;
+    }
+    .landing-hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, rgba(10, 11, 9, 0.94) 0%, rgba(14, 16, 12, 0.82) 48%, rgba(10, 12, 9, 0.90) 100%);
+      z-index: 1;
+    }
+    .landing-hero-container {
+      position: relative;
+      z-index: 2;
+      max-width: 1220px;
+      width: 100%;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 48px;
+      align-items: center;
+    }
+    @media (max-width: 900px) {
+      .landing-hero-container { grid-template-columns: 1fr; }
+    }
+    .landing-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 2.4px;
+      color: #e2b86b;
+      text-transform: uppercase;
+      margin-bottom: 18px;
+    }
+    .landing-eyebrow::before {
+      content: '';
+      width: 34px;
+      height: 1px;
+      background: #e2b86b;
+      display: inline-block;
+    }
+    .landing-hero-title {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: clamp(38px, 5.4vw, 68px);
+      font-weight: 800;
+      line-height: 1.05;
+      color: #f7f4ee;
+      letter-spacing: -0.5px;
+      margin-bottom: 24px;
+    }
+    .landing-hero-desc {
+      font-size: 16px;
+      line-height: 1.65;
+      color: #c2bdb4;
+      max-width: 560px;
+      margin-bottom: 34px;
+      font-weight: 400;
+    }
+    .landing-cta-group { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+    .btn-landing-gold {
+      background: linear-gradient(135deg, #ebd197 0%, #d8a657 100%);
+      color: #18130d;
+      font-weight: 700;
+      font-size: 14px;
+      padding: 14px 28px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      box-shadow: 0 8px 24px rgba(216, 166, 87, 0.25);
+    }
+    .btn-landing-dark {
+      background: rgba(255, 255, 255, 0.05);
+      color: #f7f4ee;
+      font-weight: 700;
+      font-size: 14px;
+      padding: 14px 28px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      cursor: pointer;
+      transition: all 0.25s ease;
+      backdrop-filter: blur(6px);
+    }
+
+    .badge-status {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .badge-active { background: #d1fae5; color: #065f46; }
+    .badge-archived { background: #fef3c7; color: #92400e; }
+
+    .view-container { display: none; width: 100%; min-height: 100vh; }
+    .view-active { display: block !important; }
+
+    .dashboard-layout { display: flex; min-height: 100vh; position: relative; }
+    .sidebar {
+      width: 260px;
+      background: var(--bg-sidebar);
+      color: #b5a99a;
+      padding: 25px 16px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      transition: width 0.28s cubic-bezier(0.16, 1, 0.3, 1), padding 0.28s ease;
+      position: relative;
+      z-index: 50;
+    }
+    .sidebar.collapsed { width: 72px; padding: 25px 8px; }
+    .sidebar-brand {
+      font-family: 'Cinzel', serif;
+      font-size: 15px;
+      color: #fff;
+      margin-bottom: 25px;
+      padding-left: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .sidebar.collapsed .sidebar-brand { padding-left: 0; justify-content: center; }
+    .sidebar-brand-left { display: flex; align-items: center; gap: 8px; overflow: hidden; white-space: nowrap; }
+    .sidebar-brand-icon { color: var(--accent-gold); font-size: 16px; flex-shrink: 0; }
+    .sidebar-toggle-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(212, 148, 56, 0.35);
+      color: var(--accent-gold);
+      border-radius: 6px;
+      width: 26px;
+      height: 26px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 11px;
       transition: all 0.2s ease;
+      flex-shrink: 0;
+    }
+    .sidebar-toggle-btn:hover { background: var(--accent-gold); color: #fff; }
+    .sidebar.collapsed .sidebar-toggle-btn { position: absolute; top: 14px; right: 50%; transform: translateX(50%); width: 24px; height: 24px; }
+    .sidebar.collapsed .sidebar-brand-left { margin-top: 24px; }
+    .sidebar-menu { list-style: none; flex: 1; }
+    .sidebar-item {
+      padding: 12px 14px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 4px;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+    .sidebar-item:hover { background: rgba(255, 255, 255, 0.05); color: #fff; }
+    .sidebar-item.active { background: #2c241c; color: var(--accent-gold); font-weight: 700; }
+    .sidebar.collapsed .sidebar-text { display: none !important; }
+    .sidebar.collapsed .sidebar-item { justify-content: center; padding: 12px 0; gap: 0; }
+    .sidebar-account-box {
+      border-top: 1px solid #2b2118;
+      padding-top: 15px;
+      margin-top: 15px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .sidebar.collapsed .sidebar-account-box button { justify-content: center !important; padding: 6px 0 !important; }
+    .sidebar.collapsed .sidebar-account-box .sidebar-btn-text { display: none !important; }
+
+    .main-content {
+      flex: 1;
+      padding: 30px;
+      background: var(--bg-body);
+      overflow-y: auto;
+      height: 100vh;
+    }
+    @media (max-width: 768px) {
+      .main-content { padding: 16px 12px !important; }
+      .sidebar { width: 66px !important; padding: 20px 6px !important; }
+      .sidebar .sidebar-text { display: none !important; }
+      .sidebar-toggle-btn { display: none !important; }
     }
 
-    .btn-fallback:hover {
-      background: #d49438;
-      color: #151b26;
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 25px;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+    .page-heading { font-size: 24px; font-weight: 700; color: var(--text-main); }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 18px;
+      margin-bottom: 30px;
+    }
+    .stat-card {
+      background: var(--bg-card);
+      padding: 20px;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-card);
+      border: 1px solid var(--border-subtle);
+    }
+    .stat-card-title { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; }
+    .stat-card-val { font-size: 28px; font-weight: 700; color: var(--text-main); }
+
+    .table-card {
+      background: var(--bg-card);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
+      box-shadow: var(--shadow-card);
+      overflow-x: auto;
+      margin-bottom: 30px;
+    }
+    .table-header-box {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .data-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; min-width: 620px; }
+    .data-table th { background: #faf8f5; padding: 12px 18px; color: var(--text-muted); font-weight: 600; border-bottom: 1px solid var(--border-subtle); }
+    .data-table td { padding: 14px 18px; border-bottom: 1px solid var(--border-subtle); color: var(--text-main); vertical-align: middle; }
+    .data-table tr:hover { background: #fdfbf7; }
+
+    .dropzone-box {
+      border: 2px dashed var(--accent-gold);
+      border-radius: var(--radius-md);
+      background: #faf8f5;
+      padding: 35px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      margin-bottom: 25px;
+      position: relative;
+    }
+    .dropzone-box:hover { background: #f5eedf; border-color: var(--accent-gold-hover); }
+    .dropzone-box.drag-over-active {
+      background: #eef7ff !important;
+      border-color: #2563eb !important;
+      box-shadow: 0 0 20px rgba(37, 99, 235, 0.25);
+      transform: scale(1.01);
+    }
+    .dropzone-icon { font-size: 40px; color: var(--accent-gold); margin-bottom: 10px; }
+
+    .wm-simulator-box {
+      position: relative;
+      width: 100%;
+      min-height: 380px;
+      max-height: 580px;
+      background: #090c12;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 2px solid var(--accent-gold);
+      box-shadow: inset 0 4px 20px rgba(0,0,0,0.85);
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+    }
+    .wm-stage-frame {
+      position: relative;
+      display: inline-block;
+      max-width: 100%;
+      max-height: 550px;
+      line-height: 0;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.7);
+    }
+    .wm-simulator-bg-img {
+      max-width: 100%;
+      max-height: 550px;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      display: block;
+      border-radius: 4px;
+    }
+    .wm-simulator-overlay-item {
+      position: absolute;
+      pointer-events: auto;
+      cursor: grab;
+      touch-action: none;
+      transition: opacity 0.15s ease, border-color 0.15s ease;
+      z-index: 10;
+      border: 1.5px dashed transparent;
+      border-radius: 4px;
+      padding: 3px;
+      user-select: none;
+    }
+    .wm-simulator-overlay-item:hover { border-color: rgba(212, 175, 55, 0.75); background: rgba(212, 175, 55, 0.08); }
+    .wm-simulator-overlay-item.is-dragging { cursor: grabbing; border-color: var(--accent-gold); background: rgba(212, 175, 55, 0.2); }
+    .wm-simulator-overlay-item img { width: 100%; height: auto; display: block; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.75)); }
+    .wm-simulator-fallback-text {
+      color: #ffffff;
+      font-family: 'Cinzel', serif;
+      font-size: clamp(9px, 1.4vw, 13px);
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-shadow: 0 2px 6px rgba(0,0,0,0.9);
+      white-space: nowrap;
     }
 
-    @keyframes spin {
-      to { transform: rotate(360deg); }
+    .studio-workstation-grid {
+      display: grid;
+      grid-template-columns: minmax(360px, 1.35fr) minmax(320px, 1fr);
+      gap: 20px;
+      align-items: start;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 991px) { .studio-workstation-grid { display: flex; flex-direction: column; } }
+
+    .crop-orient-btn, .crop-ratio-btn {
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 14px;
+      border: 1px solid var(--border-subtle);
+      background: #fff;
+      cursor: pointer;
+    }
+    .crop-orient-btn.active, .crop-ratio-btn.active {
+      background: var(--accent-gold);
+      color: #fff;
+      border-color: var(--accent-gold);
+    }
+    .crop-handle {
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      background: #e2b86b;
+      border: 2px solid #ffffff;
+      border-radius: 50%;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+      z-index: 20;
+      touch-action: none;
     }
 
-    @keyframes pulse-glow {
-      0%, 100% { transform: scale(1); filter: drop-shadow(0 0 8px rgba(212, 148, 56, 0.4)); }
-      50% { transform: scale(1.08); filter: drop-shadow(0 0 18px rgba(212, 148, 56, 0.8)); }
+    .monitor-screen {
+      position: fixed;
+      inset: 0;
+      background: #080c14;
+      display: flex;
+      flex-direction: column;
+      z-index: 9999;
+      overflow: hidden;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    .monitor-header-bar {
+      background: linear-gradient(180deg, #1f2530 0%, #0d1117 100%);
+      border-bottom: 2px solid #2e3646;
+      padding: 16px 30px;
+      min-height: 86px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #ffffff;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.55);
+      flex-shrink: 0;
+      gap: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+    .mon-header-motif-layer {
+      position: absolute;
+      top: 0; bottom: 0; width: 140px; pointer-events: none; opacity: 0.85; display: flex; align-items: center;
+    }
+    .mon-header-motif-left { left: 0; justify-content: flex-start; }
+    .mon-header-motif-right { right: 0; justify-content: flex-end; transform: scaleX(-1); }
+    .mon-header-motif-layer svg { width: 100%; height: 100%; max-height: 80px; object-fit: contain; }
+
+    .monitor-hdr-tag {
+      font-family: 'Cinzel', serif;
+      font-weight: 800;
+      letter-spacing: clamp(2px, 0.4vw, 4px);
+      font-size: clamp(10px, 1.2vw, 14px);
+      color: #e2e8f0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+      position: relative;
+      z-index: 2;
+    }
+    .mon-hdr-line { display: inline-block; width: clamp(20px, 3.5vw, 60px); height: 1px; background: rgba(255, 255, 255, 0.45); }
+    .monitor-hdr-center {
+      display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; flex: 2; z-index: 2;
+    }
+    .monitor-couple-name {
+      font-family: 'Great Vibes', 'Playfair Display', cursive, serif;
+      font-weight: 700;
+      font-size: clamp(32px, 4.6vw, 56px);
+      color: #ffffff;
+      text-shadow: 0 4px 18px rgba(0,0,0,0.9), 0 0 22px rgba(212, 148, 56, 0.45);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+    .monitor-date-subtitle {
+      font-size: clamp(9px, 1vw, 11px);
+      letter-spacing: 3px;
+      font-weight: 800;
+      color: var(--accent-gold);
+      text-transform: uppercase;
+      margin-top: 4px;
     }
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(6px); }
-      to { opacity: 1; transform: translateY(0); }
+    .monitor-main-content {
+      flex: 1; display: flex; padding: 14px 18px 16px; gap: 14px; background: #090d16; overflow: hidden; position: relative; min-height: 0;
     }
+    .monitor-col-large {
+      flex: 5.8; background: #04060a; border-radius: 14px; border: 1px solid #1e293b; padding: 8px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; height: 100%;
+    }
+    .monitor-col-large img.main-stage-img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; border-radius: 8px; }
+    
+    .mon-photo-corner-qr {
+      position: absolute; top: 10px; right: 10px; background: rgba(10, 14, 23, 0.94); backdrop-filter: blur(10px); border: 1.5px solid rgba(212, 148, 56, 0.85); border-radius: 10px; padding: 7px 8px; display: flex; flex-direction: column; align-items: center; gap: 4px; z-index: 25;
+    }
+    .mon-photo-corner-label { font-size: clamp(9px, 0.9vw, 11px); font-weight: 800; letter-spacing: 1px; color: #e2b86b; text-transform: uppercase; }
+    .mon-photo-corner-imgbox { background: #ffffff; padding: 5px; border-radius: 7px; display: flex; align-items: center; justify-content: center; }
+    .mon-photo-corner-qr.large .mon-photo-corner-imgbox img { width: clamp(95px, 9.4vw, 130px); height: clamp(95px, 9.4vw, 130px); object-fit: contain; }
+
+    .monitor-col-sub { flex: 2.8; display: flex; flex-direction: column; gap: 12px; height: 100%; min-height: 0; }
+    .monitor-sub-photo-box { flex: 1; background: #04060a; border-radius: 14px; border: 1px solid #1e293b; padding: 8px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+    .monitor-sub-photo-box img.sub-stage-img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px; }
+
+    .monitor-col-info {
+      flex: 2.0; min-width: 220px; max-width: 275px; background: linear-gradient(180deg, #111726 0%, #0c101c 100%); border-radius: 14px; border: 1px solid #243048; padding: 12px; display: flex; flex-direction: column; align-items: center; text-align: center; height: 100%; min-height: 0; gap: 6px;
+    }
+    .monitor-qr-container { background: #ffffff; padding: 5px; border: 2px solid var(--accent-gold); border-radius: 8px; }
+    .monitor-qr-container img { width: clamp(75px, 7.8vw, 105px); height: clamp(75px, 7.8vw, 105px); object-fit: contain; }
+
+    .monitor-chat-stream-box {
+      width: 100%; flex: 1; min-height: 0; background: rgba(7, 11, 18, 0.85); border: 1px solid rgba(212, 148, 56, 0.35); border-radius: 9px; padding: 8px; display: flex; flex-direction: column; overflow: hidden;
+    }
+    .mon-chat-feed-list { display: flex; flex-direction: column; gap: 6px; overflow-y: hidden; flex: 1; }
+    .mon-chat-bubble {
+      background: linear-gradient(135deg, rgba(26, 35, 50, 0.95) 0%, rgba(15, 21, 33, 0.95) 100%); border-left: 3px solid var(--accent-gold); border-radius: 6px; padding: 5px 8px; text-align: left;
+    }
+
+    .monitor-footer-bar {
+      background: #060910; border-top: 1px solid #1e293b; padding: 7px 24px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #94a3b8; flex-shrink: 0;
+    }
+
+    /* Floating Wish Card */
+    .monitor-floating-wish-card {
+      position: absolute; bottom: 22px; left: 22px; right: 22px; max-width: 560px; background: rgba(13, 17, 23, 0.94); border: 1px solid rgba(212, 148, 56, 0.75); border-radius: 12px; padding: 14px 20px; color: #ffffff; opacity: 0; transform: translateY(20px); transition: all 0.5s ease; z-index: 20;
+    }
+    .monitor-floating-wish-card.show { opacity: 1; transform: translateY(0); }
+
+    .gallery-splash-loader {
+      position: fixed; inset: 0; background: #0d0a08; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 99999; transition: opacity 0.5s ease; padding: 20px;
+    }
+    .splash-bg-overlay {
+      position: absolute; inset: 0; background-size: cover; background-position: center; filter: blur(28px) brightness(0.22); z-index: 1;
+    }
+    .splash-content { position: relative; z-index: 2; text-align: center; max-width: 480px; width: 100%; display: flex; flex-direction: column; align-items: center; }
+    .splash-cover-box {
+      width: 130px; height: 130px; border-radius: 50%; border: 3px solid var(--accent-gold); overflow: hidden; margin-bottom: 14px;
+    }
+    .splash-cover-box img { width: 100%; height: 100%; object-fit: cover; }
+    .splash-countdown-badge {
+      width: 48px; height: 48px; border-radius: 50%; border: 2px solid var(--accent-gold); font-size: 21px; font-weight: 800; color: #fff; margin: 16px auto 8px; display: inline-flex; align-items: center; justify-content: center; background: rgba(212, 148, 56, 0.22); cursor: pointer;
+    }
+
+    .public-hero-cover {
+      position: relative; min-height: clamp(280px, 42vh, 390px); display: flex; align-items: center; justify-content: center; text-align: center; color: #fff; background-size: cover; background-position: center; padding: 60px 16px;
+    }
+    .public-hero-overlay { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(25, 20, 16, 0.4) 0%, rgba(25, 20, 16, 0.88) 100%); z-index: 1; }
+    .public-hero-content { position: relative; z-index: 2; max-width: 800px; width: 100%; }
+    .public-couple-title { font-family: 'Playfair Display', serif; font-size: clamp(32px, 7vw, 52px); font-weight: 800; margin-bottom: 6px; }
+
+    .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-top: 20px; }
+    @media (min-width: 640px) { .photo-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; } }
+    .photo-card { position: relative; border-radius: var(--radius-sm); overflow: hidden; aspect-ratio: 1/1; background: #e8e2d5; cursor: pointer; }
+    .photo-card img { width: 100%; height: 100%; object-fit: cover; }
+    .photo-card-download-btn {
+      position: absolute; bottom: 6px; left: 6px; background: rgba(25, 20, 16, 0.85); color: #fff; font-size: 10px; font-weight: 600; padding: 4px 8px; border-radius: 4px; text-decoration: none;
+    }
+
+    /* Modal Windows & Toast */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(25, 20, 16, 0.7); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 10000; padding: 16px;
+    }
+    .modal-box {
+      background: #fff; width: 100%; max-width: 520px; border-radius: var(--radius-md); padding: 26px; max-height: 90vh; overflow-y: auto;
+    }
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; color: var(--text-muted); }
+    .form-control { width: 100%; padding: 10px 14px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); font-size: 13px; }
+    .form-control:focus { outline: none; border-color: var(--accent-gold); }
+
+    .toast-box {
+      position: fixed; bottom: 25px; right: 25px; background: #191410; color: #fff; padding: 12px 20px; border-radius: var(--radius-sm); border-left: 4px solid var(--accent-gold); font-size: 13px; display: none; z-index: 11000; max-width: 85vw;
+    }
+
+    /* Printable Flyer Themes */
+    .printable-flyer-wrapper { max-width: 460px; width: 100%; margin: 15px auto 35px; padding: 35px 24px; text-align: center; border-radius: 12px; }
+    .theme-royal-gold { background: #ffffff; border: 2px solid #d49438; color: #191410; }
+    .flyer-qr-box { margin: 18px auto; width: 190px; height: 190px; padding: 10px; border-radius: 12px; background: #fff; border: 3px solid #d49438; }
+    .flyer-qr-box img { width: 100%; height: 100%; object-fit: contain; }
   </style>
 </head>
 <body>
 
-  <!-- Loading Screen Berpenampilan Elegan -->
-  <div id="wrapper-loader">
-    <div class="loader-content">
-      <div class="loader-brand-icon">❖</div>
-      <h1 class="loader-brand-title">LIMZ STUDIO</h1>
-      <p class="loader-brand-subtitle">PHOTOBOOTH SYSTEM</p>
-      
-      <div class="spinner-ring"></div>
-      <p id="loader-status" class="loader-status-text">Menghubungkan ke server cloud...</p>
+  <!-- 1. VIEW: LANDING PAGE -->
+  <div id="view-landing" class="view-container view-active">
+    <div class="landing-wrapper">
+      <header class="landing-navbar">
+        <div class="landing-nav-container">
+          <div class="landing-brand" onclick="switchView('view-landing')">
+            <div id="landing-brand-logo-container" class="landing-brand-icon-box">
+              <span style="font-size: 24px; color: var(--accent-gold);">❖</span>
+            </div>
+            <div id="landing-brand-text-block" class="landing-brand-text">
+              <span class="landing-brand-script">Limz Studio</span>
+              <span class="landing-brand-sub">PHOTOBOOTH SYSTEM</span>
+            </div>
+          </div>
+          <div class="landing-nav-links">
+            <a class="landing-nav-link" onclick="openFeaturesModal()">Fitur Cloud</a>
+            <a class="landing-nav-link" onclick="openGuestDemo()">Live Demo</a>
+            <button class="btn-landing-nav" onclick="handleNavLoginClick()">Masuk Dashboard</button>
+          </div>
+        </div>
+      </header>
 
-      <!-- Tombol bantuan jika browser memblokir cookie pihak ketiga -->
-      <div id="fallback-box" class="fallback-box">
-        <a id="direct-link-btn" href="#" target="_blank" rel="noopener" class="btn-fallback">
-          ↗ Buka Langsung Tanpa Iframe
-        </a>
+      <section class="landing-hero">
+        <div class="landing-hero-container">
+          <div>
+            <span class="landing-eyebrow">Cloud Photobooth Solution</span>
+            <h1 class="landing-hero-title">Live Slide Monitor & Galeri Momen Instan.</h1>
+            <p class="landing-hero-desc">Solusi all-in-one photobooth untuk wedding & event: auto-sync Google Drive, monitor slideshow panggung otomatis, watermarking kustom, dan unduhan foto tamu beresolusi penuh tanpa batas.</p>
+            <div class="landing-cta-group">
+              <button class="btn-landing-gold" onclick="openGuestDemo()">👁️ Lihat Demo Galeri Tamu</button>
+              <button class="btn-landing-dark" onclick="handleNavLoginClick()">🔒 Masuk ke Panel Operator</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- 2. VIEW: LOGIN SCREEN -->
+  <div id="view-login" class="view-container">
+    <div style="min-height: 100vh; display:flex; align-items:center; justify-content:center; background:#110e0b; padding:20px;">
+      <div style="max-width: 400px; width: 100%; background: #ffffff; border-radius: 16px; padding: 36px 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
+        <div style="text-align: center; margin-bottom: 25px;">
+          <h2 style="font-family:'Cinzel', serif; font-size:22px; color:#191410;">LIMZ STUDIO</h2>
+          <p style="font-size:12px; color:#786d5f; letter-spacing:1px; margin-top:4px;">OPERATOR AUTHENTICATION</p>
+        </div>
+        <form onsubmit="event.preventDefault(); handleLoginSubmit();">
+          <div class="form-group">
+            <label>Email Pengguna</label>
+            <input type="email" id="login-email" class="form-control" placeholder="admin@limzstudio.com" value="admin@limzstudio.com" required>
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="login-password" class="form-control" placeholder="••••••••" value="admin123" required>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; font-size:12px;">
+            <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+              <input type="checkbox" id="login-remember-me" checked> Ingat Sesi Masuk
+            </label>
+          </div>
+          <button type="submit" id="btn-login-submit" class="btn btn-gold" style="width:100%; padding:12px;">Masuk Panel</button>
+          <button type="button" class="btn btn-outline" style="width:100%; margin-top:10px;" onclick="switchView('view-landing')">Batal</button>
+        </form>
       </div>
     </div>
   </div>
 
-  <!-- Fullscreen Iframe Controller -->
-  <iframe
-    id="gas-app-frame"
-    src=""
-    allow="camera *; microphone *; clipboard-read *; clipboard-write *; fullscreen *; display-capture *; web-share *"
-    allowfullscreen="true"
-    webkitallowfullscreen="true"
-    mozallowfullscreen="true">
-  </iframe>
+  <!-- 3. VIEW: OPERATOR DASHBOARD -->
+  <div id="view-dashboard" class="view-container">
+    <div class="dashboard-layout">
+      <!-- Collapsible Sidebar -->
+      <aside id="dashboard-sidebar" class="sidebar">
+        <div class="sidebar-brand">
+          <div class="sidebar-brand-left">
+            <span class="sidebar-brand-icon">❖</span>
+            <span class="sidebar-text" style="font-weight:700;">LIMZ STUDIO</span>
+          </div>
+          <button id="sidebar-toggle-btn" class="sidebar-toggle-btn" onclick="toggleDashboardSidebar()" title="Mini Mode">◀</button>
+        </div>
+        <ul class="sidebar-menu">
+          <li class="sidebar-item active" onclick="switchDashboardTab('tab-collections', this)">
+            <span class="sidebar-icon">📁</span>
+            <span class="sidebar-text">Koleksi Event</span>
+          </li>
+          <li class="sidebar-item" onclick="switchDashboardTab('tab-upload', this)">
+            <span class="sidebar-icon">📸</span>
+            <span class="sidebar-text">Upload & Studio</span>
+          </li>
+          <li class="sidebar-item" onclick="switchDashboardTab('tab-storage', this)">
+            <span class="sidebar-icon">🗄️</span>
+            <span class="sidebar-text">Storage Health</span>
+          </li>
+          <li class="sidebar-item" onclick="switchDashboardTab('tab-wishes', this)">
+            <span class="sidebar-icon">💬</span>
+            <span class="sidebar-text">Moderasi Ucapan</span>
+          </li>
+          <li class="sidebar-item" onclick="switchDashboardTab('tab-settings', this)">
+            <span class="sidebar-icon">⚙️</span>
+            <span class="sidebar-text">Pengaturan</span>
+          </li>
+          <li id="btn-sidebar-pwa-install" class="sidebar-item" style="display:none; color:var(--accent-gold);" onclick="openPwaInstallModal()">
+            <span class="sidebar-icon">📲</span>
+            <span class="sidebar-text">Pasang PWA</span>
+          </li>
+        </ul>
+        <div class="sidebar-account-box">
+          <div class="sidebar-text" style="font-size:12px; color:#fff; font-weight:700;" id="user-display-name">Lead Admin</div>
+          <div class="sidebar-text" style="font-size:11px; color:#8c7e6d;" id="user-display-role">Role: Admin</div>
+          <button class="btn btn-outline btn-sm" style="color:#d49438; border-color:#3d3127;" onclick="openChangePasswordModal()">
+            <span>🔑</span> <span class="sidebar-btn-text">Ganti Password</span>
+          </button>
+          <button class="btn btn-danger btn-sm" onclick="handleLogout()">
+            <span>🚪</span> <span class="sidebar-btn-text">Keluar</span>
+          </button>
+        </div>
+      </aside>
+
+      <!-- Main Dashboard Content -->
+      <main class="main-content">
+        <!-- Top Bar -->
+        <div class="top-bar">
+          <div>
+            <h1 class="page-heading">Limz Studio Photobooth</h1>
+            <p style="font-size:12px; color:var(--text-muted); margin-top:2px;">Sistem Manajemen Foto & Monitor Panggung Real-Time</p>
+          </div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button id="btn-web-url-status" class="btn btn-outline btn-sm" onclick="openSetWebAppUrlModal()">🟢 Cloud API Connected</button>
+            <button class="btn btn-outline btn-sm role-admin-only" onclick="openChangeLogoModal()">🖼️ Ganti Logo Studio</button>
+          </div>
+        </div>
+
+        <!-- TAB 1: COLLECTIONS -->
+        <div id="tab-collections" class="dash-tab">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-card-title">Total Koleksi</div>
+              <div class="stat-card-val" id="stat-total-collections">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-title">Koleksi Aktif</div>
+              <div class="stat-card-val" id="stat-active-collections" style="color:var(--accent-green);">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-title">Total Foto Cloud</div>
+              <div class="stat-card-val" id="stat-total-photos" style="color:var(--accent-gold);">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-title">Pengunjung Galeri</div>
+              <div class="stat-card-val" id="stat-total-views" style="color:var(--accent-blue);">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-title">Total Download</div>
+              <div class="stat-card-val" id="stat-total-downloads" style="color:var(--accent-teal);">0</div>
+            </div>
+          </div>
+
+          <div class="table-card">
+            <div class="table-header-box">
+              <h3 style="font-size:16px; font-weight:700;">Daftar Koleksi Acara</h3>
+              <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <input type="text" id="search-collection" class="form-control" style="width:200px;" placeholder="Cari nama/slug..." oninput="debounceFetchCollections()">
+                <select id="filter-collection-status" class="form-control" style="width:130px;" onchange="fetchCollectionsList()">
+                  <option value="All">Semua Status</option>
+                  <option value="Active">Active</option>
+                  <option value="Archived">Archived</option>
+                </select>
+                <button class="btn btn-gold btn-sm role-admin-only" onclick="openCreateCollectionModal()">+ Buat Event Baru</button>
+              </div>
+            </div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Cover</th>
+                  <th>Nama Acara & Slug</th>
+                  <th>Klien</th>
+                  <th>Tanggal</th>
+                  <th>Foto</th>
+                  <th>Status</th>
+                  <th>Aksi Cepat</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-all-collections">
+                <tr><td colspan="7" style="text-align:center; padding:25px; color:var(--text-muted);">Memuat daftar acara...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TAB 2: UPLOAD & WATERMARK STUDIO -->
+        <div id="tab-upload" class="dash-tab" style="display:none;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <label style="font-weight:700; font-size:13px;">Target Koleksi Event:</label>
+              <select id="select-upload-collection" class="form-control" style="min-width:240px;" onchange="handleUploadCollectionChange()"></select>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-gold btn-sm" onclick="openCurrentActiveMonitor()">🖥️ Buka Monitor Slideshow</button>
+            </div>
+          </div>
+
+          <!-- Quick Hardware Action Buttons -->
+          <div style="display:flex; gap:8px; margin-bottom:15px; flex-wrap:wrap;">
+            <button class="btn btn-outline btn-sm" onclick="triggerMobileCameraCapture(event)">📱 Kamera Native HP</button>
+            <button class="btn btn-outline btn-sm" onclick="triggerIpadRollCapture(event)">📲 iPad / Tablet Roll</button>
+            <button class="btn btn-dark btn-sm" onclick="openLiveCameraModal(event)">🎥 Live Web Cam / Capture Card</button>
+            <button id="btn-tether-hotfolder" class="btn btn-outline btn-sm" style="background:#ecfdf5; color:#047857;" onclick="triggerDslrHotFolderWatch(event)">📁 Auto-Sync Folder Tether DSLR</button>
+            <input type="file" id="file-input-mobile-cam" accept="image/*" capture="environment" style="display:none;" onchange="handlePhotoFilesSelected(this.files)">
+            <input type="file" id="file-input-ipad-roll" accept="image/*" multiple style="display:none;" onchange="handlePhotoFilesSelected(this.files)">
+          </div>
+
+          <!-- Drag and Drop Zone -->
+          <div id="dropzone-upload-box" class="dropzone-box" onclick="document.getElementById('file-input-photos').click();">
+            <div class="dropzone-icon">📥</div>
+            <div style="font-weight:700; font-size:15px; margin-bottom:4px;">Tarik & Jatuhkan Foto ke Sini</div>
+            <div style="font-size:12px; color:var(--text-muted);">atau klik untuk memilih foto langsung dari perangkat (JPG, PNG)</div>
+            <input type="file" id="file-input-photos" multiple accept="image/*" style="display:none;" onchange="handlePhotoFilesSelected(this.files)">
+          </div>
+
+          <!-- Staged Photos Queue Toolbar -->
+          <div style="background:#fff; border:1px solid var(--border-subtle); border-radius:12px; padding:16px; margin-bottom:20px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span id="staged-status-badge" class="badge-status" style="background:#f1f5f9; color:#64748b;">Belum Ada Foto</span>
+                <span id="staged-active-info" style="font-size:12px; font-weight:600; color:var(--text-muted);"></span>
+              </div>
+              <div style="display:flex; gap:8px;">
+                <button id="btn-toggle-crop" class="btn btn-outline btn-sm" onclick="toggleCropMode()">✂️ Crop Foto</button>
+                <button id="btn-reset-crop" class="btn btn-outline btn-sm" style="display:none;" onclick="resetCrop()">↺ Reset Ukuran</button>
+                <button id="btn-create-gif" class="btn btn-outline btn-sm" style="display:none;" onclick="openGifCreatorModal()">🎞️ Buat Burst GIF</button>
+                <button class="btn btn-danger btn-sm" onclick="clearStagedPhotos()">🗑️ Kosongkan</button>
+              </div>
+            </div>
+
+            <!-- Staged Thumbnails Strip -->
+            <div id="staged-thumbnails-wrapper" style="display:none; margin-bottom:15px;">
+              <div id="staged-thumbnails-container" style="display:flex; gap:8px; overflow-x:auto; padding-bottom:6px;"></div>
+            </div>
+
+            <!-- Studio Workstation Grid (Preview Canvas & Filter Controls) -->
+            <div class="studio-workstation-grid">
+              <!-- Left: Interactive Preview Canvas -->
+              <div>
+                <div class="wm-simulator-box">
+                  <div id="wm-stage-frame" class="wm-stage-frame">
+                    <img id="wm-simulator-bg" class="wm-simulator-bg-img" src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=800&q=80" alt="Preview">
+                    <div id="wm-sim-grade-overlay" style="position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity 0.2s;"></div>
+
+                    <!-- Crop Interactive Box -->
+                    <div id="wm-crop-overlay" style="position:absolute; inset:0; display:none; background:rgba(0,0,0,0.55); z-index:18;">
+                      <div id="crop-box" style="position:absolute; border:2px dashed #e2b86b; box-shadow:0 0 0 9999px rgba(0,0,0,0.5);">
+                        <div class="crop-handle" data-handle="nw" style="top:-7px; left:-7px; cursor:nwse-resize;"></div>
+                        <div class="crop-handle" data-handle="ne" style="top:-7px; right:-7px; cursor:nesw-resize;"></div>
+                        <div class="crop-handle" data-handle="sw" style="bottom:-7px; left:-7px; cursor:nesw-resize;"></div>
+                        <div class="crop-handle" data-handle="se" style="bottom:-7px; right:-7px; cursor:nwse-resize;"></div>
+                      </div>
+                    </div>
+
+                    <!-- Watermark Draggable Overlay Item -->
+                    <div id="wm-simulator-overlay" class="wm-simulator-overlay-item">
+                      <img id="wm-sim-logo-img" src="" style="display:none;" alt="Watermark Logo">
+                      <div id="wm-sim-fallback-text" class="wm-simulator-fallback-text">LIMZ STUDIO PHOTOBOOTH</div>
+                    </div>
+
+                    <!-- Magnetic Center Guide Lines -->
+                    <div id="wm-guide-center-x" class="wm-guide-line v-line"></div>
+                    <div id="wm-guide-center-y" class="wm-guide-line h-line"></div>
+                    <div id="wm-snap-badge" class="wm-snap-badge">🎯 Tengah Sempurna</div>
+                  </div>
+                </div>
+
+                <!-- Crop Ratio Toolbar -->
+                <div id="crop-toolbar" style="display:none; justify-content:space-between; align-items:center; margin-top:10px; background:#faf8f5; border:1px solid var(--border-subtle); padding:8px 12px; border-radius:8px; flex-wrap:wrap; gap:8px;">
+                  <div style="display:flex; gap:4px; align-items:center;">
+                    <span style="font-size:11px; font-weight:700;">Orientasi:</span>
+                    <button id="btn-orient-horizontal" class="crop-orient-btn active" onclick="setCropOrientation('horizontal', this)">Horisontal</button>
+                    <button id="btn-orient-vertical" class="crop-orient-btn" onclick="setCropOrientation('vertical', this)">Vertikal</button>
+                  </div>
+                  <div style="display:flex; gap:4px; align-items:center;">
+                    <span style="font-size:11px; font-weight:700;">Rasio:</span>
+                    <button id="btn-ratio-free" class="crop-ratio-btn active" onclick="setCropRatio('free', this)">Bebas</button>
+                    <button id="btn-ratio-4-6" class="crop-ratio-btn" onclick="setCropRatio('4-6', this)">4R (4:6)</button>
+                    <button id="btn-ratio-1-1" class="crop-ratio-btn" onclick="setCropRatio('1:1', this)">1:1</button>
+                    <button id="btn-ratio-4-3" class="crop-ratio-btn" onclick="setCropRatio('4-3', this)">4:3</button>
+                  </div>
+                  <div style="display:flex; gap:6px;">
+                    <button class="btn btn-gold btn-sm" onclick="applyCrop()">Terapkan Crop</button>
+                    <button class="btn btn-outline btn-sm" onclick="cancelCrop()">Batal</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Right: Photo Tone & Watermark Sliders -->
+              <div>
+                <div style="background:#faf8f5; border:1px solid var(--border-subtle); border-radius:10px; padding:14px; margin-bottom:14px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <strong style="font-size:12px;">🎨 Filter & Color Grading</strong>
+                    <div style="display:flex; gap:4px;">
+                      <button class="btn btn-outline btn-sm" style="padding:2px 8px; font-size:10px;" onclick="triggerAutoAdjustPhoto()">⚡ Auto Tone</button>
+                      <button class="btn btn-outline btn-sm" style="padding:2px 8px; font-size:10px;" onclick="triggerAutoWhiteBalance()">⚖️ AWB</button>
+                      <button class="btn btn-outline btn-sm" style="padding:2px 8px; font-size:10px;" onclick="resetPhotoFilters()">↺</button>
+                    </div>
+                  </div>
+                  <div style="display:flex; gap:4px; margin-bottom:12px; flex-wrap:wrap;">
+                    <button id="btn-flt-normal" class="filter-preset-btn active crop-ratio-btn" onclick="setPhotoFilterPreset('normal', this)">Normal</button>
+                    <button id="btn-flt-warm" class="filter-preset-btn crop-ratio-btn" onclick="setPhotoFilterPreset('warm', this)">Warm</button>
+                    <button id="btn-flt-soft" class="filter-preset-btn crop-ratio-btn" onclick="setPhotoFilterPreset('soft', this)">Soft</button>
+                    <button id="btn-flt-bw" class="filter-preset-btn crop-ratio-btn" onclick="setPhotoFilterPreset('bw', this)">B&W</button>
+                    <button id="btn-flt-vintage" class="filter-preset-btn crop-ratio-btn" onclick="setPhotoFilterPreset('vintage', this)">Vintage</button>
+                    <button id="btn-flt-vivid" class="filter-preset-btn crop-ratio-btn" onclick="setPhotoFilterPreset('vivid', this)">Vivid</button>
+                  </div>
+                  <div class="grading-slider-grid">
+                    <div>
+                      <div style="display:flex; justify-content:space-between; font-size:11px;"><span>Brightness</span><span id="lbl-flt-bright">0%</span></div>
+                      <input type="range" id="slider-flt-bright" min="-50" max="50" value="0" style="width:100%;" oninput="updateCustomFilterSliders()">
+                    </div>
+                    <div>
+                      <div style="display:flex; justify-content:space-between; font-size:11px;"><span>Contrast</span><span id="lbl-flt-contrast">0%</span></div>
+                      <input type="range" id="slider-flt-contrast" min="-50" max="50" value="0" style="width:100%;" oninput="updateCustomFilterSliders()">
+                    </div>
+                    <div>
+                      <div style="display:flex; justify-content:space-between; font-size:11px;"><span>Saturation</span><span id="lbl-flt-sat">0%</span></div>
+                      <input type="range" id="slider-flt-sat" min="-100" max="100" value="0" style="width:100%;" oninput="updateCustomFilterSliders()">
+                    </div>
+                    <div>
+                      <div style="display:flex; justify-content:space-between; font-size:11px;"><span>Suhu (Temp)</span><span id="lbl-flt-temp">0</span></div>
+                      <input type="range" id="slider-flt-temp" min="-40" max="40" value="0" style="width:100%;" oninput="updateCustomFilterSliders()">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Watermark Settings Block -->
+                <div style="background:#faf8f5; border:1px solid var(--border-subtle); border-radius:10px; padding:14px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <strong style="font-size:12px;">🛡️ Pengaturan Watermark</strong>
+                    <span id="wm-badge-text" class="badge-status" style="font-size:9px; background:#e0f2fe; color:#0369a1;">Teks Bawaan</span>
+                  </div>
+                  <div style="display:flex; gap:6px; margin-bottom:10px; align-items:center;">
+                    <input type="file" id="file-wm-png" accept="image/png" style="display:none;" onchange="handleWatermarkPngSelected(this.files)">
+                    <button class="btn btn-outline btn-sm" style="font-size:11px;" onclick="document.getElementById('file-wm-png').click()">Pilih Logo PNG</button>
+                    <button id="btn-remove-wm-png" class="btn btn-outline btn-sm" style="display:none; color:var(--accent-red); font-size:11px;" onclick="removeCustomWatermarkPng()">Hapus</button>
+                  </div>
+                  <div class="watermark-slider-grid">
+                    <div>
+                      <div style="display:flex; justify-content:space-between; font-size:11px;"><span>Posisi X</span><span id="label-wm-pos-x">88%</span></div>
+                      <input type="range" id="slider-wm-pos-x" min="0" max="100" value="88" style="width:100%;" oninput="updateWatermarkManualSettings()">
+                    </div>
+                    <div>
+                      <div style="display:flex; justify-content:space-between; font-size:11px;"><span>Posisi Y</span><span id="label-wm-pos-y">90%</span></div>
+                      <input type="range" id="slider-wm-pos-y" min="0" max="100" value="90" style="width:100%;" oninput="updateWatermarkManualSettings()">
+                    </div>
+                    <div>
+                      <div style="display:flex; justify-content:space-between; font-size:11px;"><span>Ukuran Scale</span><span id="label-wm-scale">22%</span></div>
+                      <input type="range" id="slider-wm-scale" min="10" max="60" value="22" style="width:100%;" oninput="updateWatermarkManualSettings()">
+                    </div>
+                    <div>
+                      <div style="display:flex; justify-content:space-between; font-size:11px;"><span>Transparansi</span><span id="label-wm-opacity">85%</span></div>
+                      <input type="range" id="slider-wm-opacity" min="20" max="100" value="85" style="width:100%;" oninput="updateWatermarkManualSettings()">
+                    </div>
+                  </div>
+                  <div style="display:flex; gap:4px; margin-top:8px; flex-wrap:wrap;">
+                    <button class="crop-ratio-btn" onclick="applyWatermarkPreset(88, 90, 22)">Bawah Kanan</button>
+                    <button class="crop-ratio-btn" onclick="applyWatermarkPreset(12, 90, 22)">Bawah Kiri</button>
+                    <button class="crop-ratio-btn" onclick="applyWatermarkPreset(50, 90, 22)">Bawah Tengah</button>
+                    <button class="crop-ratio-btn" onclick="applyWatermarkPreset(88, 10, 22)">Atas Kanan</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Upload Execution Action -->
+            <div style="margin-top:15px; border-top:1px solid var(--border-subtle); padding-top:15px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+              <span style="font-size:12px; color:var(--text-muted);">Foto akan di-render dengan grading & watermark sebelum diunggah ke Google Drive.</span>
+              <button id="btn-start-upload" class="btn btn-gold" style="padding:12px 24px;" onclick="startStagedPhotosUpload()">🚀 Upload Sekarang ke Cloud</button>
+            </div>
+            <div id="upload-progress-box" style="display:none; margin-top:12px;">
+              <div style="background:#e2e8f0; border-radius:6px; height:8px; overflow:hidden;">
+                <div id="upload-progress-bar" style="background:var(--accent-gold); width:0%; height:100%; transition:width 0.2s;"></div>
+              </div>
+              <p id="upload-progress-text" style="font-size:11px; color:var(--text-muted); margin-top:4px; text-align:center;">Mengunggah...</p>
+            </div>
+          </div>
+          <canvas id="watermark-canvas" style="display:none;"></canvas>
+        </div>
+
+        <!-- TAB 3: STORAGE HEALTH -->
+        <div id="tab-storage" class="dash-tab" style="display:none;">
+          <div class="table-card">
+            <div class="table-header-box">
+              <h3 style="font-size:16px; font-weight:700;">Audit & Pembersihan Penyimpanan Cloud</h3>
+              <button class="btn btn-outline btn-sm role-admin-only" onclick="triggerManualHealthAudit()">🔍 Jalankan Audit Sekarang</button>
+            </div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Nama Acara</th>
+                  <th>Tanggal Pelaksanaan</th>
+                  <th>Total Foto</th>
+                  <th>Status</th>
+                  <th>Tindakan Arsip / Hapus</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-expired-collections">
+                <tr><td colspan="5" style="text-align:center; padding:20px; color:var(--text-muted);">Memuat riwayat kesehatan penyimpanan...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TAB 4: WISHES MODERATION -->
+        <div id="tab-wishes" class="dash-tab" style="display:none;">
+          <div class="table-card">
+            <div class="table-header-box">
+              <h3 style="font-size:16px; font-weight:700;">Moderasi Pesan Ucapan Tamu</h3>
+              <button class="btn btn-outline btn-sm" onclick="fetchWishesForModeration()">🔄 Segarkan Ucapan</button>
+            </div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Nama Pengirim</th>
+                  <th>Pesan Ucapan</th>
+                  <th>Status</th>
+                  <th>Aksi Moderasi</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-wishes-moderation">
+                <tr><td colspan="4" style="text-align:center; padding:20px; color:var(--text-muted);">Memuat ucapan tamu...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TAB 5: SETTINGS -->
+        <div id="tab-settings" class="dash-tab" style="display:none;">
+          <div class="table-card">
+            <div class="table-header-box">
+              <h3 style="font-size:16px; font-weight:700;">Daftar Sensor Kata Terlarang (Bad Words Filter)</h3>
+              <button class="btn btn-gold btn-sm role-admin-only" onclick="openAddWordModal()">+ Tambah Kata Sensor</button>
+            </div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Kata Sensor</th>
+                  <th>Kategori</th>
+                  <th>Hapus</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-sensor-words">
+                <tr><td colspan="3" style="text-align:center; padding:20px; color:var(--text-muted);">Memuat daftar kata...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="table-card role-admin-only">
+            <div class="table-header-box">
+              <h3 style="font-size:16px; font-weight:700;">Manajemen Akun Operator & Crew</h3>
+              <button class="btn btn-gold btn-sm" onclick="openAddCrewModal()">+ Tambah Akun Crew</button>
+            </div>
+            <div style="padding:18px 24px; font-size:13px; color:var(--text-muted);">
+              Admin memiliki hak penuh untuk menambah akun operator lapangan demi kelancaran operasional photobooth di venue.
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- 4. VIEW: GUEST PUBLIC GALLERY -->
+  <div id="view-public-gallery" class="view-container">
+    <!-- 3-Second Branded Intro Splash Loader -->
+    <div id="gallery-splash-loader" class="gallery-splash-loader">
+      <div id="splash-bg-overlay" class="splash-bg-overlay"></div>
+      <div class="splash-content">
+        <div class="splash-studio-tag">LIMZ STUDIO PHOTOBOOTH</div>
+        <div class="splash-cover-box">
+          <img id="splash-cover-img" src="" alt="Couple Cover">
+        </div>
+        <h2 id="splash-couple-title" class="splash-couple-title">Wedding Event</h2>
+        <div id="splash-event-date" class="splash-event-date">Loading date...</div>
+        <div id="splash-countdown-num" class="splash-countdown-badge" onclick="dismissSplashScreen()">3</div>
+        <div class="splash-loading-hint">Menyiapkan dokumentasi foto resolusi penuh...</div>
+      </div>
+    </div>
+
+    <!-- Hero Header Banner -->
+    <div id="pub-hero-banner" class="public-hero-cover">
+      <div class="public-hero-overlay"></div>
+      <div class="public-hero-content">
+        <span class="public-event-badge">LIMZ STUDIO PHOTOBOOTH GALLERY</span>
+        <h1 id="pub-event-title" class="public-couple-title">Irvan & Susan</h1>
+        <p id="pub-event-date" style="font-size:13px; letter-spacing:2px; color:#e2b86b; text-transform:uppercase;"></p>
+        <div style="display:flex; justify-content:center; gap:10px; margin-top:20px; flex-wrap:wrap;">
+          <button class="btn btn-gold btn-sm" onclick="downloadAllPhotosZip()">📦 Unduh Semua (Drive)</button>
+          <button class="btn btn-outline btn-sm" style="color:#fff; border-color:rgba(255,255,255,0.4);" onclick="sharePublicGallery()">🔗 Bagikan Tautan</button>
+          <button class="btn btn-outline btn-sm" style="color:#fff; border-color:rgba(255,255,255,0.4);" onclick="triggerManualSyncPublicGallery()">🔄 Sync Foto Baru</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gallery Photos Section -->
+    <div style="max-width:1200px; margin:0 auto; padding:30px 16px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-subtle); padding-bottom:12px; margin-bottom:16px;">
+        <h2 style="font-size:18px; font-weight:700;">Dokumentasi Foto Tamu</h2>
+        <span id="pub-photo-total-indicator" style="font-size:12px; color:var(--text-muted); font-weight:600;">Memuat foto...</span>
+      </div>
+      <div id="pub-photo-grid" class="photo-grid"></div>
+
+      <!-- Guest Wishes & Blessing Form -->
+      <div style="margin-top:50px; background:#fff; border:1px solid var(--border-subtle); border-radius:16px; padding:26px;">
+        <h3 style="font-size:18px; font-weight:700; margin-bottom:6px;">Kirim Ucapan & Doa Restu</h3>
+        <p style="font-size:12px; color:var(--text-muted); margin-bottom:18px;">Ucapan Anda akan langsung ditampilkan di layar monitor panggung photobooth secara real-time.</p>
+        <div class="form-group">
+          <input type="text" id="wish-sender-name" class="form-control" placeholder="Nama Anda (contoh: Sahabat Mempelai)">
+        </div>
+        <div class="form-group">
+          <textarea id="wish-message-text" class="form-control" rows="3" placeholder="Tuliskan ucapan dan doa terbaik Anda..."></textarea>
+        </div>
+        <button id="btn-send-wish" class="btn btn-gold" onclick="handleSendWishSubmit()">Kirimkan Ucapan</button>
+
+        <div style="margin-top:30px; border-top:1px solid var(--border-subtle); padding-top:20px;">
+          <h4 style="font-size:14px; font-weight:700; margin-bottom:14px;">Ucapan Tamu Undangan</h4>
+          <div id="pub-wishes-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. VIEW: LIVE MONITOR SLIDESHOW SCREEN -->
+  <div id="view-slideshow" class="view-container">
+    <div class="monitor-screen">
+      <!-- Branded Header Bar with Motifs -->
+      <header id="mon-header-bar" class="monitor-header-bar">
+        <div id="mon-header-motif-left" class="mon-header-motif-layer mon-header-motif-left"></div>
+        <div class="monitor-hdr-tag monitor-hdr-tag-left">
+          <span class="mon-hdr-line"></span>
+          <span>PHOTOBOOTH</span>
+        </div>
+        <div class="monitor-hdr-center">
+          <div id="mon-couple-title" class="monitor-couple-name">Irvan & Susan</div>
+          <div id="mon-date-subtitle" class="monitor-date-subtitle">30 AGUSTUS 2026</div>
+        </div>
+        <div class="monitor-hdr-tag monitor-hdr-tag-right">
+          <span>LIVE STAGE</span>
+          <span class="mon-hdr-line"></span>
+        </div>
+        <div id="mon-header-motif-right" class="mon-header-motif-layer mon-header-motif-right"></div>
+      </header>
+
+      <!-- Main Monitor Body -->
+      <main class="monitor-main-content">
+        <!-- Status Kosong -->
+        <div id="mon-empty-state" style="display:none; flex:1; align-items:center; justify-content:center; flex-direction:column; color:#94a3b8; text-align:center;">
+          <div style="font-size:42px; margin-bottom:10px;">📸</div>
+          <div style="font-size:18px; font-weight:700; color:#fff;">Menunggu Jepretan Foto Pertama...</div>
+          <div style="font-size:12px; margin-top:4px;">Foto baru dari kamera studio akan otomatis tampil di layar ini.</div>
+        </div>
+
+        <!-- Foto Utama (Flex 5.8) -->
+        <div class="monitor-col-large">
+          <img id="mon-large-img" class="main-stage-img" src="" alt="Main Stage Shot">
+          <div id="mon-qr-large-card" class="mon-photo-corner-qr large" style="display:none;">
+            <span class="mon-photo-corner-label">⚡ AMBIL FOTO INI</span>
+            <div class="mon-photo-corner-imgbox">
+              <img id="mon-qr-large-img" src="" alt="QR Direct Foto">
+            </div>
+          </div>
+        </div>
+
+        <!-- Sub Photos (Flex 2.8) -->
+        <div id="mon-col-sub" class="monitor-col-sub">
+          <div id="mon-sub-box-1" class="monitor-sub-photo-box" style="display:none;">
+            <img id="mon-sub-img-1" class="sub-stage-img" src="" alt="Sub Photo 1">
+            <div id="mon-qr-sub1-card" class="mon-photo-corner-qr mini" style="display:none;">
+              <span class="mon-photo-corner-label">📲 QR FOTO</span>
+              <div class="mon-photo-corner-imgbox"><img id="mon-qr-sub1-img" src="" alt="QR"></div>
+            </div>
+          </div>
+          <div id="mon-sub-box-2" class="monitor-sub-photo-box" style="display:none;">
+            <img id="mon-sub-img-2" class="sub-stage-img" src="" alt="Sub Photo 2">
+            <div id="mon-qr-sub2-card" class="mon-photo-corner-qr mini" style="display:none;">
+              <span class="mon-photo-corner-label">📲 QR FOTO</span>
+              <div class="mon-photo-corner-imgbox"><img id="mon-qr-sub2-img" src="" alt="QR"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Info Sidebar with Gallery QR & Live Wishes Feed -->
+        <div class="monitor-col-info">
+          <div class="mon-info-top-box">
+            <div class="monitor-brand-heading">SCAN FOR FULL GALLERY</div>
+            <div class="monitor-studio-name">LIMZ PHOTOBOOTH</div>
+            <div class="monitor-badge-scanme">PINDAI DI SINI</div>
+            <div class="monitor-qr-container">
+              <img id="mon-qr-img" src="" alt="Galeri Event QR">
+            </div>
+            <span id="mon-qr-target-hint" class="monitor-qr-status-text" onclick="openSetWebAppUrlModal()">Pindai untuk membuka seluruh galeri...</span>
+          </div>
+
+          <div class="monitor-chat-stream-box">
+            <div class="mon-chat-stream-header">
+              <div class="mon-chat-stream-title">
+                <span class="mon-chat-pulse-dot"></span>
+                <span>DOA & UCAPAN LIVE</span>
+              </div>
+              <span id="mon-chat-stream-counter" class="mon-chat-stream-counter">0 Pesan</span>
+            </div>
+            <div id="mon-chat-feed-list" class="mon-chat-feed-list"></div>
+          </div>
+        </div>
+      </main>
+
+      <!-- Single Floating Wish Card -->
+      <div id="mon-floating-wish-card" class="monitor-floating-wish-card">
+        <span class="mon-wish-badge">✨ DOA RESTU BARU SAJA MASUK</span>
+        <div id="mon-floating-wish-text" class="mon-wish-quote"></div>
+        <div id="mon-floating-wish-sender" class="mon-wish-sender"></div>
+      </div>
+
+      <!-- Live Photo Upload Toast -->
+      <div id="monitor-live-toast" class="monitor-live-toast">
+        <span style="font-size:16px;">⚡</span>
+        <span id="monitor-toast-text">Foto Baru Saja Diunggah!</span>
+      </div>
+
+      <!-- Monitor Footer Bar -->
+      <footer class="monitor-footer-bar">
+        <span id="mon-photo-counter" class="monitor-photo-counter">Memuat foto...</span>
+        <span class="monitor-powered-by">POWERED BY LIMZ STUDIO PHOTOBOOTH</span>
+        <button class="btn btn-outline btn-sm" style="color:#cbd5e1; border-color:#334155; padding:3px 8px;" onclick="closeSlideshow()">Tutup (Esc)</button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- 6. VIEW: PRINTABLE FLYER MEJA 4R -->
+  <div id="view-flyer" class="view-container">
+    <div style="max-width:600px; margin:20px auto; padding:16px; text-align:center;">
+      <div class="flyer-theme-toolbar no-print">
+        <span style="font-size:12px; font-weight:700; margin-right:6px;">Tema Cetak:</span>
+        <button class="flyer-theme-btn active" onclick="switchFlyerTheme('theme-royal-gold', this)">Royal Gold</button>
+        <button class="flyer-theme-btn" onclick="switchFlyerTheme('theme-dark-obsidian', this)">Dark Obsidian</button>
+        <button class="flyer-theme-btn" onclick="switchFlyerTheme('theme-botanical-sage', this)">Botanical Sage</button>
+        <button class="flyer-theme-btn" onclick="switchFlyerTheme('theme-romantic-rose', this)">Romantic Rose</button>
+        <button class="flyer-theme-btn" onclick="switchFlyerTheme('theme-minimalist-mono', this)">Minimalist</button>
+      </div>
+
+      <div id="main-printable-flyer" class="printable-flyer-wrapper theme-royal-gold">
+        <div class="flyer-logo">❖ LIMZ STUDIO</div>
+        <div class="flyer-sub-studio">OFFICIAL PHOTOBOOTH GALLERY</div>
+        <hr class="flyer-divider" style="margin:16px auto; width:70px; border-top:1px solid #d49438;">
+        <h2 id="flyer-event-title" class="flyer-event-name">Irvan & Susan</h2>
+        <div id="flyer-event-date" class="flyer-event-date" style="font-size:11px; letter-spacing:2px; font-weight:700; margin-top:4px;">30 AGUSTUS 2026</div>
+
+        <div class="flyer-qr-box">
+          <img id="flyer-qr-img" src="" alt="Flyer QR">
+        </div>
+
+        <p class="flyer-inst-text" style="font-size:12px; line-height:1.5;">Pindai QR Code di atas menggunakan kamera smartphone Anda untuk melihat dan mengunduh seluruh dokumentasi foto momen bahagia hari ini.</p>
+        <div class="flyer-tagline" style="font-size:10px; letter-spacing:2px; font-weight:800; margin-top:20px;">SIMPAN KENANGAN INDAH ANDA</div>
+        <div class="flyer-footer" style="font-size:9px; margin-top:8px;">WWW.LIMZSTUDIO.COM</div>
+      </div>
+
+      <div class="no-print" style="display:flex; justify-content:center; gap:10px; flex-wrap:wrap;">
+        <button class="btn btn-gold" onclick="downloadFlyerJpeg4R()">📥 Download JPEG (Siap Cetak 4R)</button>
+        <button class="btn btn-dark" onclick="window.print()">🖨️ Cetak Langsung</button>
+        <button class="btn btn-outline" onclick="copyActiveGalleryLink()">🔗 Salin Link</button>
+        <button class="btn btn-outline" onclick="backToDashboard()">← Kembali</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: LIVE CAMERA / WEBCAM -->
+  <div id="modal-live-camera" class="modal-overlay">
+    <div class="modal-box" style="max-width:720px; background:#0c0f17; color:#fff;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <h3 style="font-size:16px; font-weight:700; color:var(--accent-gold);">🎥 Live Camera Shutter Station</h3>
+        <button class="btn btn-outline btn-sm" style="color:#fff;" onclick="closeLiveCameraModal()">✕ Tutup</button>
+      </div>
+      <div style="position:relative; width:100%; height:380px; background:#000; border-radius:10px; overflow:hidden; display:flex; align-items:center; justify-content:center;">
+        <video id="live-camera-video" playsinline autoplay muted style="width:100%; height:100%; object-fit:cover;"></video>
+        <div id="camera-countdown-overlay" style="position:absolute; inset:0; background:rgba(0,0,0,0.6); display:none; align-items:center; justify-content:center; font-size:72px; font-weight:800; color:var(--accent-gold); z-index:20;">
+          <span id="camera-countdown-number">3</span>
+        </div>
+        <div id="camera-flash-overlay" style="position:absolute; inset:0; background:#fff; opacity:0; pointer-events:none; transition:opacity 0.2s; z-index:25;"></div>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:14px; flex-wrap:wrap; gap:10px;">
+        <select id="camera-device-select" class="form-control" style="max-width:280px; background:#1e293b; color:#fff; border-color:#334155;" onchange="switchCameraDevice(this.value)"></select>
+        <div style="display:flex; align-items:center; gap:12px;">
+          <label style="font-size:12px; display:flex; align-items:center; gap:6px; cursor:pointer;">
+            <input type="checkbox" id="chk-camera-timer"> Timer 3 Detik
+          </label>
+          <button class="btn btn-gold" style="padding:10px 24px; font-size:14px;" onclick="triggerCameraShutter()">📸 JEPRET (Space)</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: BURST GIF CREATOR -->
+  <div id="modal-gif-creator" class="modal-overlay">
+    <div class="modal-box" style="max-width:540px;">
+      <h3 style="font-size:16px; font-weight:700; margin-bottom:12px;">🎞️ Pembuat Animasi GIF (Burst / Boomerang)</h3>
+      <div style="width:100%; height:260px; background:#111; border-radius:10px; overflow:hidden; display:flex; align-items:center; justify-content:center; position:relative; margin-bottom:14px;">
+        <img id="gif-preview-img" src="" style="max-width:100%; max-height:100%; object-fit:contain;" alt="GIF Preview">
+        <div id="gif-render-spinner" style="position:absolute; inset:0; background:rgba(0,0,0,0.7); display:none; align-items:center; justify-content:center; color:#fff; font-size:13px; font-weight:700;">
+          Sedang Meng-encode Animasi GIF...
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Kecepatan Frame: <span id="lbl-gif-speed" style="font-weight:700; color:var(--accent-gold);">250 ms / frame</span></label>
+        <input type="range" id="slider-gif-speed" min="80" max="600" value="250" style="width:100%;" oninput="updateGifSpeed(this.value)">
+      </div>
+      <div style="display:flex; gap:16px; margin-bottom:16px;">
+        <label style="font-size:12px; display:flex; align-items:center; gap:6px; cursor:pointer;">
+          <input type="checkbox" id="check-gif-boomerang" checked onchange="renderLiveGifPreview()"> Efek Boomerang (Maju-Mundur)
+        </label>
+        <label style="font-size:12px; display:flex; align-items:center; gap:6px; cursor:pointer;">
+          <input type="checkbox" id="check-gif-watermark" checked onchange="renderLiveGifPreview()"> Sertakan Watermark
+        </label>
+      </div>
+      <div style="display:flex; justify-content:flex-end; gap:8px;">
+        <button class="btn btn-outline" onclick="closeModal('modal-gif-creator')">Tutup</button>
+        <button class="btn btn-outline" onclick="downloadCurrentGif()">📥 Unduh File .GIF</button>
+        <button class="btn btn-gold" onclick="enqueueGifToUploadList()">🚀 Masukkan ke Antrian Upload</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CREATE COLLECTION -->
+  <div id="modal-create-collection" class="modal-overlay">
+    <div class="modal-box">
+      <h3 style="font-size:16px; font-weight:700; margin-bottom:14px;">Tambah Koleksi Acara Baru</h3>
+      <form onsubmit="event.preventDefault(); handleCreateCollectionSubmit();">
+        <div class="form-group">
+          <label>Nama Acara *</label>
+          <input type="text" id="new-coll-title" class="form-control" placeholder="Contoh: Irvan & Susan Wedding" required>
+        </div>
+        <div class="form-group">
+          <label>Slug URL Galeri *</label>
+          <input type="text" id="new-coll-slug" class="form-control" placeholder="irvan-susan" required>
+        </div>
+        <div class="form-group">
+          <label>Nama Klien</label>
+          <input type="text" id="new-coll-client" class="form-control" placeholder="Irvan & Susan">
+        </div>
+        <div class="form-group">
+          <label>Tanggal Pelaksanaan</label>
+          <input type="date" id="new-coll-date" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label>URL Folder Google Drive (Opsional)</label>
+          <input type="text" id="new-coll-drive-url" class="form-control" placeholder="https://drive.google.com/drive/folders/...">
+        </div>
+        <div class="form-group">
+          <label>Warna Header Monitor</label>
+          <input type="color" id="new-coll-header-color" class="form-control" value="#1f2530" style="height:40px; padding:2px;">
+        </div>
+        <div class="form-group">
+          <label>Motif Ornamen Panggung</label>
+          <select id="new-coll-header-motif" class="form-control">
+            <option value="floral-gold">Floral Gold</option>
+            <option value="botanical-leaves">Botanical Leaves</option>
+            <option value="vintage-ornament">Vintage Ornament</option>
+            <option value="sparkle-stars">Sparkle Stars</option>
+            <option value="none">Tanpa Motif</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Foto Cover (File atau URL)</label>
+          <input type="file" id="new-coll-cover-file" accept="image/*" class="form-control" style="margin-bottom:6px;">
+          <input type="text" id="new-coll-cover-url" class="form-control" placeholder="atau tempelkan URL gambar cover...">
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:20px;">
+          <button type="button" class="btn btn-outline" onclick="closeModal('modal-create-collection')">Batal</button>
+          <button type="submit" id="btn-save-collection" class="btn btn-gold">Simpan Acara</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: EDIT COLLECTION -->
+  <div id="modal-edit-collection" class="modal-overlay">
+    <div class="modal-box">
+      <h3 style="font-size:16px; font-weight:700; margin-bottom:14px;">Perbarui Informasi Acara</h3>
+      <form onsubmit="event.preventDefault(); handleEditCollectionSubmit();">
+        <input type="hidden" id="edit-coll-id">
+        <div class="form-group">
+          <label>Nama Acara *</label>
+          <input type="text" id="edit-coll-title" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label>Slug URL Galeri *</label>
+          <input type="text" id="edit-coll-slug" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label>Nama Klien</label>
+          <input type="text" id="edit-coll-client" class="form-control">
+        </div>
+        <div class="form-group">
+          <label>Tanggal Pelaksanaan</label>
+          <input type="text" id="edit-coll-date" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label>URL Folder Google Drive</label>
+          <input type="text" id="edit-coll-drive-url" class="form-control">
+        </div>
+        <div class="form-group">
+          <label>Warna Header Monitor</label>
+          <input type="color" id="edit-coll-header-color" class="form-control" style="height:40px; padding:2px;">
+        </div>
+        <div class="form-group">
+          <label>Motif Ornamen Panggung</label>
+          <select id="edit-coll-header-motif" class="form-control">
+            <option value="floral-gold">Floral Gold</option>
+            <option value="botanical-leaves">Botanical Leaves</option>
+            <option value="vintage-ornament">Vintage Ornament</option>
+            <option value="sparkle-stars">Sparkle Stars</option>
+            <option value="none">Tanpa Motif</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Perbarui Cover (Opsional)</label>
+          <input type="file" id="edit-coll-cover-file" accept="image/*" class="form-control" style="margin-bottom:6px;">
+          <input type="text" id="edit-coll-cover-url" class="form-control">
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:20px;">
+          <button type="button" class="btn btn-outline" onclick="closeModal('modal-edit-collection')">Batal</button>
+          <button type="submit" id="btn-update-collection" class="btn btn-gold">Simpan Perubahan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: LIGHTBOX FULL IMAGE VIEW -->
+  <div id="modal-lightbox" class="lightbox-modal" onclick="closeLightbox()">
+    <div class="lightbox-container" onclick="event.stopPropagation()">
+      <div class="lightbox-header">
+        <span id="lightbox-file-name" style="font-size:13px; font-weight:700; color:#fff;">Foto Dokumentasi</span>
+        <button class="btn btn-outline btn-sm" style="color:#fff;" onclick="closeLightbox()">✕ Tutup</button>
+      </div>
+      <div class="lightbox-img-box">
+        <img id="lightbox-img" src="" alt="Full High Res Photo">
+      </div>
+      <div class="lightbox-footer">
+        <span style="font-size:12px; color:#8c7e6d;">Resolusi Penuh • Limz Studio Photobooth</span>
+        <a id="lightbox-download-btn" href="#" target="_blank" class="btn btn-gold btn-sm">⬇️ Unduh Foto Asli</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CHANGE PASSWORD -->
+  <div id="modal-change-password" class="modal-overlay">
+    <div class="modal-box">
+      <h3 style="font-size:16px; font-weight:700; margin-bottom:14px;">Ganti Password Akun</h3>
+      <form onsubmit="event.preventDefault(); handleChangePasswordSubmit();">
+        <div class="form-group">
+          <label>Password Lama</label>
+          <input type="password" id="chg-old-password" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label>Password Baru</label>
+          <input type="password" id="chg-new-password" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label>Konfirmasi Password Baru</label>
+          <input type="password" id="chg-confirm-password" class="form-control" required>
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:20px;">
+          <button type="button" class="btn btn-outline" onclick="closeModal('modal-change-password')">Batal</button>
+          <button type="submit" id="btn-save-newpass" class="btn btn-gold">Perbarui Password</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD CREW -->
+  <div id="modal-add-crew" class="modal-overlay">
+    <div class="modal-box">
+      <h3 style="font-size:16px; font-weight:700; margin-bottom:14px;">Tambah Akun Crew Operator</h3>
+      <form onsubmit="event.preventDefault(); handleAddCrewSubmit();">
+        <div class="form-group">
+          <label>Nama Lengkap</label>
+          <input type="text" id="crew-nama" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label>Email Login</label>
+          <input type="email" id="crew-email" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label>Password Akun</label>
+          <input type="password" id="crew-password" class="form-control" required>
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:20px;">
+          <button type="button" class="btn btn-outline" onclick="closeModal('modal-add-crew')">Batal</button>
+          <button type="submit" id="btn-save-crew" class="btn btn-gold">Simpan Akun Crew</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: CHANGE STUDIO LOGO -->
+  <div id="modal-change-logo" class="modal-overlay">
+    <div class="modal-box">
+      <h3 style="font-size:16px; font-weight:700; margin-bottom:14px;">Ganti Logo Resmi Studio</h3>
+      <div class="form-group">
+        <label>Pilih File Logo (Format PNG Transparan)</label>
+        <input type="file" id="file-change-logo" accept="image/png,image/svg+xml" class="form-control" onchange="handleLogoFileSelected(this.files)">
+      </div>
+      <div style="text-align:center; padding:15px; background:#191410; border-radius:8px; margin-bottom:15px;">
+        <img id="preview-change-logo-img" src="" style="max-height:60px; display:none; margin:0 auto;" alt="Logo Preview">
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <button type="button" class="btn btn-outline btn-sm" onclick="resetDefaultStudioLogo()">Reset Default</button>
+        <div style="display:flex; gap:8px;">
+          <button type="button" class="btn btn-outline btn-sm" onclick="closeModal('modal-change-logo')">Batal</button>
+          <button type="button" id="btn-save-studio-logo" class="btn btn-gold btn-sm" onclick="saveCustomStudioLogo()">Simpan Logo</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD SENSOR WORD -->
+  <div id="modal-add-word" class="modal-overlay">
+    <div class="modal-box">
+      <h3 style="font-size:16px; font-weight:700; margin-bottom:14px;">Tambah Kata Terlarang (Sensor)</h3>
+      <form onsubmit="event.preventDefault(); handleAddWordSubmit();">
+        <div class="form-group">
+          <label>Kata Sensor</label>
+          <input type="text" id="new-sensor-word" class="form-control" placeholder="Contoh: spam" required>
+        </div>
+        <div class="form-group">
+          <label>Kategori</label>
+          <select id="new-sensor-category" class="form-control">
+            <option value="Profanity">Profanity (Kasar)</option>
+            <option value="Spam">Spam / Iklan</option>
+            <option value="Insult">Insult (Penghinaan)</option>
+            <option value="Negative">Negatif</option>
+          </select>
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:20px;">
+          <button type="button" class="btn btn-outline" onclick="closeModal('modal-add-word')">Batal</button>
+          <button type="submit" class="btn btn-gold">Simpan Kata</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: CONFIRM DELETE -->
+  <div id="modal-confirm-delete" class="modal-overlay">
+    <div class="modal-box" style="max-width:440px; text-align:center;">
+      <div style="font-size:42px; color:var(--accent-red); margin-bottom:10px;">⚠️</div>
+      <h3 style="font-size:17px; font-weight:700; margin-bottom:8px;">Hapus Event Secara Permanen?</h3>
+      <p style="font-size:13px; color:var(--text-muted); line-height:1.5; margin-bottom:16px;">
+        Anda akan menghapus event <strong id="delete-confirm-coll-title"></strong>. Seluruh data spreadsheet dan folder foto di Google Drive akan dipindahkan ke Sampah.
+      </p>
+      <input type="hidden" id="delete-target-coll-id">
+      <div style="display:flex; justify-content:center; gap:10px;">
+        <button class="btn btn-outline" onclick="closeModal('modal-confirm-delete')">Batal</button>
+        <button id="btn-execute-delete" class="btn btn-danger" onclick="executeDeleteCollection()">Ya, Hapus Permanen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: FEATURES EXPLANATION -->
+  <div id="modal-features-explanation" class="modal-overlay">
+    <div class="modal-box" style="max-width:600px;">
+      <h3 style="font-size:18px; font-weight:700; margin-bottom:14px; color:var(--accent-gold);">Fitur Unggulan Limz Studio Photobooth</h3>
+      <div class="feature-card">
+        <div class="feature-card-title">🖥️ Monitor Slideshow Real-Time</div>
+        <div class="feature-card-desc">Layar monitor panggung otomatis menampilkan foto baru yang diambil kamera dan pesan doa tamu dengan QR code direct scan.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card-title">🛡️ Watermarking Kustom & Drag-and-Drop</div>
+        <div class="feature-card-desc">Atur posisi logo watermark PNG transparan secara leluasa dengan snapping magnetik presisi di layar preview.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card-title">🎞️ Generator Animasi Burst GIF</div>
+        <div class="feature-card-desc">Gabungkan beberapa jepretan foto menjadi animasi GIF dinamis dengan opsi boomerang yang siap diunggah atau diunduh.</div>
+      </div>
+      <div style="text-align:right; margin-top:16px;">
+        <button class="btn btn-gold" onclick="closeModal('modal-features-explanation')">Mengerti</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Global Toast Notification -->
+  <div id="global-toast" class="toast-box"></div>
 
   <script>
-    (function() {
-      // Base URL resmi Google Apps Script Web App
-      var GAS_EXEC_URL = 'https://script.google.com/macros/s/AKfycbzeodgb__ikusUg4oWnBgeBLh_8x2DlAfPff-OfRPgLovbxw1pwl2m1DAGw9ANHA2yKOA/exec';
+    /* =========================================================================
+       GAS HEADLESS API BRIDGE (Polyfill untuk google.script.run)
+       Menghubungkan Frontend Vercel ke Google Apps Script tanpa iframe & tanpa banner!
+       ========================================================================= */
+    var GAS_BACKEND_URL = 'https://script.google.com/macros/s/AKfycbzeodgb__ikusUg4oWnBgeBLh_8x2DlAfPff-OfRPgLovbxw1pwl2m1DAGw9ANHA2yKOA/exec';
 
-      var iframe = document.getElementById('gas-app-frame');
-      var loader = document.getElementById('wrapper-loader');
-      var loaderStatus = document.getElementById('loader-status');
-      var fallbackBox = document.getElementById('fallback-box');
-      var directBtn = document.getElementById('direct-link-btn');
+    function callGasBackend(actionName, args, onSuccess, onFailure) {
+      var payload = JSON.stringify({
+        action: actionName,
+        args: args || []
+      });
 
-      // Ambil seluruh parameter query string (?slug=...&view=...&photoId=...) dan hash
-      var searchParams = window.location.search || '';
-      var hashParams = window.location.hash || '';
+      // Menggunakan text/plain agar browser tidak mengirimkan preflight OPTIONS yang ditolak GAS
+      fetch(GAS_BACKEND_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: payload
+      })
+      .then(function(res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(function(data) {
+        if (onSuccess) onSuccess(data);
+      })
+      .catch(function(err) {
+        console.error('GAS API Bridge Error [' + actionName + ']:', err);
+        if (onFailure) {
+          onFailure(err);
+        } else {
+          showToast('Koneksi server: ' + (err.message || 'Gagal memproses data'));
+        }
+      });
+    }
 
-      // Rakit URL tujuan dengan meneruskan seluruh parameter
-      var targetUrl = GAS_EXEC_URL;
-      if (searchParams) {
-        targetUrl += (targetUrl.indexOf('?') > -1 ? '&' : '?') + searchParams.replace(/^\?/, '');
-      }
-      if (hashParams) {
-        targetUrl += hashParams;
-      }
+    // Pasang Proxy google.script.run agar seluruh pemanggilan method backend tetap identik
+    if (typeof window.google === 'undefined' || !window.google.script || !window.google.script.run) {
+      window.google = window.google || {};
+      window.google.script = window.google.script || {};
 
-      if (directBtn) {
-        directBtn.href = targetUrl;
-      }
+      function createGasRunProxy() {
+        var successHandler = null;
+        var failureHandler = null;
 
-      // Event listener saat iframe selesai memuat
-      var isLoaded = false;
-      function hideLoader() {
-        if (!isLoaded) {
-          isLoaded = true;
-          if (loader) {
-            loader.classList.add('fade-out');
-            setTimeout(function() {
-              loader.style.display = 'none';
-            }, 500);
+        var handlerObj = {
+          withSuccessHandler: function(fn) {
+            successHandler = fn;
+            return handlerObj;
+          },
+          withFailureHandler: function(fn) {
+            failureHandler = fn;
+            return handlerObj;
           }
+        };
+
+        return new Proxy(handlerObj, {
+          get: function(target, propKey) {
+            if (propKey === 'withSuccessHandler' || propKey === 'withFailureHandler') {
+              return target[propKey];
+            }
+            return function() {
+              var args = Array.prototype.slice.call(arguments);
+              callGasBackend(propKey, args, successHandler, failureHandler);
+            };
+          }
+        });
+      }
+
+      Object.defineProperty(window.google.script, 'run', {
+        get: function() {
+          return createGasRunProxy();
+        }
+      });
+    }
+
+    /* =========================================================================
+       MODUL STATE APLIKASI & INISIALISASI
+       ========================================================================= */
+    var appState = {
+      currentUser: null,
+      currentView: 'view-landing',
+      activeCollectionId: null,
+      activeCollectionData: null,
+      targetPhotoId: null,
+      activeMonitorPhotoId: null,
+      activeSub1PhotoId: null,
+      activeSub2PhotoId: null,
+      collections: [],
+      photos: [],
+      wishes: [],
+      sensorWords: [],
+      slideshowInterval: null,
+      slideshowPollInterval: null,
+      chatStreamInterval: null,
+      floatingWishTimeout: null,
+      knownWishKeys: {},
+      isWishInitialized: false,
+      lastKnownPhotoCount: 0,
+      monitorPhotos: [],
+      webAppUrl: '',
+      qrCache: {},
+      customWatermarkPngData: null,
+      customWatermarkImgObj: null,
+      studioLogoDataUrl: null,
+      tempUploadedLogoBase64: null,
+      stagedPhotos: [],
+      activeStagedIndex: 0,
+      photoFilterState: {
+        preset: 'normal',
+        brightness: 0,
+        contrast: 0,
+        saturation: 0,
+        temperature: 0,
+        tint: 0,
+        shadows: 0,
+        highlights: 0
+      }
+    };
+
+    document.addEventListener('DOMContentLoaded', function() {
+      checkSavedUserSession();
+      initSidebarState();
+      initAppConfig();
+      initWatermarkSettings();
+      initStudioLogo();
+      initDropzoneEvents();
+      initCropDragEvents();
+      initWatermarkDragEvents();
+      checkUrlRouting();
+      initKeyboardShortcuts();
+    });
+
+    function toggleDashboardSidebar() {
+      var sidebar = document.getElementById('dashboard-sidebar');
+      var toggleBtn = document.getElementById('sidebar-toggle-btn');
+      if (!sidebar) return;
+      var isCollapsed = sidebar.classList.toggle('collapsed');
+      if (toggleBtn) toggleBtn.innerText = isCollapsed ? '▶' : '◀';
+      localStorage.setItem('limz_sidebar_collapsed', isCollapsed ? 'true' : 'false');
+    }
+
+    function initSidebarState() {
+      var saved = localStorage.getItem('limz_sidebar_collapsed');
+      if (saved === 'true') {
+        var sidebar = document.getElementById('dashboard-sidebar');
+        var toggleBtn = document.getElementById('sidebar-toggle-btn');
+        if (sidebar) sidebar.classList.add('collapsed');
+        if (toggleBtn) toggleBtn.innerText = '▶';
+      }
+    }
+
+    // Resolusi URL Galeri & Monitor Murni Menggunakan Host Vercel Saat Ini (Bebas Google Banner)
+    function getPublicGalleryUrl(slug) {
+      var baseUrl = window.location.origin + window.location.pathname;
+      baseUrl = baseUrl.replace(/\/+$/, '');
+      return baseUrl + '?slug=' + encodeURIComponent(slug);
+    }
+
+    function getDirectPhotoOrGalleryUrl(slug, photoId) {
+      var base = getPublicGalleryUrl(slug);
+      if (photoId) return base + '&photoId=' + encodeURIComponent(photoId);
+      return base;
+    }
+
+    function openPublicGalleryNewTab(slug) {
+      var targetUrl = getPublicGalleryUrl(slug);
+      window.open(targetUrl, '_blank');
+    }
+
+    function openSlideshowNewTab(slug) {
+      var baseUrl = window.location.origin + window.location.pathname;
+      baseUrl = baseUrl.replace(/\/+$/, '');
+      var targetUrl = baseUrl + '?view=slideshow&slug=' + encodeURIComponent(slug);
+      window.open(targetUrl, '_blank');
+    }
+
+    function checkUrlRouting() {
+      var urlParams = new URLSearchParams(window.location.search);
+      var slug = urlParams.get('slug');
+      var view = urlParams.get('view');
+      var photoId = urlParams.get('photoId');
+
+      if (photoId) appState.targetPhotoId = String(photoId).trim();
+
+      if (slug) {
+        var views = document.querySelectorAll('.view-container');
+        for (var i = 0; i < views.length; i++) {
+          views[i].classList.remove('view-active');
+          views[i].style.display = 'none';
+        }
+        
+        if (view === 'slideshow') {
+          document.getElementById('view-slideshow').style.display = 'block';
+          loadSlideshowBySlug(slug);
+        } else {
+          document.getElementById('view-public-gallery').style.display = 'block';
+          loadPublicGalleryBySlug(slug, false);
+        }
+      } else {
+        switchView('view-landing');
+      }
+    }
+
+    function switchView(viewId) {
+      var views = document.querySelectorAll('.view-container');
+      for (var i = 0; i < views.length; i++) {
+        views[i].classList.remove('view-active');
+        views[i].style.display = 'none';
+      }
+      var target = document.getElementById(viewId);
+      if (target) {
+        target.classList.add('view-active');
+        target.style.display = 'block';
+        appState.currentView = viewId;
+        window.scrollTo(0, 0);
+      }
+    }
+
+    function switchDashboardTab(tabId, el) {
+      var tabs = document.querySelectorAll('.dash-tab');
+      for (var i = 0; i < tabs.length; i++) tabs[i].style.display = 'none';
+      var target = document.getElementById(tabId);
+      if (target) target.style.display = 'block';
+
+      if (el) {
+        var items = document.querySelectorAll('.sidebar-item');
+        for (var j = 0; j < items.length; j++) items[j].classList.remove('active');
+        el.classList.add('active');
+      }
+    }
+
+    function showToast(msg) {
+      var toast = document.getElementById('global-toast');
+      if (!toast) return;
+      toast.innerText = msg;
+      toast.style.display = 'block';
+      setTimeout(function() { toast.style.display = 'none'; }, 3500);
+    }
+
+    function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+    var liveCameraStream = null;
+    var dslrHotFolderWatcher = null;
+    var dslrWatchedFiles = {};
+
+    function triggerMobileCameraCapture(e) {
+      if (e) e.stopPropagation();
+      var camInput = document.getElementById('file-input-mobile-cam');
+      if (camInput) camInput.click();
+    }
+
+    function triggerIpadRollCapture(e) {
+      if (e) e.stopPropagation();
+      var input = document.getElementById('file-input-ipad-roll');
+      if (input) input.click();
+    }
+
+    function openLiveCameraModal(e) {
+      if (e) e.stopPropagation();
+      openModal('modal-live-camera');
+      enumerateCameraDevices();
+      startLiveCameraStream();
+    }
+
+    function closeLiveCameraModal() {
+      stopLiveCameraStream();
+      closeModal('modal-live-camera');
+    }
+
+    function enumerateCameraDevices() {
+      var select = document.getElementById('camera-device-select');
+      if (!select || !navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+      navigator.mediaDevices.enumerateDevices().then(function(devices) {
+        select.innerHTML = '';
+        var videoDevices = devices.filter(function(d) { return d.kind === 'videoinput'; });
+        videoDevices.forEach(function(dev, idx) {
+          var opt = document.createElement('option');
+          opt.value = dev.deviceId;
+          opt.innerText = dev.label || ('Kamera ' + (idx + 1));
+          select.appendChild(opt);
+        });
+      }).catch(function(err) { console.warn('Kamera device error:', err); });
+    }
+
+    function startLiveCameraStream(deviceId) {
+      stopLiveCameraStream();
+      var video = document.getElementById('live-camera-video');
+      if (!video || !navigator.mediaDevices) return;
+      var constraint = deviceId ? { deviceId: { exact: deviceId } } : { video: true };
+      navigator.mediaDevices.getUserMedia(constraint).then(function(stream) {
+        liveCameraStream = stream;
+        video.srcObject = stream;
+      }).catch(function(err) { showToast('Gagal membuka kamera: ' + err.message); });
+    }
+
+    function stopLiveCameraStream() {
+      if (liveCameraStream) {
+        liveCameraStream.getTracks().forEach(function(t) { t.stop(); });
+        liveCameraStream = null;
+      }
+    }
+
+    function switchCameraDevice(deviceId) { if (deviceId) startLiveCameraStream(deviceId); }
+
+    function triggerCameraShutter() {
+      var video = document.getElementById('live-camera-video');
+      if (!video || !liveCameraStream) { showToast('Kamera belum aktif.'); return; }
+      var useTimer = document.getElementById('chk-camera-timer') && document.getElementById('chk-camera-timer').checked;
+      if (useTimer) {
+        var countOverlay = document.getElementById('camera-countdown-overlay');
+        var countNumber = document.getElementById('camera-countdown-number');
+        if (countOverlay && countNumber) {
+          countOverlay.style.display = 'flex';
+          var count = 3;
+          countNumber.innerText = count;
+          var interval = setInterval(function() {
+            count--;
+            if (count > 0) {
+              countNumber.innerText = count;
+            } else {
+              clearInterval(interval);
+              countOverlay.style.display = 'none';
+              captureLiveFrameToStaging();
+            }
+          }, 1000);
+          return;
         }
       }
+      captureLiveFrameToStaging();
+    }
 
-      iframe.onload = function() {
-        hideLoader();
+    function captureLiveFrameToStaging() {
+      var video = document.getElementById('live-camera-video');
+      var flash = document.getElementById('camera-flash-overlay');
+      if (!video) return;
+      if (flash) {
+        flash.style.opacity = '0.9';
+        setTimeout(function() { flash.style.opacity = '0'; }, 200);
+      }
+      var vw = video.videoWidth || 1920;
+      var vh = video.videoHeight || 1080;
+      var snapCanvas = document.createElement('canvas');
+      snapCanvas.width = vw;
+      snapCanvas.height = vh;
+      var ctx = snapCanvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, vw, vh);
+
+      var dataUrl = snapCanvas.toDataURL('image/jpeg', 0.95);
+      var fileName = 'CAM_SHOT_' + Date.now() + '.jpg';
+
+      appState.stagedPhotos.push({
+        id: 'staged_' + Date.now(),
+        name: fileName,
+        size: Math.round(dataUrl.length * 0.75),
+        dataUrl: dataUrl,
+        originalDataUrl: dataUrl,
+        isCropped: false
+      });
+      appState.activeStagedIndex = appState.stagedPhotos.length - 1;
+      renderStagedPhotosUI();
+      showToast('📸 Foto dijepret & masuk antrian preview!');
+    }
+
+    function triggerDslrHotFolderWatch(e) {
+      if (e) e.stopPropagation();
+      var btn = document.getElementById('btn-tether-hotfolder');
+      if (!('showDirectoryPicker' in window)) {
+        showToast('Browser ini tidak mendukung pemantau folder otomatis. Gunakan tombol Pilih Foto.');
+        return;
+      }
+      if (dslrHotFolderWatcher) {
+        clearInterval(dslrHotFolderWatcher);
+        dslrHotFolderWatcher = null;
+        if (btn) { btn.innerHTML = '📁 Auto-Sync Folder Tether DSLR'; btn.style.background = '#ecfdf5'; btn.style.color = '#047857'; }
+        showToast('Pemantauan tether dinonaktifkan.');
+        return;
+      }
+      window.showDirectoryPicker().then(function(dirHandle) {
+        dslrWatchedFiles = {};
+        if (btn) { btn.innerHTML = '🟢 Monitoring Folder Tether Aktif (Klik Stop)'; btn.style.background = '#dcfce7'; btn.style.color = '#15803d'; }
+        showToast('✅ Memonitor folder tether. Foto baru akan otomatis dimuat!');
+        async function scanFolder() {
+          try {
+            for await (var entry of dirHandle.values()) {
+              if (entry.kind === 'file') {
+                var nameLower = entry.name.toLowerCase();
+                if (nameLower.endsWith('.jpg') || nameLower.endsWith('.jpeg') || nameLower.endsWith('.png')) {
+                  if (!dslrWatchedFiles[entry.name]) {
+                    dslrWatchedFiles[entry.name] = true;
+                    var file = await entry.getFile();
+                    var reader = new FileReader();
+                    reader.onload = function(evt) {
+                      appState.stagedPhotos.push({
+                        id: 'staged_' + Date.now(),
+                        name: file.name,
+                        size: file.size,
+                        dataUrl: evt.target.result,
+                        originalDataUrl: evt.target.result,
+                        isCropped: false
+                      });
+                      appState.activeStagedIndex = appState.stagedPhotos.length - 1;
+                      renderStagedPhotosUI();
+                      showToast('⚡ Foto baru dari DSLR dimuat: ' + file.name);
+                    };
+                    reader.readAsDataURL(file);
+                  }
+                }
+              }
+            }
+          } catch(err) { console.warn('Scan error:', err); }
+        }
+        scanFolder();
+        dslrHotFolderWatcher = setInterval(scanFolder, 2500);
+      }).catch(function(err) {
+        if (err.name !== 'AbortError') showToast('Gagal membuka folder: ' + err.message);
+      });
+    }
+
+    function initDropzoneEvents() {
+      var dropzone = document.getElementById('dropzone-upload-box');
+      if (!dropzone) return;
+      ['dragenter', 'dragover'].forEach(function(evt) {
+        dropzone.addEventListener(evt, function(e) { e.preventDefault(); dropzone.classList.add('drag-over-active'); });
+      });
+      ['dragleave', 'dragend'].forEach(function(evt) {
+        dropzone.addEventListener(evt, function(e) { e.preventDefault(); dropzone.classList.remove('drag-over-active'); });
+      });
+      dropzone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        dropzone.classList.remove('drag-over-active');
+        if (e.dataTransfer && e.dataTransfer.files) handlePhotoFilesSelected(e.dataTransfer.files);
+      });
+    }
+
+    function handlePhotoFilesSelected(files) {
+      if (!files || files.length === 0) return;
+      var fileList = Array.prototype.slice.call(files);
+      var total = fileList.length;
+      var loaded = 0;
+      showToast('Memuat ' + total + ' foto ke antrian...');
+      fileList.forEach(function(f) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          appState.stagedPhotos.push({
+            id: 'staged_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+            file: f,
+            name: f.name,
+            size: f.size,
+            dataUrl: e.target.result,
+            originalDataUrl: e.target.result,
+            isCropped: false
+          });
+          loaded++;
+          if (loaded >= total) {
+            renderStagedPhotosUI();
+            showToast('✅ ' + total + ' foto siap diatur!');
+          }
+        };
+        reader.readAsDataURL(f);
+      });
+    }
+
+    var cropState = { active: false, orientation: 'horizontal', ratio: 'free', boxLeft: 10, boxTop: 10, boxWidth: 80, boxHeight: 80, isDragging: false, isResizing: false, resizeHandle: null };
+
+    function updateCropBoxUI() {
+      var box = document.getElementById('crop-box');
+      if (!box) return;
+      box.style.left = cropState.boxLeft + '%';
+      box.style.top = cropState.boxTop + '%';
+      box.style.width = cropState.boxWidth + '%';
+      box.style.height = cropState.boxHeight + '%';
+    }
+
+    function toggleCropMode(forcedState) {
+      if (!appState.stagedPhotos || appState.stagedPhotos.length === 0) {
+        showToast('Pilih foto terlebih dahulu sebelum crop.');
+        return;
+      }
+      var next = (typeof forcedState === 'boolean') ? forcedState : !cropState.active;
+      cropState.active = next;
+      document.getElementById('crop-toolbar').style.display = next ? 'flex' : 'none';
+      document.getElementById('wm-crop-overlay').style.display = next ? 'block' : 'none';
+      var btn = document.getElementById('btn-toggle-crop');
+      if (btn) btn.innerText = next ? '✂️ Sedang Crop' : '✂️ Crop Foto';
+      if (next) updateCropBoxUI();
+    }
+
+    function setCropOrientation(orient, btnEl) {
+      cropState.orientation = orient;
+      document.querySelectorAll('.crop-orient-btn').forEach(function(b) { b.classList.remove('active'); });
+      if (btnEl) btnEl.classList.add('active');
+    }
+
+    function setCropRatio(ratio, btnEl) {
+      cropState.ratio = ratio;
+      document.querySelectorAll('.crop-ratio-btn').forEach(function(b) { b.classList.remove('active'); });
+      if (btnEl) btnEl.classList.add('active');
+      if (ratio === 'free') return;
+      var stage = document.getElementById('wm-stage-frame');
+      if (!stage) return;
+      var aspect = 1;
+      if (ratio === '4-6') aspect = (cropState.orientation === 'vertical') ? (2/3) : (3/2);
+      else if (ratio === '4-3') aspect = (cropState.orientation === 'vertical') ? (3/4) : (4/3);
+      cropState.boxWidth = 80;
+      cropState.boxHeight = 80 / aspect;
+      if (cropState.boxHeight > 90) { cropState.boxHeight = 90; cropState.boxWidth = 90 * aspect; }
+      updateCropBoxUI();
+    }
+
+    function applyCrop() {
+      var photo = appState.stagedPhotos[appState.activeStagedIndex];
+      var img = document.getElementById('wm-simulator-bg');
+      if (!photo || !img || !img.complete) return;
+      var nw = img.naturalWidth;
+      var nh = img.naturalHeight;
+      var cx = Math.round((cropState.boxLeft / 100) * nw);
+      var cy = Math.round((cropState.boxTop / 100) * nh);
+      var cw = Math.round((cropState.boxWidth / 100) * nw);
+      var ch = Math.round((cropState.boxHeight / 100) * nh);
+
+      var c = document.createElement('canvas');
+      c.width = cw; c.height = ch;
+      c.getContext('2d').drawImage(img, cx, cy, cw, ch, 0, 0, cw, ch);
+      photo.dataUrl = c.toDataURL('image/jpeg', 0.95);
+      photo.isCropped = true;
+      toggleCropMode(false);
+      renderStagedPhotosUI();
+      showToast('✅ Foto berhasil di-crop!');
+    }
+
+    function cancelCrop() { toggleCropMode(false); }
+    function resetCrop() {
+      var photo = appState.stagedPhotos[appState.activeStagedIndex];
+      if (photo && photo.originalDataUrl) {
+        photo.dataUrl = photo.originalDataUrl;
+        photo.isCropped = false;
+        renderStagedPhotosUI();
+        showToast('↺ Foto dikembalikan ke ukuran asli.');
+      }
+    }
+
+    function initCropDragEvents() {
+      var cropBox = document.getElementById('crop-box');
+      var stage = document.getElementById('wm-stage-frame');
+      if (!cropBox || !stage) return;
+      cropBox.addEventListener('pointerdown', function(e) {
+        if (!cropState.active) return;
+        var handle = e.target.getAttribute('data-handle');
+        cropState.isDragging = !handle;
+        cropState.isResizing = !!handle;
+        cropState.resizeHandle = handle;
+        var sx = e.clientX, sy = e.clientY;
+        var sl = cropState.boxLeft, st = cropState.boxTop;
+        function onMove(me) {
+          var rect = stage.getBoundingClientRect();
+          var dx = ((me.clientX - sx) / rect.width) * 100;
+          var dy = ((me.clientY - sy) / rect.height) * 100;
+          if (cropState.isDragging) {
+            cropState.boxLeft = Math.max(0, Math.min(100 - cropState.boxWidth, sl + dx));
+            cropState.boxTop = Math.max(0, Math.min(100 - cropState.boxHeight, st + dy));
+            updateCropBoxUI();
+          }
+        }
+        function onUp() {
+          cropState.isDragging = false; cropState.isResizing = false;
+          window.removeEventListener('pointermove', onMove);
+          window.removeEventListener('pointerup', onUp);
+        }
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', onUp);
+      });
+    }
+
+    function initWatermarkDragEvents() {
+      var overlay = document.getElementById('wm-simulator-overlay');
+      var stage = document.getElementById('wm-stage-frame');
+      if (!overlay || !stage) return;
+      overlay.addEventListener('pointerdown', function(e) {
+        if (cropState.active) return;
+        e.preventDefault();
+        overlay.classList.add('is-dragging');
+        var sx = e.clientX, sy = e.clientY;
+        var startX = parseFloat(document.getElementById('slider-wm-pos-x').value || 88);
+        var startY = parseFloat(document.getElementById('slider-wm-pos-y').value || 90);
+        function onMove(me) {
+          var rect = stage.getBoundingClientRect();
+          var dx = ((me.clientX - sx) / rect.width) * 100;
+          var dy = ((me.clientY - sy) / rect.height) * 100;
+          var nx = Math.round(Math.max(0, Math.min(100, startX + dx)));
+          var ny = Math.round(Math.max(0, Math.min(100, startY + dy)));
+          document.getElementById('slider-wm-pos-x').value = nx;
+          document.getElementById('slider-wm-pos-y').value = ny;
+          updateWatermarkSimulatorDisplay();
+        }
+        function onUp() {
+          overlay.classList.remove('is-dragging');
+          window.removeEventListener('pointermove', onMove);
+          window.removeEventListener('pointerup', onUp);
+        }
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', onUp);
+      });
+    }
+
+    function updateWatermarkSimulatorDisplay() {
+      var overlay = document.getElementById('wm-simulator-overlay');
+      var logoImg = document.getElementById('wm-sim-logo-img');
+      var fallback = document.getElementById('wm-sim-fallback-text');
+      var posX = parseFloat(document.getElementById('slider-wm-pos-x').value || 88);
+      var posY = parseFloat(document.getElementById('slider-wm-pos-y').value || 90);
+      var scale = parseFloat(document.getElementById('slider-wm-scale').value || 22);
+      var opacity = parseFloat(document.getElementById('slider-wm-opacity').value || 85) / 100;
+      if (!overlay) return;
+      overlay.style.width = scale + '%';
+      overlay.style.opacity = opacity;
+      var maxLeft = 100 - scale;
+      overlay.style.left = (maxLeft * (posX / 100)) + '%';
+      overlay.style.top = (80 * (posY / 100)) + '%';
+      if (appState.customWatermarkPngData) {
+        if (logoImg) { logoImg.src = appState.customWatermarkPngData; logoImg.style.display = 'block'; }
+        if (fallback) fallback.style.display = 'none';
+      } else {
+        if (logoImg) logoImg.style.display = 'none';
+        if (fallback) fallback.style.display = 'block';
+      }
+    }
+
+    function updateWatermarkManualSettings() {
+      updateWatermarkSimulatorDisplay();
+    }
+
+    function applyWatermarkPreset(x, y, scale) {
+      document.getElementById('slider-wm-pos-x').value = x;
+      document.getElementById('slider-wm-pos-y').value = y;
+      if (scale) document.getElementById('slider-wm-scale').value = scale;
+      updateWatermarkManualSettings();
+    }
+
+    function handleWatermarkPngSelected(files) {
+      if (!files || !files[0]) return;
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        appState.customWatermarkPngData = e.target.result;
+        var img = new Image();
+        img.onload = function() {
+          appState.customWatermarkImgObj = img;
+          document.getElementById('btn-remove-wm-png').style.display = 'inline-flex';
+          document.getElementById('wm-badge-text').innerText = '✅ PNG Aktif';
+          updateWatermarkSimulatorDisplay();
+          showToast('Watermark logo berhasil dipasang!');
+        };
+        img.src = e.target.result;
       };
+      reader.readAsDataURL(files[0]);
+    }
 
-      // Tampilkan tombol alternatif jika jaringan lambat / dibatasi browser (> 6 detik)
-      setTimeout(function() {
-        if (!isLoaded) {
-          if (loaderStatus) {
-            loaderStatus.innerText = 'Memuat memerlukan waktu lebih lama...';
+    function removeCustomWatermarkPng() {
+      appState.customWatermarkPngData = null;
+      appState.customWatermarkImgObj = null;
+      document.getElementById('btn-remove-wm-png').style.display = 'none';
+      document.getElementById('wm-badge-text').innerText = 'Teks Bawaan';
+      updateWatermarkSimulatorDisplay();
+    }
+
+    function setPhotoFilterPreset(preset, btnEl) {
+      appState.photoFilterState.preset = preset;
+      document.querySelectorAll('.filter-preset-btn').forEach(function(b) { b.classList.remove('active'); });
+      if (btnEl) btnEl.classList.add('active');
+      var s = appState.photoFilterState;
+      if (preset === 'normal') { s.brightness = 0; s.contrast = 0; s.saturation = 0; s.temperature = 0; }
+      else if (preset === 'warm') { s.brightness = 5; s.contrast = 8; s.saturation = 12; s.temperature = 16; }
+      else if (preset === 'soft') { s.brightness = 8; s.contrast = -5; s.saturation = 5; s.temperature = 6; }
+      else if (preset === 'bw') { s.brightness = 4; s.contrast = 20; s.saturation = -100; s.temperature = 0; }
+      else if (preset === 'vintage') { s.brightness = -2; s.contrast = 12; s.saturation = -15; s.temperature = 14; }
+      else if (preset === 'vivid') { s.brightness = 4; s.contrast = 16; s.saturation = 25; s.temperature = 4; }
+      document.getElementById('slider-flt-bright').value = s.brightness;
+      document.getElementById('slider-flt-contrast').value = s.contrast;
+      document.getElementById('slider-flt-sat').value = s.saturation;
+      document.getElementById('slider-flt-temp').value = s.temperature;
+      updatePhotoGradingPreview();
+    }
+
+    function updateCustomFilterSliders() {
+      var s = appState.photoFilterState;
+      s.brightness = parseInt(document.getElementById('slider-flt-bright').value, 10);
+      s.contrast = parseInt(document.getElementById('slider-flt-contrast').value, 10);
+      s.saturation = parseInt(document.getElementById('slider-flt-sat').value, 10);
+      s.temperature = parseInt(document.getElementById('slider-flt-temp').value, 10);
+      updatePhotoGradingPreview();
+    }
+
+    function triggerAutoAdjustPhoto() { setPhotoFilterPreset('vivid'); showToast('⚡ Auto Tone Diterapkan!'); }
+    function triggerAutoWhiteBalance() { setPhotoFilterPreset('warm'); showToast('⚖️ AWB Diterapkan!'); }
+    function resetPhotoFilters() { setPhotoFilterPreset('normal'); }
+
+    function updatePhotoGradingPreview() {
+      var bgImg = document.getElementById('wm-simulator-bg');
+      if (!bgImg) return;
+      var s = appState.photoFilterState;
+      var b = 100 + s.brightness;
+      var c = 100 + s.contrast;
+      var sat = 100 + s.saturation;
+      var filterStr = 'brightness(' + b + '%) contrast(' + c + '%) saturate(' + Math.max(0, sat) + '%)';
+      if (s.preset === 'bw') filterStr = 'grayscale(100%) ' + filterStr;
+      bgImg.style.filter = filterStr;
+    }
+
+    function renderStagedPhotosUI() {
+      var count = appState.stagedPhotos.length;
+      var badge = document.getElementById('staged-status-badge');
+      var wrap = document.getElementById('staged-thumbnails-wrapper');
+      var cont = document.getElementById('staged-thumbnails-container');
+      var bg = document.getElementById('wm-simulator-bg');
+      var btnGif = document.getElementById('btn-create-gif');
+
+      if (count === 0) {
+        if (badge) { badge.innerText = 'Belum Ada Foto'; badge.style.background = '#f1f5f9'; }
+        if (wrap) wrap.style.display = 'none';
+        if (btnGif) btnGif.style.display = 'none';
+        if (bg) bg.src = 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=800&q=80';
+        return;
+      }
+      if (badge) { badge.innerText = count + ' Foto Siap Diatur'; badge.style.background = '#fef3c7'; }
+      if (wrap) wrap.style.display = 'block';
+      if (btnGif) btnGif.style.display = (count > 1) ? 'inline-flex' : 'none';
+
+      var active = appState.stagedPhotos[appState.activeStagedIndex];
+      if (active && bg) bg.src = active.dataUrl;
+
+      if (cont) {
+        cont.innerHTML = '';
+        appState.stagedPhotos.forEach(function(item, idx) {
+          var thumb = document.createElement('div');
+          thumb.style.cssText = 'position:relative; width:64px; height:50px; border-radius:6px; overflow:hidden; flex-shrink:0; cursor:pointer; border:' + (idx === appState.activeStagedIndex ? '2px solid var(--accent-gold)' : '1px solid #d1d5db');
+          thumb.innerHTML = '<img src="' + item.dataUrl + '" style="width:100%; height:100%; object-fit:cover;">';
+          thumb.onclick = function() { appState.activeStagedIndex = idx; renderStagedPhotosUI(); };
+          cont.appendChild(thumb);
+        });
+      }
+      updatePhotoGradingPreview();
+      updateWatermarkSimulatorDisplay();
+    }
+
+    function clearStagedPhotos() {
+      appState.stagedPhotos = [];
+      appState.activeStagedIndex = 0;
+      renderStagedPhotosUI();
+      showToast('Antrian foto dikosongkan.');
+    }
+
+    function startStagedPhotosUpload() {
+      if (!appState.stagedPhotos || appState.stagedPhotos.length === 0) {
+        showToast('Antrian foto masih kosong!');
+        return;
+      }
+      var collId = document.getElementById('select-upload-collection').value;
+      if (!collId) { showToast('Pilih koleksi acara terlebih dahulu!'); return; }
+
+      var btn = document.getElementById('btn-start-upload');
+      var pBox = document.getElementById('upload-progress-box');
+      var pBar = document.getElementById('upload-progress-bar');
+      var pTxt = document.getElementById('upload-progress-text');
+
+      btn.disabled = true;
+      btn.innerText = 'Mengunggah...';
+      pBox.style.display = 'block';
+
+      var total = appState.stagedPhotos.length;
+      var list = appState.stagedPhotos.slice();
+
+      function processOne(idx) {
+        if (idx >= total) {
+          pTxt.innerText = 'Semua foto berhasil diunggah!';
+          setTimeout(function() {
+            pBox.style.display = 'none';
+            btn.disabled = false;
+            btn.innerText = '🚀 Upload Sekarang ke Cloud';
+          }, 1500);
+          appState.stagedPhotos = [];
+          renderStagedPhotosUI();
+          refreshDashboardData();
+          showToast('🎉 Semua foto berhasil diunggah ke Google Drive!');
+          return;
+        }
+
+        var item = list[idx];
+        pTxt.innerText = 'Memproses foto ' + (idx + 1) + ' dari ' + total + '...';
+        pBar.style.width = Math.round(((idx + 1) / total) * 100) + '%';
+
+        var img = new Image();
+        img.onload = function() {
+          var canvas = document.getElementById('watermark-canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          var ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+
+          // Pasang Watermark PNG atau Teks
+          if (appState.customWatermarkImgObj) {
+            var wm = appState.customWatermarkImgObj;
+            var wmScale = (parseFloat(document.getElementById('slider-wm-scale').value || 22) / 100);
+            var wmW = Math.round(img.width * wmScale);
+            var wmH = Math.round(wmW * (wm.naturalHeight / wm.naturalWidth));
+            var posX = Math.round((img.width - wmW) * (parseFloat(document.getElementById('slider-wm-pos-x').value || 88) / 100));
+            var posY = Math.round((img.height - wmH) * (parseFloat(document.getElementById('slider-wm-pos-y').value || 90) / 100));
+            ctx.globalAlpha = parseFloat(document.getElementById('slider-wm-opacity').value || 85) / 100;
+            ctx.drawImage(wm, posX, posY, wmW, wmH);
+          } else {
+            var fSize = Math.max(16, Math.floor(img.width * 0.025));
+            ctx.font = 'bold ' + fSize + 'px "Cinzel", Georgia, serif';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+            ctx.shadowColor = 'rgba(0,0,0,0.85)';
+            ctx.shadowBlur = 6;
+            ctx.fillText('LIMZ STUDIO PHOTOBOOTH', img.width * 0.65, img.height * 0.92);
           }
-          if (fallbackBox) {
-            fallbackBox.style.display = 'block';
+
+          var watermarkedData = canvas.toDataURL('image/jpeg', 0.88);
+
+          google.script.run
+            .withSuccessHandler(function() { processOne(idx + 1); })
+            .withFailureHandler(function(err) {
+              showToast('Gagal foto ' + (idx + 1) + ': ' + err);
+              processOne(idx + 1);
+            })
+            .uploadPhotoWithWatermark({
+              collectionId: collId,
+              fileName: item.name,
+              base64Data: watermarkedData,
+              uploadedBy: appState.currentUser ? appState.currentUser.nama : 'Operator'
+            });
+        };
+        img.src = item.dataUrl;
+      }
+
+      processOne(0);
+    }
+
+    function openCurrentActiveMonitor() {
+      var collId = document.getElementById('select-upload-collection').value || appState.activeCollectionId;
+      var coll = findCollectionById(collId);
+      if (coll && coll.slug) openSlideshowNewTab(coll.slug);
+      else showToast('Pilih koleksi terlebih dahulu.');
+    }
+
+    function loadSlideshowBySlug(slug) {
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (res && res.success && res.collection) {
+            openSlideshowById(res.collection.id, res.collection);
+          } else {
+            openSlideshowById('EVT-DEMO', { id: 'EVT-DEMO', title: 'Irvan & Susan', slug: slug, eventDate: '2026-08-30' });
+          }
+        })
+        .getCollectionBySlug(slug, false);
+    }
+
+    function openSlideshowById(id, coll) {
+      appState.activeCollectionId = coll.id;
+      appState.activeCollectionData = coll;
+
+      document.getElementById('mon-couple-title').innerText = coll.title;
+      document.getElementById('mon-date-subtitle').innerText = formatDisplayDate(coll.eventDate);
+
+      var galleryUrl = getPublicGalleryUrl(coll.slug);
+      setCachedQrCode('mon-qr-img', galleryUrl, 260);
+
+      switchView('view-slideshow');
+      startMonitorEngine(coll.id);
+    }
+
+    function startMonitorEngine(collId) {
+      if (appState.slideshowPollInterval) clearInterval(appState.slideshowPollInterval);
+      fetchMonitorContent(collId, false);
+      appState.slideshowPollInterval = setInterval(function() {
+        if (appState.currentView === 'view-slideshow') fetchMonitorContent(collId, true);
+      }, 3000);
+    }
+
+    function fetchMonitorContent(collId, isPoll) {
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (res && res.success) {
+            if (isPoll && res.totalPhotos > appState.lastKnownPhotoCount && appState.lastKnownPhotoCount > 0) {
+              showMonitorNewPhotoToast('⚡ Foto Baru Saja Diunggah ke Galeri!');
+            }
+            appState.lastKnownPhotoCount = res.totalPhotos;
+            updateMonitorScreenView(res);
+          }
+        })
+        .getMonitorPhotos(collId);
+    }
+
+    function updateMonitorScreenView(data) {
+      if (!data) return;
+      var slug = data.collectionSlug || 'event';
+      var hasPhotos = !!(data.mainPhoto);
+
+      document.getElementById('mon-empty-state').style.display = hasPhotos ? 'none' : 'flex';
+      document.getElementById('mon-large-img').style.display = hasPhotos ? 'block' : 'none';
+
+      if (hasPhotos) {
+        document.getElementById('mon-large-img').src = data.mainPhoto.thumbnailUrl || data.mainPhoto.downloadUrl;
+        var mainKey = data.mainPhoto.photoId || data.mainPhoto.driveFileId;
+        if (mainKey && mainKey !== appState.activeMonitorPhotoId) {
+          appState.activeMonitorPhotoId = mainKey;
+          document.getElementById('mon-qr-large-card').style.display = 'flex';
+          setCachedQrCode('mon-qr-large-img', getDirectPhotoOrGalleryUrl(slug, mainKey), 300);
+        }
+
+        var subs = data.subPhotos || [];
+        var subCol = document.getElementById('mon-col-sub');
+        if (subs.length > 0) {
+          subCol.style.display = 'flex';
+          document.getElementById('mon-sub-box-1').style.display = 'flex';
+          document.getElementById('mon-sub-img-1').src = subs[0].thumbnailUrl;
+          if (subs[0].photoId) {
+            document.getElementById('mon-qr-sub1-card').style.display = 'flex';
+            setCachedQrCode('mon-qr-sub1-img', getDirectPhotoOrGalleryUrl(slug, subs[0].photoId), 200);
+          }
+          if (subs.length > 1) {
+            document.getElementById('mon-sub-box-2').style.display = 'flex';
+            document.getElementById('mon-sub-img-2').src = subs[1].thumbnailUrl;
+            if (subs[1].photoId) {
+              document.getElementById('mon-qr-sub2-card').style.display = 'flex';
+              setCachedQrCode('mon-qr-sub2-img', getDirectPhotoOrGalleryUrl(slug, subs[1].photoId), 200);
+            }
           }
         }
-      }, 6000);
+      }
 
-      // Mulai memuat iframe
-      iframe.src = targetUrl;
-    })();
+      if (data.totalPhotos !== undefined) {
+        document.getElementById('mon-photo-counter').innerText = 'Total Momen: ' + data.totalPhotos + ' Foto';
+      }
+
+      if (data.wishes && data.wishes.length > 0) {
+        renderTallChatStreamFeed(data.wishes);
+        checkAndTriggerSingleFloatingWish(data.wishes);
+      }
+    }
+
+    function renderTallChatStreamFeed(wishes) {
+      var list = document.getElementById('mon-chat-feed-list');
+      if (!list) return;
+      document.getElementById('mon-chat-stream-counter').innerText = wishes.length + ' Pesan Masuk';
+      list.innerHTML = '';
+      wishes.slice(0, 6).forEach(function(w) {
+        var div = document.createElement('div');
+        div.className = 'mon-chat-bubble';
+        div.innerHTML = '<div style="font-size:9.5px; font-weight:700; color:var(--accent-gold);">' + (w.senderName || 'Tamu') + '</div>' +
+          '<div style="font-size:9.5px; color:#cbd5e1; font-style:italic;">"' + (w.message || '') + '"</div>';
+        list.appendChild(div);
+      });
+    }
+
+    function checkAndTriggerSingleFloatingWish(wishes) {
+      if (!wishes || wishes.length === 0) return;
+      if (!appState.isWishInitialized) {
+        wishes.forEach(function(w) { appState.knownWishKeys[w.senderName + '|' + w.message] = true; });
+        appState.isWishInitialized = true;
+        return;
+      }
+      var newest = null;
+      for (var i = 0; i < wishes.length; i++) {
+        var key = wishes[i].senderName + '|' + wishes[i].message;
+        if (!appState.knownWishKeys[key]) {
+          newest = wishes[i];
+          appState.knownWishKeys[key] = true;
+          break;
+        }
+      }
+      if (newest) {
+        var card = document.getElementById('mon-floating-wish-card');
+        document.getElementById('mon-floating-wish-text').innerText = '"' + newest.message + '"';
+        document.getElementById('mon-floating-wish-sender').innerText = '— ' + newest.senderName;
+        card.classList.add('show');
+        setTimeout(function() { card.classList.remove('show'); }, 7000);
+      }
+    }
+
+    function showMonitorNewPhotoToast(txt) {
+      var t = document.getElementById('monitor-live-toast');
+      document.getElementById('monitor-toast-text').innerText = txt;
+      t.classList.add('show');
+      setTimeout(function() { t.classList.remove('show'); }, 4000);
+    }
+
+    function closeSlideshow() {
+      if (appState.slideshowPollInterval) clearInterval(appState.slideshowPollInterval);
+      if (appState.currentUser) switchView('view-dashboard');
+      else switchView('view-landing');
+    }
+
+    function loadPublicGalleryBySlug(slug) {
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (res && res.success && res.collection) {
+            openPublicGallery(res.collection, true);
+          } else {
+            openGuestDemo();
+          }
+        })
+        .getCollectionBySlug(slug, false);
+    }
+
+    function openPublicGallery(coll, withSplash) {
+      appState.activeCollectionId = coll.id;
+      appState.activeCollectionData = coll;
+
+      document.getElementById('pub-event-title').innerText = coll.title;
+      document.getElementById('pub-event-date').innerText = formatDisplayDate(coll.eventDate);
+      if (coll.coverUrl) document.getElementById('pub-hero-banner').style.backgroundImage = 'url(\'' + coll.coverUrl + '\')';
+
+      switchView('view-public-gallery');
+
+      if (withSplash) startThreeSecondSplashScreen(coll);
+      else dismissSplashScreen();
+
+      loadGalleryPhotos(coll.id);
+      loadPublicWishes(coll.id);
+    }
+
+    function openGuestDemo() {
+      var dummy = {
+        id: 'EVT-DEMO',
+        title: 'Irvan & Susan Wedding',
+        slug: 'irvan-susan',
+        eventDate: '2026-08-30',
+        coverUrl: 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1600&q=80'
+      };
+      openPublicGallery(dummy, true);
+    }
+
+    var splashTimer = null;
+    function startThreeSecondSplashScreen(coll) {
+      var splash = document.getElementById('gallery-splash-loader');
+      var cover = coll.coverUrl || 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=600&q=80';
+      document.getElementById('splash-bg-overlay').style.backgroundImage = 'url(\'' + cover + '\')';
+      document.getElementById('splash-cover-img').src = cover;
+      document.getElementById('splash-couple-title').innerText = coll.title;
+      document.getElementById('splash-event-date').innerText = formatDisplayDate(coll.eventDate);
+
+      splash.style.display = 'flex';
+      splash.style.opacity = '1';
+      var sec = 3;
+      var num = document.getElementById('splash-countdown-num');
+      num.innerText = sec;
+      if (splashTimer) clearInterval(splashTimer);
+      splashTimer = setInterval(function() {
+        sec--;
+        if (sec > 0) num.innerText = sec;
+        else { clearInterval(splashTimer); dismissSplashScreen(); }
+      }, 1000);
+    }
+
+    function dismissSplashScreen() {
+      if (splashTimer) clearInterval(splashTimer);
+      var splash = document.getElementById('gallery-splash-loader');
+      if (splash) {
+        splash.style.opacity = '0';
+        setTimeout(function() { splash.style.display = 'none'; checkAutoOpenDirectPhoto(); }, 500);
+      }
+    }
+
+    function checkAutoOpenDirectPhoto() {
+      if (!appState.targetPhotoId || !appState.photos) return;
+      var found = appState.photos.find(function(p) {
+        return (p.photoId === appState.targetPhotoId || p.driveFileId === appState.targetPhotoId);
+      });
+      if (found) {
+        openLightbox(found);
+        showToast('📸 Membuka foto yang Anda pindai!');
+        appState.targetPhotoId = null;
+      }
+    }
+
+    function loadGalleryPhotos(collId) {
+      google.script.run
+        .withSuccessHandler(function(res) {
+          appState.photos = res.photos || [];
+          renderGalleryPhotos(appState.photos);
+          checkAutoOpenDirectPhoto();
+        })
+        .getPhotosByCollection(collId, 1, 0, false);
+    }
+
+    function renderGalleryPhotos(photos) {
+      var grid = document.getElementById('pub-photo-grid');
+      var ind = document.getElementById('pub-photo-total-indicator');
+      grid.innerHTML = '';
+      if (!photos || photos.length === 0) {
+        grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:30px; color:var(--text-muted);">Belum ada foto yang diunggah.</div>';
+        if (ind) ind.innerText = '0 foto tersedia';
+        return;
+      }
+      if (ind) ind.innerText = photos.length + ' foto siap diunduh';
+      photos.forEach(function(p) {
+        var card = document.createElement('div');
+        card.className = 'photo-card';
+        card.innerHTML = '<img src="' + p.thumbnailUrl + '" loading="lazy" alt="Photo">' +
+          '<a class="photo-card-download-btn" href="' + p.downloadUrl + '" target="_blank" onclick="event.stopPropagation()">⬇️ Download Ori</a>';
+        card.onclick = function() { openLightbox(p); };
+        grid.appendChild(card);
+      });
+    }
+
+    function openLightbox(p) {
+      document.getElementById('lightbox-file-name').innerText = p.fileName || 'Foto Momen';
+      document.getElementById('lightbox-img').src = p.downloadUrl || p.thumbnailUrl;
+      document.getElementById('lightbox-download-btn').href = p.downloadUrl;
+      document.getElementById('modal-lightbox').style.display = 'flex';
+    }
+
+    function closeLightbox() {
+      document.getElementById('modal-lightbox').style.display = 'none';
+    }
+
+    function handleSendWishSubmit() {
+      var name = document.getElementById('wish-sender-name').value;
+      var msg = document.getElementById('wish-message-text').value;
+      if (!msg) { showToast('Isi pesan doa Anda terlebih dahulu.'); return; }
+      google.script.run
+        .withSuccessHandler(function(res) {
+          document.getElementById('wish-message-text').value = '';
+          showToast(res.message);
+          loadPublicWishes(appState.activeCollectionId);
+        })
+        .submitGuestWish({ collectionId: appState.activeCollectionId, senderName: name, message: msg });
+    }
+
+    function loadPublicWishes(collId) {
+      google.script.run
+        .withSuccessHandler(function(res) {
+          var container = document.getElementById('pub-wishes-list');
+          container.innerHTML = '';
+          (res.wishes || []).forEach(function(w) {
+            var div = document.createElement('div');
+            div.style.cssText = 'background:#faf8f5; border-left:3px solid var(--accent-gold); padding:10px 14px; border-radius:4px; margin-bottom:8px;';
+            div.innerHTML = '<div style="font-weight:700; font-size:12px;">' + w.senderName + '</div><div style="font-size:12px; color:#4a4036; font-style:italic;">"' + w.message + '"</div>';
+            container.appendChild(div);
+          });
+        })
+        .getLiveWishes(collId);
+    }
+
+    function handleLoginSubmit() {
+      var email = document.getElementById('login-email').value;
+      var pass = document.getElementById('login-password').value;
+      var btn = document.getElementById('btn-login-submit');
+      btn.innerText = 'Memverifikasi...';
+      btn.disabled = true;
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          btn.innerText = 'Masuk Panel';
+          btn.disabled = false;
+          if (res.success) {
+            appState.currentUser = res.user;
+            localStorage.setItem('limz_saved_user_session', JSON.stringify(res.user));
+            onLoginSuccess();
+          } else {
+            showToast(res.message);
+          }
+        })
+        .loginUser(email, pass);
+    }
+
+    function onLoginSuccess() {
+      document.getElementById('user-display-name').innerText = appState.currentUser.nama;
+      document.getElementById('user-display-role').innerText = 'Role: ' + appState.currentUser.role;
+      switchView('view-dashboard');
+      refreshDashboardData();
+    }
+
+    function handleLogout() {
+      appState.currentUser = null;
+      localStorage.removeItem('limz_saved_user_session');
+      switchView('view-landing');
+      showToast('Anda telah keluar.');
+    }
+
+    function checkSavedUserSession() {
+      try {
+        var s = localStorage.getItem('limz_saved_user_session');
+        if (s) { appState.currentUser = JSON.parse(s); onLoginSuccess(); }
+      } catch(e) {}
+    }
+
+    function refreshDashboardData() {
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (res.success && res.stats) {
+            document.getElementById('stat-total-collections').innerText = res.stats.totalCollections || 0;
+            document.getElementById('stat-active-collections').innerText = res.stats.activeCollections || 0;
+            document.getElementById('stat-total-photos').innerText = res.stats.totalPhotos || 0;
+            document.getElementById('stat-total-views').innerText = res.stats.totalViews || 0;
+            document.getElementById('stat-total-downloads').innerText = res.stats.totalDownloads || 0;
+          }
+        })
+        .getDashboardStats();
+      fetchCollectionsList();
+      fetchSensorWords();
+      fetchWishesForModeration();
+    }
+
+    function fetchCollectionsList() {
+      var status = document.getElementById('filter-collection-status').value || 'All';
+      var search = document.getElementById('search-collection').value || '';
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (res.success) {
+            appState.collections = res.items || [];
+            renderAllCollectionsTable(appState.collections);
+            populateUploadSelect(appState.collections);
+          }
+        })
+        .getCollections(status, search, 1, 50);
+    }
+
+    var searchTimer = null;
+    function debounceFetchCollections() {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(fetchCollectionsList, 400);
+    }
+
+    function renderAllCollectionsTable(items) {
+      var tbody = document.getElementById('tbody-all-collections');
+      tbody.innerHTML = '';
+      if (!items || items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px; color:var(--text-muted);">Belum ada koleksi acara.</td></tr>';
+        return;
+      }
+      items.forEach(function(c) {
+        var tr = document.createElement('tr');
+        var badge = c.status === 'Active' ? 'badge-active' : 'badge-archived';
+        tr.innerHTML = '<td><img src="' + (c.coverUrl || 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=60&q=80') + '" style="width:44px; height:44px; border-radius:6px; object-fit:cover;"></td>' +
+          '<td><strong>' + c.title + '</strong><br><small style="color:var(--accent-gold);">' + c.slug + '</small></td>' +
+          '<td>' + c.clientName + '</td>' +
+          '<td>' + formatDisplayDate(c.eventDate) + '</td>' +
+          '<td>' + c.totalPhotos + '</td>' +
+          '<td><span class="badge-status ' + badge + '">' + c.status + '</span></td>' +
+          '<td>' +
+            '<div style="display:flex; gap:4px; flex-wrap:wrap;">' +
+              '<button class="btn btn-outline btn-sm" onclick="openPublicGalleryNewTab(\'' + c.slug + '\')">↗ Galeri</button>' +
+              '<button class="btn btn-gold btn-sm" onclick="openSlideshowNewTab(\'' + c.slug + '\')">↗ Monitor</button>' +
+              '<button class="btn btn-outline btn-sm" onclick="openEditCollectionModal(\'' + c.id + '\')">Edit</button>' +
+            '</div>' +
+          '</td>';
+        tbody.appendChild(tr);
+      });
+    }
+
+    function populateUploadSelect(items) {
+      var sel = document.getElementById('select-upload-collection');
+      if (!sel) return;
+      sel.innerHTML = '';
+      items.forEach(function(c) {
+        var opt = document.createElement('option');
+        opt.value = c.id;
+        opt.innerText = c.title + ' (' + c.status + ')';
+        sel.appendChild(opt);
+      });
+      if (items.length > 0 && !appState.activeCollectionId) {
+        appState.activeCollectionId = items[0].id;
+      }
+    }
+
+    function findCollectionById(id) {
+      return appState.collections.find(function(c) { return c.id === id; });
+    }
+
+    function formatDisplayDate(dStr) {
+      if (!dStr) return '-';
+      var d = new Date(dStr);
+      if (isNaN(d.getTime())) return dStr;
+      var months = ['JANUARI', 'FEBRUARI', 'MARET', 'APRIL', 'MEI', 'JUNI', 'JULI', 'AGUSTUS', 'SEPTEMBER', 'OKTOBER', 'NOVEMBER', 'DESEMBER'];
+      return ('0' + d.getDate()).slice(-2) + ' ' + months[d.getMonth()] + ' ' + d.getFullYear();
+    }
+
+    function setCachedQrCode(imgId, targetUrl, size) {
+      var el = document.getElementById(imgId);
+      if (!el) return;
+      var sz = size || 300;
+      el.src = 'https://quickchart.io/qr?size=' + sz + '&margin=2&ecLevel=M&text=' + encodeURIComponent(targetUrl);
+    }
+
+    function initKeyboardShortcuts() {
+      window.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && appState.currentView === 'view-slideshow') closeSlideshow();
+        if (e.code === 'Space' && document.getElementById('modal-live-camera').style.display === 'flex') {
+          e.preventDefault(); triggerCameraShutter();
+        }
+      });
+    }
+
+    function handleNavLoginClick() {
+      if (appState.currentUser) switchView('view-dashboard');
+      else switchView('view-login');
+    }
+
+    function openFeaturesModal() { openModal('modal-features-explanation'); }
+    function openSetWebAppUrlModal() { showToast('Terhubung ke API Google Cloud Limz Studio.'); }
+    function backToDashboard() { switchView('view-dashboard'); }
   </script>
 </body>
 </html>
