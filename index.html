@@ -37,17 +37,17 @@
       -webkit-touch-callout: none;
     }
 
-    /* BINGKAI IFRAME LAYAR PENUH (SEAMLESS) */
+    /* BINGKAI IFRAME LAYAR PENUH (SEAMLESS & ANTI-BANNER GOOGLE) */
     #gas-frame {
       width: 100%;
-      height: 100%;
-      height: 100dvh;
+      height: calc(100% + 40px);
+      height: calc(100dvh + 40px);
       border: none;
       outline: none;
       display: block;
       background-color: #0c0a08;
       position: absolute;
-      top: 0;
+      top: -40px; /* Tarik iframe 40px ke atas agar banner peringatan Google Apps Script terpotong rapi di luar layar */
       left: 0;
       right: 0;
       bottom: 0;
