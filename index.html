@@ -1,0 +1,1621 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Limz Studio Photobooth - Cloud Foto & Galeri Event</title>
+  
+  <!-- PWA & Mobile Web App Capabilities (Android & iOS Standalone) -->
+  <meta name="theme-color" content="#191410">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Limz Studio">
+  <meta name="application-name" content="Limz Studio Photobooth">
+  <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22Limz%20Studio%20Photobooth%22%2C%22short_name%22%3A%22LimzStudio%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23191410%22%2C%22theme_color%22%3A%22%23191410%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22https%3A%2F%2Fimages.unsplash.com%2Fphoto-1519741497674-611481863552%3Fauto%3Dformat%26fit%3Dcrop%26w%3D192%26q%3D80%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fpng%22%7D%2C%7B%22src%22%3A%22https%3A%2F%2Fimages.unsplash.com%2Fphoto-1519741497674-611481863552%3Fauto%3Dformat%26fit%3Dcrop%26w%3D512%26q%3D80%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fpng%22%7D%5D%7D">
+  <link rel="apple-touch-icon" href="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=180&q=80">
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Alex+Brush&family=Cinzel:wght@600;700;800;900&family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600;1,700&family=Great+Vibes&family=Playfair+Display:ital,wght@0,600;0,700;0,800;0,900;1,600;1,700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- html2canvas & gifshot untuk JPEG 4R & Animated GIF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gifshot/0.3.2/gifshot.min.js"></script>
+  
+  <!-- CSS Loader Otomatis untuk Vercel (atau tempelkan isi css.html di sini) -->
+  <style id="vercel-fouc-guard">
+    body.vercel-loading { opacity: 0; }
+    body.vercel-ready { opacity: 1; transition: opacity 0.2s ease; }
+  </style>
+</head>
+<body class="vercel-loading">
+
+  <!-- KONFIGURASI BACKEND GAS UNTUK VERCEL: Ganti URL /exec di bawah dengan URL Deployment Apps Script Anda -->
+  <div id="gas-query-data" style="display:none;">{}</div>
+  <div id="gas-app-url" style="display:none;">https://script.google.com/macros/s/AKfycbxUzK9ZvwEhShBI4BDwNgau9aYIUH-XcMwVeIZX73OJwFhJTN0EnA28Cb2Z_p8qb93LVg/exec</div>
+  <div id="gas-preloaded-coll" style="display:none;">{}</div>
+
+  <div id="view-landing" class="view-container view-active">
+    <div class="landing-wrapper">
+      <nav class="landing-navbar">
+        <div class="landing-nav-container">
+          <div class="landing-brand" onclick="switchView('view-landing')">
+            <div class="landing-brand-icon-box" id="landing-brand-logo-container">
+              <svg class="landing-brand-icon" viewBox="0 0 48 42" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:38px;height:34px;">
+                <path d="M15 8L18.5 3H29.5L33 8H40C42.7614 8 45 10.2386 45 13V34C45 36.7614 42.7614 39 40 39H8C5.23858 39 3 36.7614 3 34V13C3 10.2386 5.23858 8 8 8H15Z" stroke="#ffffff" stroke-width="2.5"/>
+                <path d="M18 3H30" stroke="#e04a2f" stroke-width="3" stroke-linecap="round"/>
+                <circle cx="24" cy="23.5" r="8.5" stroke="#ffffff" stroke-width="2.5"/>
+                <circle cx="24" cy="23.5" r="4" stroke="#e04a2f" stroke-width="2"/>
+                <circle cx="37.5" cy="14.5" r="2" fill="#e04a2f"/>
+              </svg>
+            </div>
+            <div class="landing-brand-text" id="landing-brand-text-block">
+              <span class="landing-brand-script" id="landing-brand-title">Limz</span>
+              <span class="landing-brand-sub" id="landing-brand-sub">STUDIO PHOTOBOOTH</span>
+            </div>
+          </div>
+
+          <div class="landing-nav-links">
+            <a class="landing-nav-link" onclick="openGuestDemo()">Experience</a>
+            <a class="landing-nav-link" onclick="openFeaturesModal()">Fitur</a>
+            <button class="btn btn-outline btn-sm" onclick="openPwaInstallModal()" style="color:var(--accent-gold); border-color:rgba(212,148,56,0.5); font-size:12px; font-weight:700; padding:6px 12px; border-radius:20px;">📲 Pasang App</button>
+            <button class="btn-landing-nav" onclick="handleNavLoginClick()">Masuk Panel</button>
+          </div>
+        </div>
+      </nav>
+
+      <section class="landing-hero">
+        <div class="landing-hero-container">
+          <div>
+            <div class="landing-eyebrow">LIMZ STUDIO PHOTOBOOTH DIGITAL GALLERY</div>
+            <h1 class="landing-hero-title">
+              Galeri event<br>
+              yang terasa<br>
+              eksklusif<br>
+              sejak layar<br>
+              pertama.
+            </h1>
+            <p class="landing-hero-desc">
+              Bangun pengalaman tamu yang rapi, elegan, dan mudah diakses lewat QR Code, live display panggung, dan download foto instan.
+            </p>
+            <div class="landing-cta-group">
+              <button class="btn-landing-gold" onclick="openGuestDemo()">Lihat Galeri</button>
+              <button class="btn-landing-dark" onclick="loadSlideshowBySlug('irvan-susan')">Lihat Tampilan</button>
+            </div>
+          </div>
+
+          <div>
+            <div class="landing-preview-card" style="background: rgba(20, 18, 15, 0.88); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.09); border-radius: 18px; padding: 18px; box-shadow: 0 24px 60px rgba(0,0,0,0.65); max-width: 440px; margin-left: auto;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 12px; font-weight: 700;">
+                <span style="color: #f3efe6;">Live Event</span>
+                <span style="color: #e2b86b;">Irvan &amp; Susan</span>
+              </div>
+
+              <div style="display: grid; grid-template-columns: 1.35fr 1fr; gap: 10px;">
+                <div style="position: relative; border-radius: 10px; overflow: hidden; height: 290px; background: #191410;">
+                  <img src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=800&q=80" alt="Irvan & Susan Main" style="width: 100%; height: 100%; object-fit: cover; display: block;">
+                  <div style="position: absolute; top: 12px; left: 50%; transform: translateX(-50%); text-align: center; color: #ffffff; font-size: 7px; letter-spacing: 1.5px; font-weight: 700; text-transform: uppercase; text-shadow: 0 2px 6px rgba(0,0,0,0.8); pointer-events: none;">
+                    <div style="font-size:12px; margin-bottom:1px;">❖</div>
+                    LIMZ STUDIO PHOTOBOOTH
+                  </div>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 10px; height: 290px;">
+                  <div style="position: relative; flex: 1; border-radius: 10px; overflow: hidden; background: #191410;">
+                    <img src="https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=600&q=80" alt="Irvan & Susan Sub 1" style="width: 100%; height: 100%; object-fit: cover; display: block;">
+                  </div>
+                  <div style="position: relative; flex: 1; border-radius: 10px; overflow: hidden; background: #191410;">
+                    <img src="https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=600&q=80" alt="Irvan & Susan Sub 2" style="width: 100%; height: 100%; object-fit: cover; display: block;">
+                    <div style="position: absolute; bottom: 8px; left: 10px; font-family: 'Playfair Display', serif; font-size: 15px; font-weight: 700; color: #ffffff; text-shadow: 0 2px 6px rgba(0,0,0,0.85);">Irvan &amp; Susan</div>
+                  </div>
+                </div>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.06); font-size: 11.5px; font-weight: 700; color: #d6d1c7;">
+                <span>Scan &amp; Download</span>
+                <span>Live Screen</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div id="view-login" class="view-container">
+    <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #191410; padding: 20px;">
+      <div style="background: #ffffff; width: 100%; max-width: 390px; padding: 36px 30px; border-radius: var(--radius-md); box-shadow: var(--shadow-hover);">
+        <div style="text-align: center; margin-bottom: 25px;">
+          <h2 style="font-family: 'Cinzel', serif; color: var(--bg-dark); font-size: 20px;">LIMZ STUDIO PHOTOBOOTH</h2>
+          <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Masuk sebagai Admin Studio atau Tim Crew</p>
+        </div>
+        <form onsubmit="event.preventDefault(); handleLoginSubmit();">
+          <div class="form-group">
+            <label>Email Studio / Crew</label>
+            <input type="email" id="login-email" class="form-control" value="admin@limzstudio.com" required>
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="login-password" class="form-control" value="admin123" required>
+          </div>
+          
+          <div class="form-group" style="display: flex; align-items: center; justify-content: flex-start; gap: 8px; margin-top: -4px; margin-bottom: 18px;">
+            <input type="checkbox" id="login-remember-me" checked style="accent-color: var(--accent-gold); width: 16px; height: 16px; cursor: pointer;">
+            <label for="login-remember-me" style="margin-bottom: 0; font-size: 12.5px; color: var(--text-main); font-weight: 600; cursor: pointer; user-select: none;">
+              Ingat Saya di Perangkat Ini
+            </label>
+          </div>
+
+          <button type="submit" class="btn btn-gold" style="width: 100%;" id="btn-login-submit">Masuk Panel</button>
+          <button type="button" class="btn btn-outline" style="width: 100%; margin-top: 8px;" onclick="switchView('view-landing')">Kembali ke Beranda</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div id="view-dashboard" class="view-container">
+    <div class="dashboard-layout">
+      <div class="sidebar" id="dashboard-sidebar">
+        <div class="sidebar-brand">
+          <div class="sidebar-brand-left">
+            <span class="sidebar-brand-icon">❖</span>
+            <span id="sidebar-studio-title" class="sidebar-text">LIMZ STUDIO PHOTOBOOTH</span>
+          </div>
+          <button type="button" id="sidebar-toggle-btn" class="sidebar-toggle-btn" onclick="toggleDashboardSidebar()" title="Ciutkan / Lebarkan Sidebar">
+            ◀
+          </button>
+        </div>
+        <ul class="sidebar-menu">
+          <li class="sidebar-item active" onclick="switchDashboardTab('tab-control-center', this)" title="Control Center">
+            <span class="sidebar-icon">📊</span> <span class="sidebar-text">Control Center</span>
+          </li>
+          <li class="sidebar-item" onclick="switchDashboardTab('tab-collections', this)" title="Collections Event">
+            <span class="sidebar-icon">📁</span> <span class="sidebar-text">Collections Event</span>
+          </li>
+          <li class="sidebar-item" onclick="switchDashboardTab('tab-upload', this)" title="Upload & Watermark">
+            <span class="sidebar-icon">📸</span> <span class="sidebar-text">Upload & Watermark</span>
+          </li>
+          <li class="sidebar-item role-admin-only" onclick="switchDashboardTab('tab-moderation', this)" title="Moderasi Ucapan">
+            <span class="sidebar-icon">🛡️</span> <span class="sidebar-text">Moderasi Ucapan</span>
+          </li>
+          <li class="sidebar-item" onclick="switchDashboardTab('tab-storage', this)" title="Storage & Health">
+            <span class="sidebar-icon">🗄️</span> <span class="sidebar-text">Storage & Health</span>
+          </li>
+          <li class="sidebar-item" onclick="openCurrentActiveMonitor()" title="Buka Layar Monitor Panggung Event Aktif" style="border-top: 1px dashed rgba(212,148,56,0.3); margin-top: 4px; padding-top: 10px;">
+            <span class="sidebar-icon">📺</span> <span class="sidebar-text" style="color: var(--accent-gold); font-weight: 700;">Layar Monitor (Live)</span>
+          </li>
+        </ul>
+        
+        <div class="sidebar-account-box">
+          <div class="sidebar-text" style="font-size: 12px; color: #fff; font-weight: 600;" id="user-display-name">Admin User</div>
+          <div class="sidebar-text" style="font-size: 11px; color: var(--accent-gold);" id="user-display-role">Role: Admin</div>
+          
+          <!-- Tombol Tambah Crew (Admin Only) & Ganti Password -->
+          <div style="display:flex; flex-direction:column; gap:6px; margin-top:6px;">
+            <button class="btn btn-outline btn-sm role-admin-only" style="color:#d49438; border-color:#574328; width:100%; justify-content:flex-start;" onclick="openAddCrewModal()" title="Tambah Akun Crew">
+              <span class="sidebar-icon">👥</span> <span class="sidebar-text sidebar-btn-text">+ Tambah Akun Crew</span>
+            </button>
+            <button class="btn btn-outline btn-sm" style="color:#cbd5e1; border-color:#384254; width:100%; justify-content:flex-start;" onclick="openChangePasswordModal()" title="Ganti Password">
+              <span class="sidebar-icon">🔑</span> <span class="sidebar-text sidebar-btn-text">Ganti Password</span>
+            </button>
+            <button class="btn btn-outline btn-sm role-admin-only" style="color:#a78bfa; border-color:#4c3870; width:100%; justify-content:flex-start;" onclick="openChangeLogoModal()" title="Ganti Logo Studio">
+              <span class="sidebar-icon">🎨</span> <span class="sidebar-text sidebar-btn-text">Ganti Logo Studio</span>
+            </button>
+            <button class="btn btn-outline btn-sm" id="btn-sidebar-pwa-install" style="color:#38bdf8; border-color:#0369a1; width:100%; justify-content:flex-start;" onclick="openPwaInstallModal()" title="Pasang Aplikasi (Android / iOS)">
+              <span class="sidebar-icon">📲</span> <span class="sidebar-text sidebar-btn-text">Pasang Aplikasi</span>
+            </button>
+          </div>
+
+          <button class="btn btn-outline btn-sm" style="color: #ef4444; border-color: #572a2a; width: 100%; margin-top: 6px; justify-content: flex-start;" onclick="handleLogout()" title="Keluar Panel">
+            <span class="sidebar-icon">🚪</span> <span class="sidebar-text sidebar-btn-text">Keluar Panel</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="main-content">
+        <!-- Control Center Tab -->
+        <div id="tab-control-center" class="dash-tab">
+          <div class="top-bar">
+            <div>
+              <h2 class="page-heading">Limz Studio Photobooth Control Center</h2>
+              <p style="font-size: 13px; color: var(--text-muted);">Pantau metrik event aktif, sinkronisasi Google Drive, dan interaksi tamu secara real-time.</p>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+              <button class="btn btn-outline btn-sm" onclick="openSetWebAppUrlModal()" style="border-color: var(--accent-gold); color: var(--accent-gold);" id="btn-web-url-status">
+                🌐 Setel URL Web App (/exec)
+              </button>
+              <button class="btn btn-blue btn-sm role-admin-only" onclick="openCreateCollectionModal()">+ Buat Event Baru</button>
+            </div>
+          </div>
+
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-card-title">Total Koleksi</div>
+              <div class="stat-card-val" id="stat-total-collections">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-title">Event Aktif</div>
+              <div class="stat-card-val" style="color: var(--accent-green);" id="stat-active-collections">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-title">Total Foto Cloud</div>
+              <div class="stat-card-val" style="color: var(--accent-blue);" id="stat-total-photos">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-title">Galeri Views</div>
+              <div class="stat-card-val" style="color: var(--accent-gold);" id="stat-total-views">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-title">Total Download</div>
+              <div class="stat-card-val" style="color: var(--accent-purple);" id="stat-total-downloads">0</div>
+            </div>
+          </div>
+
+          <div class="table-card">
+            <div class="table-header-box">
+              <h3 style="font-size: 15px; font-weight: 700;">Event Terbaru</h3>
+              <button class="btn btn-outline btn-sm" onclick="switchDashboardTab('tab-collections')">Lihat Semua</button>
+            </div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Event</th>
+                  <th>Klien</th>
+                  <th>Tanggal</th>
+                  <th>Foto</th>
+                  <th>Status</th>
+                  <th>Aksi Terbuka (Tab Baru)</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-latest-collections"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="tab-collections" class="dash-tab" style="display: none;">
+          <div class="top-bar">
+            <div>
+              <h2 class="page-heading">Manajemen Koleksi Event</h2>
+              <p style="font-size: 13px; color: var(--text-muted);">Kelola akses publik, edit cover & data event, sinkronisasi Google Drive, tayangan panggung, dan flyer meja tamu.</p>
+            </div>
+            <button class="btn btn-blue btn-sm role-admin-only" onclick="openCreateCollectionModal()">+ Tambah Koleksi</button>
+          </div>
+
+          <div class="table-card">
+            <div class="table-header-box">
+              <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <input type="text" id="search-collection" placeholder="Cari event/klien..." class="form-control" style="width: 240px;" oninput="debounceFetchCollections()">
+                <select id="filter-collection-status" class="form-control" style="width: 140px;" onchange="fetchCollectionsList()">
+                  <option value="ALL">Semua Status</option>
+                  <option value="Active">Active</option>
+                  <option value="Archived">Archived</option>
+                </select>
+              </div>
+            </div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Cover</th>
+                  <th>Judul Event & Slug</th>
+                  <th>Klien</th>
+                  <th>Tgl Acara</th>
+                  <th>Foto</th>
+                  <th>Status</th>
+                  <th>Aksi Terintegrasi</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-all-collections"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="tab-upload" class="dash-tab" style="display: none;">
+          <div class="top-bar">
+            <div>
+              <h2 class="page-heading">Upload Foto &amp; Studio Grading Watermark</h2>
+              <p style="font-size: 13px; color: var(--text-muted);">Pilih atau tarik foto, sesuaikan pencahayaan, AWB, shadow &amp; watermark secara visual sebelum diupload ke cloud.</p>
+            </div>
+          </div>
+
+          <!-- ZONA 1 (PALING ATAS): PILIH KOLEKSI & DROPZONE DRAG & DROP -->
+          <div style="background: #fff; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 18px 20px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.03);">
+            <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 16px;">
+              <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 280px; flex-wrap: wrap;">
+                <label style="font-size: 13px; font-weight: 700; color: var(--text-main); margin: 0; white-space: nowrap;">
+                  🎯 Koleksi Acara Tujuan:
+                </label>
+                <select id="select-upload-collection" class="form-control" style="flex: 1; min-width: 180px;" onchange="handleUploadCollectionChange()"></select>
+                <button type="button" class="btn btn-gold btn-sm" onclick="openCurrentActiveMonitor()" style="font-size: 12px; font-weight: 700; white-space: nowrap; padding: 7px 14px; display: inline-flex; align-items: center; gap: 6px;" title="Buka Layar Monitor Panggung untuk Koleksi Ini di Tab Baru">
+                  📺 Buka Monitor Event Ini
+                </button>
+              </div>
+              <div style="font-size: 12px; color: var(--text-muted);">
+                Foto akan otomatis tersimpan ke folder Google Drive koleksi ini.
+              </div>
+            </div>
+
+            <div class="dropzone-box" id="dropzone-upload-box" onclick="document.getElementById('file-input-photos').click();" style="margin-bottom: 0;">
+              <div class="dropzone-icon" style="font-size: 38px; margin-bottom: 6px;">📸</div>
+              <h4 style="font-size: 16px; font-weight: 700; margin-bottom: 4px; color: var(--text-main);">Pilih atau Tarik Foto ke Sini (Drag &amp; Drop)</h4>
+              <p style="font-size: 12.5px; color: var(--text-muted); max-width: 580px; margin: 0 auto 10px;">Tarik langsung file foto dari kamera/laptop Anda ke kotak ini. Foto akan masuk ke antrian pratinjau terlebih dahulu (tidak langsung diupload) agar Anda dapat mengatur pencahayaan, AWB, shadow, dan watermark.</p>
+              <div style="display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; color: var(--accent-gold); background: #fdfaf3; border: 1px solid rgba(212,175,55,0.4); padding: 5px 16px; border-radius: 20px;">
+                📁 Klik untuk Memilih File atau Drag Foto ke Kotak Ini
+              </div>
+              <input type="file" id="file-input-photos" multiple accept="image/*" style="display: none;" onchange="handlePhotoFilesSelected(this.files)">
+            </div>
+
+            <!-- ACTION BAR: KONEKSI KAMERA HP, IPAD/TABLET, LIVE VIEWFINDER DSLR & HOT FOLDER -->
+            <div style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--border-subtle);">
+              <button type="button" class="btn btn-outline btn-sm camera-src-btn" onclick="triggerMobileCameraCapture(event)" style="font-size: 12px; font-weight: 700; color: #0284c7; border-color: #bae6fd; background: #f0f9ff;">
+                📱 Buka Kamera HP
+              </button>
+              <button type="button" class="btn btn-outline btn-sm camera-src-btn" onclick="triggerIpadRollCapture(event)" style="font-size: 12px; font-weight: 700; color: #7c3aed; border-color: #ddd6fe; background: #f5f3ff;">
+                📱 Rol Kamera / iPad
+              </button>
+              <button type="button" class="btn btn-outline btn-sm camera-src-btn" onclick="openLiveCameraModal(event)" style="font-size: 12px; font-weight: 700; color: #b45309; border-color: #fde68a; background: #fffbeb;">
+                📸 Live Viewfinder (DSLR / USB Cam)
+              </button>
+              <button type="button" class="btn btn-outline btn-sm camera-src-btn" onclick="triggerDslrHotFolderWatch(event)" style="font-size: 12px; font-weight: 700; color: #047857; border-color: #a7f3d0; background: #ecfdf5;" id="btn-tether-hotfolder">
+                📁 Auto-Sync Folder Tether DSLR
+              </button>
+              <button type="button" class="btn btn-outline btn-sm camera-src-btn" onclick="openModal('modal-ipad-dslr-guide')" style="font-size: 12px; font-weight: 700; color: #475569; border-color: #cbd5e1; background: #f8fafc;">
+                ℹ️ Panduan iPad &amp; DSLR
+              </button>
+              <input type="file" id="file-input-mobile-cam" accept="image/*" capture="environment" style="display: none;" onchange="handlePhotoFilesSelected(this.files)">
+              <input type="file" id="file-input-ipad-roll" accept="image/*" multiple style="display: none;" onchange="handlePhotoFilesSelected(this.files)">
+            </div>
+          </div>
+
+          <!-- ZONA 2 & 3: STUDIO WORKSTATION SIDE-BY-SIDE (PREVIEW & CROP DI KIRI, GRADING & WATERMARK DI KANAN) -->
+          <div class="studio-workstation-grid" id="staged-workstation">
+            
+            <!-- KOLOM KIRI: LIVE PREVIEW CANVAS, CROP TOOLBAR, DAN THUMBNAILS -->
+            <div style="display: flex; flex-direction: column; gap: 14px;">
+              <div class="wm-config-card" id="staged-preview-card" style="margin-bottom: 0; padding: 18px 20px;">
+                <div class="wm-config-header" style="margin-bottom: 12px;">
+                  <div>
+                    <h3 style="font-size: 15.5px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px; margin: 0;">
+                      <span>🖼️ Live Studio Preview</span>
+                      <span id="staged-status-badge" class="badge-status" style="background: #fef3c7; color: #92400e; font-size: 10.5px;">Belum Diunggah</span>
+                    </h3>
+                    <p style="font-size: 11.5px; color: var(--text-muted); margin: 3px 0 0;">
+                      Tampilan utuh tanpa terpotong. Anda dapat <strong>geser watermark langsung di foto</strong> atau gunakan panel samping.
+                    </p>
+                  </div>
+                  <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                    <button type="button" class="btn btn-outline btn-sm" id="btn-toggle-crop" onclick="toggleCropMode()" style="font-size: 11.5px; font-weight: 700; border-color: var(--accent-gold); color: var(--accent-gold);">
+                      ✂️ Crop Foto
+                    </button>
+                    <button type="button" class="btn btn-outline btn-sm" id="btn-reset-crop" onclick="resetCrop()" style="display: none; font-size: 11px; color: var(--accent-red); border-color: #fca5a5;">
+                      ↺ Reset Crop
+                    </button>
+                    <div id="wm-status-indicator">
+                      <span class="badge-status" style="background:#e0f2fe; color:#0369a1; font-size: 11px;" id="wm-badge-text">ℹ️ Watermark Teks</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- CROP TOOLBAR (HANYA AKTIF SAAT MODE CROP AKTIF) -->
+                <div id="crop-toolbar" style="display: none; background: #faf8f5; border: 1.5px solid var(--accent-gold); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
+                  <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                    <span style="font-size: 11px; font-weight: 700; color: var(--text-muted);">Orientasi:</span>
+                    <button type="button" class="btn btn-outline btn-sm crop-orient-btn active" id="btn-orient-horizontal" onclick="setCropOrientation('horizontal', this)">↔️ Horisontal</button>
+                    <button type="button" class="btn btn-outline btn-sm crop-orient-btn" id="btn-orient-vertical" onclick="setCropOrientation('vertical', this)">↕️ Vertikal</button>
+                    <span style="border-left: 1px solid var(--border-subtle); height: 16px; margin: 0 4px;"></span>
+                    <span style="font-size: 11px; font-weight: 700; color: var(--text-muted);">Rasio:</span>
+                    <button type="button" class="btn btn-outline btn-sm crop-ratio-btn active" id="btn-ratio-free" onclick="setCropRatio('free', this)">Bebas</button>
+                    <button type="button" class="btn btn-outline btn-sm crop-ratio-btn" id="btn-ratio-1-1" onclick="setCropRatio('1:1', this)">1:1 (Kotak)</button>
+                    <button type="button" class="btn btn-outline btn-sm crop-ratio-btn" id="btn-ratio-4-6" onclick="setCropRatio('4-6', this)">4R</button>
+                    <button type="button" class="btn btn-outline btn-sm crop-ratio-btn" id="btn-ratio-4-3" onclick="setCropRatio('4-3', this)">4:3 / 3:4</button>
+                    <button type="button" class="btn btn-outline btn-sm crop-ratio-btn" id="btn-ratio-16-9" onclick="setCropRatio('16-9', this)">16:9 / 9:16</button>
+                  </div>
+                  <div style="display: flex; gap: 6px;">
+                    <button type="button" class="btn btn-outline btn-sm" onclick="cancelCrop()" style="font-size: 11px;">Batal</button>
+                    <button type="button" class="btn btn-gold btn-sm" onclick="applyCrop()" style="font-size: 11.5px; font-weight: 700;">✓ Terapkan Crop</button>
+                  </div>
+                </div>
+
+                <!-- PREVIEW BOX (FOTO TERLIHAT 100% UTUH TANPA TERPOTONG) -->
+                <div class="wm-simulator-box" id="wm-simulator-container">
+                  <div class="wm-stage-frame" id="wm-stage-frame">
+                    <img class="wm-simulator-bg-img" id="wm-simulator-bg" src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=800&q=80" alt="Pratinjau Foto" style="transition: filter 0.1s ease;">
+                    <div id="wm-sim-grade-overlay" style="position: absolute; inset: 0; pointer-events: none; mix-blend-mode: soft-light; opacity: 0; transition: all 0.15s ease;"></div>
+                    
+                    <!-- GARIS PANDUAN BANTUAN SUMBU TENGAH (MAGNETIC SNAP GUIDES) -->
+                    <div id="wm-guide-center-x" class="wm-guide-line v-line"></div>
+                    <div id="wm-guide-center-y" class="wm-guide-line h-line"></div>
+                    <div id="wm-snap-badge" class="wm-snap-badge">🎯 Tengah Sempurna</div>
+
+                    <div class="wm-simulator-overlay-item" id="wm-simulator-overlay" style="left: 78%; top: 82%; width: 22%; opacity: 0.85;" title="Klik &amp; geser (drag) watermark langsung ke posisi manapun">
+                      <img id="wm-sim-logo-img" src="" alt="Watermark Preview" style="display: none;">
+                      <div id="wm-sim-fallback-text" class="wm-simulator-fallback-text">LIMZ STUDIO PHOTOBOOTH</div>
+                    </div>
+
+                    <!-- CROP OVERLAY (AKTIF SAAT MODE CROP) -->
+                    <div id="wm-crop-overlay" style="display: none; position: absolute; inset: 0; cursor: crosshair; user-select: none; overflow: hidden; border-radius: 4px;">
+                      <div id="crop-box" style="position: absolute; left: 10%; top: 10%; width: 80%; height: 80%; border: 2px solid #e2b86b; box-shadow: 0 0 0 9999px rgba(0,0,0,0.68); cursor: move; touch-action: none;">
+                        <div style="position: absolute; top: 33.33%; left: 0; right: 0; height: 1px; background: rgba(255,255,255,0.4); pointer-events: none;"></div>
+                        <div style="position: absolute; top: 66.66%; left: 0; right: 0; height: 1px; background: rgba(255,255,255,0.4); pointer-events: none;"></div>
+                        <div style="position: absolute; left: 33.33%; top: 0; bottom: 0; width: 1px; background: rgba(255,255,255,0.4); pointer-events: none;"></div>
+                        <div style="position: absolute; left: 66.66%; top: 0; bottom: 0; width: 1px; background: rgba(255,255,255,0.4); pointer-events: none;"></div>
+                        <div class="crop-handle handle-nw" data-handle="nw" style="top: -7px; left: -7px; cursor: nwse-resize;"></div>
+                        <div class="crop-handle handle-ne" data-handle="ne" style="top: -7px; right: -7px; cursor: nesw-resize;"></div>
+                        <div class="crop-handle handle-sw" data-handle="sw" style="bottom: -7px; left: -7px; cursor: nesw-resize;"></div>
+                        <div class="crop-handle handle-se" data-handle="se" style="bottom: -7px; right: -7px; cursor: nwse-resize;"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- BATCH THUMBNAIL BAR JIKA BANYAK FOTO -->
+                <div id="staged-thumbnails-wrapper" style="display: none; margin-top: 14px; background: #faf8f5; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 10px 14px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+                    <span style="font-size: 11.5px; font-weight: 700; color: var(--text-main);">Foto dalam Antrian (Klik untuk Beralih):</span>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <button type="button" class="btn btn-outline btn-sm" id="btn-thumb-gif" onclick="openGifCreatorModal()" style="font-size: 11px; font-weight: 700; color: #b45309; border-color: #fde68a; background: #fffbeb; padding: 3px 10px;" title="Gabungkan semua foto menjadi Animasi GIF">
+                        🎬 Buat GIF
+                      </button>
+                      <span id="staged-active-info" style="font-size: 11px; color: var(--accent-gold); font-weight: 700;">Foto 1 dari 1</span>
+                    </div>
+                  </div>
+                  <div id="staged-thumbnails-container" style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: thin;"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- KOLOM KANAN: STUDIO PHOTO GRADING (AWB, PRESET, SLIDERS) & WATERMARK SETTINGS -->
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+              
+              <!-- PANEL 1: STUDIO PHOTO GRADING & AWB (BERADA DI SAMPING PREVIEW) -->
+              <div class="wm-config-card" style="padding: 18px 20px; margin-bottom: 0;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
+                  <div>
+                    <h4 style="font-size:14.5px; font-weight:700; color:var(--text-main); margin: 0;">🎨 Studio Photo Grading &amp; AWB</h4>
+                    <p style="font-size:11px; color:var(--text-muted); margin: 2px 0 0;">Pengaturan pencahayaan &amp; keseimbangan warna.</p>
+                  </div>
+                  <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                    <button type="button" class="btn btn-gold btn-sm" onclick="triggerAutoWhiteBalance()" style="font-size:11px; font-weight:700; padding:5px 10px;" title="Deteksi dan seimbangkan warna dominan foto otomatis">
+                      ⚡ AWB
+                    </button>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="triggerAutoAdjustPhoto()" style="font-size:11px; padding:5px 10px;">
+                      ✨ Auto
+                    </button>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="resetPhotoFilters()" style="font-size:11px; padding:5px 8px;">
+                      ↺ Reset
+                    </button>
+                  </div>
+                </div>
+
+                <!-- PRESETS CEPAT -->
+                <div style="display:flex; gap:5px; flex-wrap:wrap; margin-bottom:14px;">
+                  <button type="button" class="btn btn-outline btn-sm filter-preset-btn active" id="btn-flt-normal" onclick="setPhotoFilterPreset('normal', this)" style="padding:3px 8px; font-size:11px;">Original</button>
+                  <button type="button" class="btn btn-outline btn-sm filter-preset-btn" id="btn-flt-warm" onclick="setPhotoFilterPreset('warm', this)" style="padding:3px 8px; font-size:11px;">🌟 Warm</button>
+                  <button type="button" class="btn btn-outline btn-sm filter-preset-btn" id="btn-flt-soft" onclick="setPhotoFilterPreset('soft', this)" style="padding:3px 8px; font-size:11px;">🌸 Soft</button>
+                  <button type="button" class="btn btn-outline btn-sm filter-preset-btn" id="btn-flt-bw" onclick="setPhotoFilterPreset('bw', this)" style="padding:3px 8px; font-size:11px;">🖤 B&amp;W</button>
+                  <button type="button" class="btn btn-outline btn-sm filter-preset-btn" id="btn-flt-vintage" onclick="setPhotoFilterPreset('vintage', this)" style="padding:3px 8px; font-size:11px;">🎞️ Film</button>
+                  <button type="button" class="btn btn-outline btn-sm filter-preset-btn" id="btn-flt-vivid" onclick="setPhotoFilterPreset('vivid', this)" style="padding:3px 8px; font-size:11px;">💎 Vivid</button>
+                </div>
+
+                <!-- SLIDERS KONTROL LENGKAP -->
+                <div class="grading-slider-grid" style="gap:10px; background:#faf8f5; padding:12px 14px; border-radius:8px; border:1px solid var(--border-subtle);">
+                  <div>
+                    <label style="font-size:11px; font-weight:700; display:flex; justify-content:space-between; margin-bottom:2px;">
+                      <span>Temperatur</span>
+                      <span id="lbl-flt-temp" style="color:var(--accent-gold);">0</span>
+                    </label>
+                    <input type="range" id="slider-flt-temp" min="-50" max="50" value="0" style="width:100%; accent-color:var(--accent-gold);" oninput="updateCustomFilterSliders()">
+                    <div style="display:flex; justify-content:space-between; font-size:9px; color:var(--text-muted);">
+                      <span>Dingin (-50)</span>
+                      <span>Hangat (+50)</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style="font-size:11px; font-weight:700; display:flex; justify-content:space-between; margin-bottom:2px;">
+                      <span>Tint</span>
+                      <span id="lbl-flt-tint" style="color:var(--accent-gold);">0</span>
+                    </label>
+                    <input type="range" id="slider-flt-tint" min="-50" max="50" value="0" style="width:100%; accent-color:var(--accent-gold);" oninput="updateCustomFilterSliders()">
+                    <div style="display:flex; justify-content:space-between; font-size:9px; color:var(--text-muted);">
+                      <span>Hijau (-50)</span>
+                      <span>Magenta (+50)</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style="font-size:11px; font-weight:700; display:flex; justify-content:space-between; margin-bottom:2px;">
+                      <span>Brightness</span>
+                      <span id="lbl-flt-bright" style="color:var(--accent-gold);">0%</span>
+                    </label>
+                    <input type="range" id="slider-flt-bright" min="-50" max="50" value="0" style="width:100%; accent-color:var(--accent-gold);" oninput="updateCustomFilterSliders()">
+                    <div style="display:flex; justify-content:space-between; font-size:9px; color:var(--text-muted);">
+                      <span>Gelap (-50)</span>
+                      <span>Terang (+50)</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style="font-size:11px; font-weight:700; display:flex; justify-content:space-between; margin-bottom:2px;">
+                      <span>Contrast</span>
+                      <span id="lbl-flt-contrast" style="color:var(--accent-gold);">0%</span>
+                    </label>
+                    <input type="range" id="slider-flt-contrast" min="-50" max="50" value="0" style="width:100%; accent-color:var(--accent-gold);" oninput="updateCustomFilterSliders()">
+                    <div style="display:flex; justify-content:space-between; font-size:9px; color:var(--text-muted);">
+                      <span>Pudar (-50)</span>
+                      <span>Tajam (+50)</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style="font-size:11px; font-weight:700; display:flex; justify-content:space-between; margin-bottom:2px;">
+                      <span>Shadows (Gelap)</span>
+                      <span id="lbl-flt-shadows" style="color:var(--accent-gold);">0%</span>
+                    </label>
+                    <input type="range" id="slider-flt-shadows" min="-50" max="50" value="0" style="width:100%; accent-color:var(--accent-gold);" oninput="updateCustomFilterSliders()">
+                    <div style="display:flex; justify-content:space-between; font-size:9px; color:var(--text-muted);">
+                      <span>Pekat (-50)</span>
+                      <span>Terang (+50)</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style="font-size:11px; font-weight:700; display:flex; justify-content:space-between; margin-bottom:2px;">
+                      <span>Highlights (Silau)</span>
+                      <span id="lbl-flt-highlights" style="color:var(--accent-gold);">0%</span>
+                    </label>
+                    <input type="range" id="slider-flt-highlights" min="-50" max="50" value="0" style="width:100%; accent-color:var(--accent-gold);" oninput="updateCustomFilterSliders()">
+                    <div style="display:flex; justify-content:space-between; font-size:9px; color:var(--text-muted);">
+                      <span>Redam (-50)</span>
+                      <span>Angkat (+50)</span>
+                    </div>
+                  </div>
+
+                  <div style="grid-column: 1 / -1;">
+                    <label style="font-size:11px; font-weight:700; display:flex; justify-content:space-between; margin-bottom:2px;">
+                      <span>Saturation / Saturasi</span>
+                      <span id="lbl-flt-sat" style="color:var(--accent-gold);">0%</span>
+                    </label>
+                    <input type="range" id="slider-flt-sat" min="-100" max="100" value="0" style="width:100%; accent-color:var(--accent-gold);" oninput="updateCustomFilterSliders()">
+                    <div style="display:flex; justify-content:space-between; font-size:9px; color:var(--text-muted);">
+                      <span>B&amp;W (-100)</span>
+                      <span>Normal</span>
+                      <span>Pekat (+100)</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- PANEL 2: PENGATURAN WATERMARK (DI SAMPING PREVIEW) -->
+              <div class="wm-config-card" style="padding: 18px 20px; margin-bottom: 0;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                  <span style="font-size: 13px; font-weight: 700; color: var(--text-main);">📐 Posisi &amp; Ukuran Watermark</span>
+                  <button type="button" class="btn btn-outline btn-sm" id="btn-remove-wm-png" onclick="removeCustomWatermarkPng()" style="display:none; color:var(--accent-red); border-color:#fca5a5; font-size: 10.5px; padding: 3px 8px;">
+                    ✕ Reset Teks
+                  </button>
+                </div>
+
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;">
+                  <button type="button" class="btn btn-gold btn-sm" onclick="document.getElementById('file-input-watermark-png').click();" style="font-size: 11px; padding: 5px 12px;">
+                    📁 Unggah Logo PNG Transparan
+                  </button>
+                  <input type="file" id="file-input-watermark-png" accept="image/png,image/*" style="display:none;" onchange="handleWatermarkPngSelected(this.files)">
+                </div>
+
+                <div class="watermark-slider-grid" style="gap: 10px; background: #faf8f5; padding: 12px 14px; border-radius: 8px; border: 1px solid var(--border-subtle); margin-bottom: 10px;">
+                  <div>
+                    <label style="font-size: 10.5px; font-weight: 700; color: var(--text-main); display: flex; justify-content: space-between;">
+                      <span>Posisi X</span>
+                      <span id="label-wm-pos-x" style="color: var(--accent-gold); font-weight: 800;">88%</span>
+                    </label>
+                    <input type="range" id="slider-wm-pos-x" min="0" max="100" value="88" style="width: 100%; accent-color: var(--accent-gold);" oninput="updateWatermarkManualSettings();">
+                  </div>
+                  <div>
+                    <label style="font-size: 10.5px; font-weight: 700; color: var(--text-main); display: flex; justify-content: space-between;">
+                      <span>Posisi Y</span>
+                      <span id="label-wm-pos-y" style="color: var(--accent-gold); font-weight: 800;">90%</span>
+                    </label>
+                    <input type="range" id="slider-wm-pos-y" min="0" max="100" value="90" style="width: 100%; accent-color: var(--accent-gold);" oninput="updateWatermarkManualSettings();">
+                  </div>
+                  <div>
+                    <label style="font-size: 10.5px; font-weight: 700; color: var(--text-main); display: flex; justify-content: space-between;">
+                      <span>Ukuran (% Lebar)</span>
+                      <span id="label-wm-scale" style="color: var(--accent-gold); font-weight: 800;">22%</span>
+                    </label>
+                    <input type="range" id="slider-wm-scale" min="5" max="80" value="22" style="width: 100%; accent-color: var(--accent-gold);" oninput="updateWatermarkManualSettings();">
+                  </div>
+                  <div>
+                    <label style="font-size: 10.5px; font-weight: 700; color: var(--text-main); display: flex; justify-content: space-between;">
+                      <span>Opasitas</span>
+                      <span id="label-wm-opacity" style="color: var(--accent-gold); font-weight: 800;">85%</span>
+                    </label>
+                    <input type="range" id="slider-wm-opacity" min="10" max="100" value="85" style="width: 100%; accent-color: var(--accent-gold);" oninput="updateWatermarkManualSettings();">
+                  </div>
+                </div>
+
+                <div>
+                  <span style="font-size: 10.5px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 5px;">Titik Preset Posisi:</span>
+                  <div style="display: flex; gap: 5px; flex-wrap: wrap;">
+                    <button type="button" class="btn btn-outline btn-sm" onclick="applyWatermarkPreset(90, 90, 22)" style="font-size: 10px; padding: 3px 8px;">Kanan Bawah</button>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="applyWatermarkPreset(50, 90, 22)" style="font-size: 10px; padding: 3px 8px; font-weight: 700; border-color: var(--accent-gold); color: var(--accent-gold);">Tengah Bawah</button>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="applyWatermarkPreset(10, 90, 22)" style="font-size: 10px; padding: 3px 8px;">Kiri Bawah</button>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="applyWatermarkPreset(50, 50, 26)" style="font-size: 10px; padding: 3px 8px;">Tengah</button>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="applyWatermarkPreset(90, 10, 22)" style="font-size: 10px; padding: 3px 8px;">Kanan Atas</button>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="applyWatermarkPreset(10, 10, 22)" style="font-size: 10px; padding: 3px 8px;">Kiri Atas</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ZONA 4 (BAWAH): ACTION COMMAND BAR UNTUK EKSEKUSI UPLOAD MANUAL -->
+          <div id="staged-action-bar" style="background: #fff; border: 2px solid var(--accent-gold); border-radius: var(--radius-md); padding: 18px 24px; margin-bottom: 22px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; box-shadow: 0 4px 16px rgba(212,175,55,0.12);">
+            <div>
+              <div style="font-size: 15px; font-weight: 700; color: var(--text-main);" id="staged-count-summary">
+                📸 <span id="staged-photos-count">0</span> Foto dalam Antrian Pratinjau
+              </div>
+              <p style="font-size: 12px; color: var(--text-muted); margin: 3px 0 0;" id="staged-count-desc">
+                Foto siap diproses. Klik tombol upload setelah pengaturan tone, AWB, dan watermark sudah pas.
+              </p>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+              <button type="button" class="btn btn-outline" id="btn-create-gif" onclick="openGifCreatorModal()" style="display: none; font-size: 13px; font-weight: 700; color: #b45309; border-color: #fde68a; background: #fffbeb; box-shadow: 0 2px 8px rgba(180,83,9,0.15);">
+                🎬 Buat Animasi GIF (Burst)
+              </button>
+              <button type="button" class="btn btn-outline" id="btn-clear-staged" onclick="clearStagedPhotos()" style="font-size: 13px;">
+                🗑️ Kosongkan Antrian
+              </button>
+              <button type="button" class="btn btn-gold" id="btn-start-upload" onclick="startStagedPhotosUpload()" style="font-size: 14px; font-weight: 700; padding: 10px 24px; box-shadow: 0 4px 14px rgba(212,175,55,0.4);">
+                🚀 Upload Sekarang ke Cloud
+              </button>
+            </div>
+          </div>
+
+          <div id="upload-progress-box" style="display: none; margin-bottom: 20px; background: #fff; padding: 15px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+            <div style="font-size: 13px; font-weight: 600; margin-bottom: 6px;" id="upload-progress-text">Memproses watermark...</div>
+            <div style="width: 100%; background: #e8e2d5; height: 8px; border-radius: 4px; overflow: hidden;">
+              <div id="upload-progress-bar" style="width: 0%; background: var(--accent-gold); height: 100%; transition: width 0.2s;"></div>
+            </div>
+          </div>
+
+          <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 12px;">Pratinjau Hasil Upload</h3>
+          <div class="photo-grid" id="container-uploaded-photos"></div>
+        </div>
+
+        <div id="tab-moderation" class="dash-tab" style="display: none;">
+          <div class="top-bar">
+            <div><h2 class="page-heading">Moderasi Doa & Sensor Kata</h2></div>
+            <button class="btn btn-gold btn-sm" onclick="openAddWordModal()">+ Tambah Kata Terlarang</button>
+          </div>
+          <div class="table-card">
+            <div class="table-header-box"><h3 style="font-size: 14px; font-weight: 700;">Daftar Doa Masuk Tamu</h3></div>
+            <table class="data-table">
+              <thead><tr><th>Pengirim</th><th>Pesan</th><th>Status</th><th>Aksi</th></tr></thead>
+              <tbody id="tbody-wishes-moderation"></tbody>
+            </table>
+          </div>
+          <div class="table-card" style="margin-top: 25px;">
+            <div class="table-header-box"><h3 style="font-size: 14px; font-weight: 700;">Blacklist Kata Terlarang (Sensor Otomatis)</h3></div>
+            <table class="data-table">
+              <thead><tr><th>Kata Terlarang</th><th>Kategori</th><th>Aksi</th></tr></thead>
+              <tbody id="tbody-sensor-words"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Storage & Health Tab with Batal Arsip support -->
+        <div id="tab-storage" class="dash-tab" style="display: none;">
+          <div class="top-bar">
+            <div>
+              <h2 class="page-heading">Storage Manager & Health</h2>
+              <p style="font-size: 13px; color: var(--text-muted);">Pantau kapasitas Drive, kelola arsip, batalkan arsip, dan bersihkan koleksi yang sudah selesai.</p>
+            </div>
+            <button class="btn btn-teal btn-sm" onclick="triggerManualHealthAudit()">Jalankan Health Check</button>
+          </div>
+          <div class="table-card">
+            <div class="table-header-box">
+              <h3 style="font-size: 14px; font-weight: 700;">Daftar Koleksi & Aksi Penyimpanan</h3>
+            </div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Event</th>
+                  <th>Tgl Acara</th>
+                  <th>Total Foto</th>
+                  <th>Status</th>
+                  <th>Aksi Storage</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-expired-collections"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="view-public-gallery" class="view-container">
+    <div id="gallery-splash-loader" class="gallery-splash-loader" style="display:none; opacity:0;">
+      <div class="splash-bg-overlay" id="splash-bg-overlay"></div>
+      <div class="splash-content">
+        <div class="splash-studio-tag" id="splash-studio-tag">LIMZ STUDIO PHOTOBOOTH</div>
+        <div class="splash-cover-box">
+          <img id="splash-cover-img" src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=600&q=80" alt="Cover Image Event">
+        </div>
+        <h1 class="splash-couple-title" id="splash-couple-title">Wedding Gallery</h1>
+        <p class="splash-event-date" id="splash-event-date">Live Documentation</p>
+        <div class="splash-countdown-badge" id="splash-countdown-num" onclick="dismissSplashScreen()" title="Klik untuk langsung masuk">3</div>
+        <div class="splash-loading-hint">Menyiapkan galeri momen terbaik Anda...</div>
+      </div>
+    </div>
+
+    <div class="public-hero-cover" id="pub-hero-banner" style="background-image: url('https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1600&q=80');">
+      <div class="public-hero-overlay"></div>
+      <div class="public-hero-content">
+        <div class="public-event-badge" id="pub-hero-badge">LIMZ STUDIO PHOTOBOOTH GALLERY</div>
+        <h1 class="public-couple-title" id="pub-event-title">Wedding Gallery</h1>
+        <p style="font-size: 14px; color: #e8e2d5; margin-bottom: 22px;" id="pub-event-date">-</p>
+        <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+          <button class="btn btn-gold btn-sm" onclick="downloadAllPhotosZip()">📥 Unduh Semua Foto</button>
+          <button class="btn btn-outline btn-sm" style="color: #fff; border-color: rgba(255,255,255,0.4);" onclick="sharePublicGallery()">🔗 Bagikan Galeri</button>
+          <button class="btn btn-outline btn-sm" style="color: #fff; border-color: rgba(255,255,255,0.4);" onclick="scrollToElement('guest-wish-section')">💌 Kirim Doa Restu</button>
+          <button class="btn btn-dark btn-sm" onclick="triggerManualSyncPublicGallery()">🔄 Segarkan Galeri (Sync)</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="max-width: 1100px; margin: 30px auto; padding: 0 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 14px;">
+        <div>
+          <h3 style="font-size: clamp(18px, 3.2vw, 24px); font-weight: 800; color: var(--text-main); line-height: 1.3;">
+            ✨ Setiap Detik Berharga, Abadikan Momen Indah Bersama
+          </h3>
+          <p style="font-size: 12.5px; color: var(--text-muted); margin-top: 4px;">
+            Temukan kembali setiap senyuman manis dan tawa hangat yang tertangkap di hari penuh kebahagiaan ini.
+          </p>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <button class="btn btn-outline btn-sm" onclick="sharePublicGallery()" style="border-color: var(--accent-gold); color: var(--accent-gold);">
+            🔗 Bagikan Galeri
+          </button>
+          <span style="font-size: 12px; color: var(--text-muted); font-weight: 600;" id="pub-photo-total-indicator">Klik foto untuk pratinjau & download file ori</span>
+        </div>
+      </div>
+      
+      <div class="photo-grid" id="pub-photo-grid"></div>
+
+      <div id="guest-wish-section" style="margin-top: 50px; background: #fff; padding: clamp(18px, 4vw, 30px); border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+        <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 4px;">Kirimkan Doa & Ucapan Hangat</h3>
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">Pesan Anda langsung disiarkan di layar panggung venue dan diabadikan dalam album kenangan.</p>
+        <form onsubmit="event.preventDefault(); handleSendWishSubmit();">
+          <div class="form-group">
+            <label>Nama Anda</label>
+            <input type="text" id="wish-sender-name" class="form-control" placeholder="Contoh: Sahabat Mempelai" required>
+          </div>
+          <div class="form-group">
+            <label>Ucapan & Doa Restu</label>
+            <textarea id="wish-message-text" rows="3" class="form-control" placeholder="Tuliskan ucapan selamat..." required></textarea>
+          </div>
+          <button type="submit" class="btn btn-gold" id="btn-send-wish">Kirimkan Ucapan</button>
+        </form>
+        <div style="margin-top: 30px;" id="pub-wishes-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="view-slideshow" class="view-container">
+    <div class="monitor-screen">
+      <div id="monitor-live-toast" class="monitor-live-toast">
+        <span>✨</span>
+        <span id="monitor-toast-text">Foto Baru Saja Diunggah ke Galeri!</span>
+      </div>
+
+      <div class="monitor-header-bar" id="mon-header-bar">
+        <div class="mon-header-motif-layer mon-header-motif-left" id="mon-header-motif-left"></div>
+        
+        <div class="monitor-hdr-tag monitor-hdr-tag-left">
+          <span class="mon-hdr-line"></span>
+          <span>WEDDING</span>
+          <span class="mon-hdr-line"></span>
+        </div>
+
+        <div class="monitor-hdr-center">
+          <div class="monitor-couple-name" id="mon-couple-title">Irvan &amp; Susan</div>
+          <div class="monitor-date-subtitle" id="mon-date-subtitle">30 AGUSTUS 2026</div>
+        </div>
+
+        <div class="monitor-hdr-tag monitor-hdr-tag-right">
+          <span class="mon-hdr-line"></span>
+          <span>CELEBRATION</span>
+          <span class="mon-hdr-line"></span>
+        </div>
+
+        <div class="mon-header-motif-layer mon-header-motif-right" id="mon-header-motif-right"></div>
+      </div>
+
+      <div class="monitor-main-content">
+        <!-- Foto Utama dengan QR Pojok Kanan Atas Dinamis & Area Lebih Luas -->
+        <div class="monitor-col-large" id="mon-col-large">
+          <!-- Empty State Elegan Jika Belum Ada Foto yang Diunggah -->
+          <div id="mon-empty-state" class="mon-empty-state" style="display: none; height: 100%; min-height: 480px; width: 100%; flex-direction: column; align-items: center; justify-content: center; text-align: center; background: rgba(25, 20, 16, 0.7); border: 1.5px dashed rgba(212, 148, 56, 0.45); border-radius: 14px; padding: 40px 24px; box-shadow: inset 0 0 40px rgba(0,0,0,0.5);">
+            <div style="font-size: 56px; margin-bottom: 16px; filter: drop-shadow(0 4px 14px rgba(212,148,56,0.35));">📷</div>
+            <h2 style="font-family: 'Cinzel', serif; font-size: clamp(20px, 3.2vw, 30px); color: var(--accent-gold); font-weight: 700; margin-bottom: 10px; letter-spacing: 1px;">Belum Ada Foto yang Diunggah</h2>
+            <p style="font-size: clamp(13px, 1.8vw, 16px); color: #e2e8f0; max-width: 520px; line-height: 1.6; margin: 0 auto 20px;">
+              Foto jepretan live dari photobooth / kamera akan langsung tayang secara otomatis di layar panggung ini begitu diunggah ke galeri acara.
+            </p>
+            <div style="display: inline-flex; align-items: center; gap: 8px; background: rgba(212, 148, 56, 0.15); border: 1px solid rgba(212, 148, 56, 0.45); padding: 8px 22px; border-radius: 30px; font-size: 13px; color: #fde68a; font-weight: 600;">
+              <span class="mon-chat-pulse-dot" style="background: #10b981;"></span> Menunggu foto pertama masuk...
+            </div>
+          </div>
+
+          <img id="mon-large-img" class="main-stage-img" src="" alt="Latest Photo" loading="eager" style="display:none;">
+          
+          <div class="mon-photo-corner-qr large" id="mon-qr-large-card" title="Scan untuk membuka dan unduh foto ini langsung!" style="display: none;">
+            <div class="mon-photo-corner-label">⚡ Scan Foto Ini</div>
+            <div class="mon-photo-corner-imgbox">
+              <img id="mon-qr-large-img" src="" alt="QR Foto Utama">
+            </div>
+          </div>
+
+          <div id="mon-floating-wish-card" class="monitor-floating-wish-card">
+            <div class="mon-wish-badge">✨ DOA RESTU TAMU BARU</div>
+            <div class="mon-wish-quote" id="mon-floating-wish-text">“Semoga menjadi keluarga bahagia &amp; langgeng selalu!”</div>
+            <div class="mon-wish-sender" id="mon-floating-wish-sender">— Sahabat Mempelai</div>
+          </div>
+        </div>
+
+        <!-- Dua Sub-Foto dengan QR Pojok Kanan Atas Masing-Masing -->
+        <div class="monitor-col-sub" id="mon-col-sub" style="display: none;">
+          <div class="monitor-sub-photo-box" id="mon-sub-box-1" style="display: none;">
+            <img id="mon-sub-img-1" class="sub-stage-img" src="" alt="Previous Photo 1" loading="eager">
+            <div class="mon-photo-corner-qr mini" id="mon-qr-sub1-card" title="Scan untuk unduh foto ini!" style="display: none;">
+              <div class="mon-photo-corner-label">⚡ Foto Ini</div>
+              <div class="mon-photo-corner-imgbox">
+                <img id="mon-qr-sub1-img" src="" alt="QR Sub Foto 1">
+              </div>
+            </div>
+          </div>
+
+          <div class="monitor-sub-photo-box" id="mon-sub-box-2" style="display: none;">
+            <img id="mon-sub-img-2" class="sub-stage-img" src="" alt="Previous Photo 2" loading="eager">
+            <div class="mon-photo-corner-qr mini" id="mon-qr-sub2-card" title="Scan untuk unduh foto ini!" style="display: none;">
+              <div class="mon-photo-corner-label">⚡ Foto Ini</div>
+              <div class="mon-photo-corner-imgbox">
+                <img id="mon-qr-sub2-img" src="" alt="QR Sub Foto 2">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel Kanan Ramping: QR Galeri Ringkas + Chat Memanjang ke Atas -->
+        <div class="monitor-col-info">
+          <div class="mon-info-top-box">
+            <div class="monitor-brand-heading">Photo take by :</div>
+            <div class="monitor-studio-name" id="mon-studio-credit">LIMZ STUDIO PHOTOBOOTH</div>
+            <div class="monitor-scan-desc" id="mon-qr-heading-desc">
+              Scan & Download<br><span style="color:#e2b86b;">Galeri Foto Event</span>
+            </div>
+            <div class="monitor-badge-scanme" id="mon-qr-badge">
+              <span>❖</span>
+              <span id="mon-qr-badge-text">GALERI EVENT</span>
+            </div>
+            <div class="monitor-qr-container" id="mon-qr-box-frame">
+              <img id="mon-qr-img" src="" alt="Scan Me untuk Buka Galeri Acara">
+            </div>
+            <div class="monitor-qr-status-text" id="mon-qr-target-hint" onclick="openSetWebAppUrlModal()" title="Klik untuk verifikasi / ganti URL web app">
+              📲 Pindai untuk membuka seluruh galeri...
+            </div>
+          </div>
+
+          <div class="monitor-chat-stream-box">
+            <div class="mon-chat-stream-header">
+              <span class="mon-chat-stream-title">
+                <span class="mon-chat-pulse-dot"></span>
+                LIVE WISHES CHAT
+              </span>
+              <span class="mon-chat-stream-counter" id="mon-chat-stream-counter">0 Pesan</span>
+            </div>
+            <div class="mon-chat-feed-list" id="mon-chat-feed-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="monitor-footer-bar">
+        <div class="monitor-photo-counter" id="mon-photo-counter">Latest photo: 1 / 1</div>
+        <div class="monitor-powered-by" id="mon-footer-powered">Powered by : Limz Studio Photobooth</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="view-flyer" class="view-container">
+    <div style="padding: 20px 16px 8px; text-align: center; display:flex; flex-direction:column; align-items:center; gap:12px;" class="no-print">
+      <div style="display:flex; justify-content:center; gap:10px; flex-wrap:wrap;">
+        <button class="btn btn-blue" onclick="window.print()">🖨️ Cetak Flyer Meja (Print / PDF)</button>
+        <button class="btn btn-gold" onclick="downloadFlyerJpeg4R()">💾 Unduh Flyer JPEG (4R)</button>
+        <button class="btn btn-outline" id="btn-copy-flyer-link" onclick="copyActiveGalleryLink()">📋 Salin Link Galeri Tamu</button>
+        <button class="btn btn-outline" id="btn-back-dashboard" onclick="backToDashboard()">Kembali ke Dashboard</button>
+      </div>
+
+      <div>
+        <span style="font-size: 11.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.5px; display: block; margin-bottom: 6px;">
+          Pilih Tema Flyer Meja:
+        </span>
+        <div class="flyer-theme-toolbar">
+          <button type="button" class="flyer-theme-btn active" onclick="switchFlyerTheme('theme-royal-gold', this)">👑 Classic Royal Gold</button>
+          <button type="button" class="flyer-theme-btn" onclick="switchFlyerTheme('theme-dark-obsidian', this)">🌙 Modern Dark</button>
+          <button type="button" class="flyer-theme-btn" onclick="switchFlyerTheme('theme-botanical-sage', this)">🌿 Botanical Sage</button>
+          <button type="button" class="flyer-theme-btn" onclick="switchFlyerTheme('theme-romantic-rose', this)">🌸 Rose Blush</button>
+          <button type="button" class="flyer-theme-btn" onclick="switchFlyerTheme('theme-minimalist-mono', this)">🖤 Editorial Mono</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="printable-flyer-wrapper theme-royal-gold" id="main-printable-flyer">
+      <div class="flyer-logo" id="flyer-studio-title">LIMZ STUDIO PHOTOBOOTH</div>
+      <div class="flyer-sub-studio" style="font-size: 11px; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 15px;">
+        Exclusive Wedding &amp; Event Photobooth
+      </div>
+      
+      <div class="flyer-divider" style="border-top: 1px solid; border-bottom: 1px solid; padding: 12px 0; margin-bottom: 18px;">
+        <h2 class="flyer-event-name" id="flyer-event-title">Irvan &amp; Susan</h2>
+        <p class="flyer-event-date" style="font-size: 13px; font-weight: 700; margin-top: 4px;" id="flyer-event-date">12 September 2026</p>
+      </div>
+
+      <p class="flyer-inst-text" style="font-size: 13px; line-height: 1.5;">
+        Pindai QR-Code ini dengan kamera ponsel Anda untuk melihat dokumentasi foto hari ini &amp; kirimkan doa restu Anda!
+      </p>
+
+      <div class="flyer-qr-box">
+        <img id="flyer-qr-img" src="" alt="Scan Me untuk Buka Galeri">
+      </div>
+
+      <p class="flyer-tagline" style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px;">
+        Scan • Download • Share Your Moments
+      </p>
+      <p class="flyer-footer" style="font-size: 10px; margin-top: 10px;" id="flyer-footer-text">
+        Powered by Limz Studio Photobooth
+      </p>
+    </div>
+  </div>
+
+  <div class="lightbox-modal" id="modal-lightbox">
+    <div class="lightbox-container">
+      <div class="lightbox-header">
+        <div style="color: #fff; font-size: 13px; font-weight: 600;" id="lightbox-file-name">Photo_Original.jpg</div>
+        <button class="btn btn-outline btn-sm" style="color: #fff; border-color: #57483a;" onclick="closeLightbox()">✕ Tutup</button>
+      </div>
+      <div class="lightbox-img-box">
+        <img id="lightbox-img" src="" alt="Preview Full-Res">
+      </div>
+      <div class="lightbox-footer">
+        <div style="font-size: 12px; color: #a89d91;">Kualitas Asli Google Drive</div>
+        <a id="lightbox-download-btn" href="#" target="_blank" download class="btn btn-gold btn-sm">
+          ⬇️ Unduh Kualitas Asli (Original)
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Penjelasan Fitur Web App (Saat klik menu 'Fitur' di landing) -->
+  <div class="modal-overlay" id="modal-features-explanation">
+    <div class="modal-box" style="max-width: 620px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1px solid var(--border-subtle); padding-bottom:12px;">
+        <div>
+          <h3 style="font-size: 18px; font-weight: 800; color: var(--text-main);">✨ Fitur Lengkap Limz Studio Photobooth</h3>
+          <p style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">Solusi terintegrasi dokumentasi foto cloud, live stage, dan interaksi tamu.</p>
+        </div>
+        <button type="button" class="btn btn-outline btn-sm" onclick="closeModal('modal-features-explanation')">✕</button>
+      </div>
+
+      <div style="max-height: 60vh; overflow-y: auto; padding-right: 4px;">
+        <div class="feature-card">
+          <div class="feature-card-title">☁️ Auto-Sync Google Drive Kilat</div>
+          <div class="feature-card-desc">Sistem otomatis mendeteksi setiap foto baru yang masuk ke folder Google Drive dan menampilkannya secara langsung di galeri tamu tanpa perlu upload ulang.</div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-card-title">🖥️ Layar Monitor Panggung Interaktif & Smart QR</div>
+          <div class="feature-card-desc">Tampilan panggung mewah dengan tipografi elegan. Setiap foto utama maupun sub-foto dilengkapi stiker QR Code tersendiri sehingga tamu bisa langsung memindai dan mengunduh foto spesifik mereka.</div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-card-title">🎨 Watermark Canvas Fleksibel (WYSIWYG)</div>
+          <div class="feature-card-desc">Bebas mengatur posisi sumbu horizontal (X), vertikal (Y), ukuran logo, dan opasitas logo PNG transparan Anda secara visual dengan simulator langsung.</div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-card-title">🖨️ Flyer Meja Tamu 5 Tema & Download JPEG 4R</div>
+          <div class="feature-card-desc">Generate flyer meja QR tamu dengan 5 opsi gaya tema (Royal Gold, Dark Obsidian, Botanical Sage, Rose Blush, Editorial Mono) serta fitur unduh file gambar JPEG standar cetak 4R (1200x1800 px).</div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-card-title">💬 Live Doa Restu Tamu & Sensor Kata Kasar</div>
+          <div class="feature-card-desc">Tamu dapat mengirim ucapan doa yang disiarkan di layar panggung dan galeri. Dilengkapi sistem moderasi cerdas dan penyaring kata otomatis untuk mencegah spam atau kata tidak sopan.</div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-card-title">📊 Executive Summary PDF & Batal Arsip</div>
+          <div class="feature-card-desc">Laporan analisis keterlibatan tamu format PDF siap kirim ke klien, manajemen kapasitas storage berkala, serta kemudahan mengarsipkan atau membatalkan arsip event sewaktu-waktu.</div>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; margin-top:16px;">
+        <button type="button" class="btn btn-gold btn-sm" onclick="closeModal('modal-features-explanation')">Tutup Penjelasan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Tambah Akun Crew -->
+  <div class="modal-overlay" id="modal-add-crew">
+    <div class="modal-box" style="max-width: 440px;">
+      <h3 style="font-size: 17px; font-weight: 700; margin-bottom: 6px;">👥 Tambah Akun Tim Crew</h3>
+      <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px;">Akun crew memiliki akses untuk upload foto, menyinkronkan data, dan operasional panggung.</p>
+      <form onsubmit="event.preventDefault(); handleAddCrewSubmit();">
+        <div class="form-group">
+          <label>Nama Lengkap Crew</label>
+          <input type="text" id="crew-nama" class="form-control" placeholder="Contoh: Rian Fotografer" required>
+        </div>
+        <div class="form-group">
+          <label>Alamat Email Crew</label>
+          <input type="email" id="crew-email" class="form-control" placeholder="crew@limzstudio.com" required>
+        </div>
+        <div class="form-group">
+          <label>Password Akun</label>
+          <input type="password" id="crew-password" class="form-control" placeholder="Minimal 6 karakter" required>
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+          <button type="button" class="btn btn-outline" onclick="closeModal('modal-add-crew')">Batal</button>
+          <button type="submit" class="btn btn-gold" id="btn-save-crew">Simpan Akun Crew</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Ganti Password -->
+  <div class="modal-overlay" id="modal-change-password">
+    <div class="modal-box" style="max-width: 440px;">
+      <h3 style="font-size: 17px; font-weight: 700; margin-bottom: 6px;">🔑 Ganti Password Akun</h3>
+      <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px;">Perbarui password akun Anda secara berkala untuk menjaga keamanan sistem.</p>
+      <form onsubmit="event.preventDefault(); handleChangePasswordSubmit();">
+        <div class="form-group">
+          <label>Password Lama</label>
+          <input type="password" id="chg-old-password" class="form-control" placeholder="Masukkan password saat ini" required>
+        </div>
+        <div class="form-group">
+          <label>Password Baru</label>
+          <input type="password" id="chg-new-password" class="form-control" placeholder="Masukkan password baru" required>
+        </div>
+        <div class="form-group">
+          <label>Konfirmasi Password Baru</label>
+          <input type="password" id="chg-confirm-password" class="form-control" placeholder="Ulangi password baru" required>
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+          <button type="button" class="btn btn-outline" onclick="closeModal('modal-change-password')">Batal</button>
+          <button type="submit" class="btn btn-gold" id="btn-save-newpass">Perbarui Password</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Ganti Logo Studio -->
+  <div class="modal-overlay" id="modal-change-logo">
+    <div class="modal-box" style="max-width: 460px;">
+      <h3 style="font-size: 17px; font-weight: 700; margin-bottom: 6px;">🎨 Ganti Logo Studio</h3>
+      <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px;">Unggah gambar logo studio Anda (format PNG transparan direkomendasikan). Logo ini akan menggantikan seluruh tampilan logo di header landing page dan flyer.</p>
+      <div style="text-align: center; padding: 18px; border: 2px dashed var(--border-subtle); border-radius: var(--radius-sm); margin-bottom: 15px; background: #faf8f5;">
+        <img id="preview-change-logo-img" src="" alt="Pratinjau Logo" style="max-height: 80px; max-width: 220px; object-fit: contain; display: none; margin: 0 auto 10px;">
+        <input type="file" id="file-input-change-logo" accept="image/png,image/jpeg,image/webp" style="display: none;" onchange="handleLogoFileSelected(this.files)">
+        <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('file-input-change-logo').click()">📁 Pilih File Logo</button>
+      </div>
+      <div style="display: flex; gap: 10px; justify-content: space-between; align-items: center; margin-top: 20px;">
+        <button type="button" class="btn btn-outline btn-sm" style="color: var(--accent-red); border-color: #fca5a5;" onclick="resetDefaultStudioLogo()">Reset ke Bawaan</button>
+        <div style="display: flex; gap: 8px;">
+          <button type="button" class="btn btn-outline" onclick="closeModal('modal-change-logo')">Batal</button>
+          <button type="button" class="btn btn-gold" id="btn-save-studio-logo" onclick="saveCustomStudioLogo()">Simpan Logo</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Buat Event Baru -->
+  <div class="modal-overlay" id="modal-create-collection">
+    <div class="modal-box">
+      <h3 style="font-size: 17px; font-weight: 700; margin-bottom: 15px;">Buat Koleksi Event Baru</h3>
+      <form onsubmit="event.preventDefault(); handleCreateCollectionSubmit();">
+        <div class="form-group">
+          <label>Judul Event</label>
+          <input type="text" id="new-coll-title" class="form-control" placeholder="Contoh: The Wedding of Irvan & Susan" required>
+        </div>
+        <div class="form-group">
+          <label>Slug URL Unik</label>
+          <input type="text" id="new-coll-slug" class="form-control" placeholder="contoh: irvan-susan" required>
+        </div>
+        <div class="form-group">
+          <label>Tautan Folder Google Drive (Opsional)</label>
+          <input type="url" id="new-coll-drive-url" class="form-control" placeholder="https://drive.google.com/drive/folders/...">
+        </div>
+        <div class="form-group">
+          <label>Warna Tema Header Monitor Panggung (Manual / Preset)</label>
+          <div style="display:flex; gap:10px; align-items:center; margin-bottom:6px;">
+            <input type="color" id="new-coll-header-color" value="#1f2530" style="width:45px; height:38px; border:none; border-radius:6px; cursor:pointer; padding:0;" oninput="document.getElementById('new-coll-header-hex').value = this.value;">
+            <input type="text" id="new-coll-header-hex" class="form-control" style="width:110px;" value="#1f2530" placeholder="#1f2530" oninput="document.getElementById('new-coll-header-color').value = this.value;">
+            <select class="form-control" onchange="document.getElementById('new-coll-header-color').value = this.value; document.getElementById('new-coll-header-hex').value = this.value;">
+              <option value="#1f2530">Obsidian Midnight (Default)</option>
+              <option value="#0a2e23">Emerald Deep Green</option>
+              <option value="#0f1d38">Royal Deep Navy</option>
+              <option value="#4a121a">Luxury Burgundy</option>
+              <option value="#3b2b1a">Warm Champagne Gold</option>
+              <option value="#111827">Pure Charcoal Black</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Variasi Motif / Ornamen Header Panggung</label>
+          <select id="new-coll-header-motif" class="form-control">
+            <option value="none">Polos Minimalis Elegan</option>
+            <option value="floral-gold" selected>🌸 Bunga Sudut Emas Mewah (Gold Floral)</option>
+            <option value="botanical-leaves">🌿 Ranting Daun Botanical (Sage Foliage)</option>
+            <option value="vintage-ornament">👑 Ukiran Vintage Klasik (Royal Baroque)</option>
+            <option value="sparkle-stars">✨ Kilau Bintang Panggung (Sparkle Stars)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Tanggal Acara</label>
+          <input type="date" id="new-coll-date" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label>Nama Klien</label>
+          <input type="text" id="new-coll-client" class="form-control" placeholder="Nama Pasangan / Pemesan" required>
+        </div>
+        <div class="form-group">
+          <label>Foto Cover Event (Upload File)</label>
+          <input type="file" id="new-coll-cover-file" accept="image/*" class="form-control">
+        </div>
+        <div class="form-group">
+          <label>Atau URL Gambar Cover</label>
+          <input type="url" id="new-coll-cover-url" class="form-control" placeholder="https://...">
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+          <button type="button" class="btn btn-outline" onclick="closeModal('modal-create-collection')">Batal</button>
+          <button type="submit" class="btn btn-gold" id="btn-save-collection">Simpan & Kaitkan Drive</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Edit Koleksi Event -->
+  <div class="modal-overlay" id="modal-edit-collection">
+    <div class="modal-box">
+      <h3 style="font-size: 17px; font-weight: 700; margin-bottom: 15px;">Edit Koleksi Event</h3>
+      <form onsubmit="event.preventDefault(); handleEditCollectionSubmit();">
+        <input type="hidden" id="edit-coll-id">
+        <div class="form-group">
+          <label>Judul Event</label>
+          <input type="text" id="edit-coll-title" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label>Slug URL Unik</label>
+          <input type="text" id="edit-coll-slug" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label>Tautan Folder Google Drive</label>
+          <input type="url" id="edit-coll-drive-url" class="form-control">
+        </div>
+        <div class="form-group">
+          <label>Warna Tema Header Monitor Panggung (Manual / Preset)</label>
+          <div style="display:flex; gap:10px; align-items:center; margin-bottom:6px;">
+            <input type="color" id="edit-coll-header-color" value="#1f2530" style="width:45px; height:38px; border:none; border-radius:6px; cursor:pointer; padding:0;" oninput="document.getElementById('edit-coll-header-hex').value = this.value;">
+            <input type="text" id="edit-coll-header-hex" class="form-control" style="width:110px;" value="#1f2530" placeholder="#1f2530" oninput="document.getElementById('edit-coll-header-color').value = this.value;">
+            <select class="form-control" onchange="document.getElementById('edit-coll-header-color').value = this.value; document.getElementById('edit-coll-header-hex').value = this.value;">
+              <option value="#1f2530">Obsidian Midnight (Default)</option>
+              <option value="#0a2e23">Emerald Deep Green</option>
+              <option value="#0f1d38">Royal Deep Navy</option>
+              <option value="#4a121a">Luxury Burgundy</option>
+              <option value="#3b2b1a">Warm Champagne Gold</option>
+              <option value="#111827">Pure Charcoal Black</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Variasi Motif / Ornamen Header Panggung</label>
+          <select id="edit-coll-header-motif" class="form-control">
+            <option value="none">Polos Minimalis Elegan</option>
+            <option value="floral-gold">🌸 Bunga Sudut Emas Mewah (Gold Floral)</option>
+            <option value="botanical-leaves">🌿 Ranting Daun Botanical (Sage Foliage)</option>
+            <option value="vintage-ornament">👑 Ukiran Vintage Klasik (Royal Baroque)</option>
+            <option value="sparkle-stars">✨ Kilau Bintang Panggung (Sparkle Stars)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Tanggal Acara</label>
+          <input type="date" id="edit-coll-date" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label>Nama Klien</label>
+          <input type="text" id="edit-coll-client" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label>Foto Cover Event (Upload File Baru)</label>
+          <input type="file" id="edit-coll-cover-file" accept="image/*" class="form-control">
+        </div>
+        <div class="form-group">
+          <label>Atau URL Gambar Cover</label>
+          <input type="url" id="edit-coll-cover-url" class="form-control">
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+          <button type="button" class="btn btn-outline" onclick="closeModal('modal-edit-collection')">Batal</button>
+          <button type="submit" class="btn btn-gold" id="btn-update-collection">Simpan Perubahan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Konfirmasi Hapus Event -->
+  <div class="modal-overlay" id="modal-confirm-delete">
+    <div class="modal-box" style="max-width: 440px;">
+      <h3 style="font-size: 17px; font-weight: 700; color: var(--accent-red); margin-bottom: 10px;">⚠️ Konfirmasi Hapus Event</h3>
+      <p style="font-size: 13px; color: var(--text-main); line-height: 1.5; margin-bottom: 14px;">
+        Apakah Anda yakin ingin menghapus event <strong id="delete-confirm-coll-title"></strong> secara permanen?
+      </p>
+      <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px; font-size: 12px; color: #991b1b; margin-bottom: 20px;">
+        Tindakan ini akan menghapus data event, seluruh foto dan doa terkait di spreadsheet, serta memindahkan folder Google Drive ke Sampah.
+      </div>
+      <input type="hidden" id="delete-target-coll-id">
+      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button type="button" class="btn btn-outline" onclick="closeModal('modal-confirm-delete')">Batal</button>
+        <button type="button" class="btn btn-danger" id="btn-execute-delete" onclick="executeDeleteCollection()">Ya, Hapus Permanen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Set WebApp URL -->
+  <div class="modal-overlay" id="modal-set-webapp-url">
+    <div class="modal-box">
+      <h3 style="font-size: 17px; font-weight: 700; margin-bottom: 8px;">Konfigurasi URL Web App Resmi</h3>
+      <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px; line-height: 1.5;">
+        Kamera ponsel tamu membutuhkan tautan resmi berakhiran <strong>/exec</strong> agar QR Code langsung membuka halaman galeri tanpa halaman blokir Google Drive.
+      </p>
+      <form onsubmit="event.preventDefault(); handleSaveWebAppUrlSubmit();">
+        <div class="form-group">
+          <label>Tautan Penerapan Web App Resmi (/exec):</label>
+          <input type="url" id="input-custom-webapp-url" class="form-control" placeholder="https://script.google.com/macros/s/.../exec" required>
+          <small style="font-size: 11px; color: #b87b28; display: block; margin-top: 6px;">
+            💡 Dapatkan tautan ini di editor Google Apps Script: <strong>Deploy &gt; Manage deployments &gt; Web app URL</strong>.
+          </small>
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+          <button type="button" class="btn btn-outline" onclick="closeModal('modal-set-webapp-url')">Tutup</button>
+          <button type="submit" class="btn btn-gold">Simpan & Perbarui Semua QR</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Tambah Kata Sensor -->
+  <div class="modal-overlay" id="modal-add-word">
+    <div class="modal-box">
+      <h3 style="font-size: 17px; font-weight: 700; margin-bottom: 15px;">Tambah Kata Terlarang</h3>
+      <form onsubmit="event.preventDefault(); handleAddWordSubmit();">
+        <div class="form-group">
+          <label>Kata Kasar</label>
+          <input type="text" id="new-sensor-word" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label>Kategori</label>
+          <select id="new-sensor-category" class="form-control">
+            <option value="Abuse">Abuse</option>
+            <option value="Insult">Insult</option>
+            <option value="Spam">Spam</option>
+          </select>
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+          <button type="button" class="btn btn-outline" onclick="closeModal('modal-add-word')">Batal</button>
+          <button type="submit" class="btn btn-gold">Simpan Kata</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Copy Link Fallback -->
+  <div class="modal-overlay" id="modal-copy-link-fallback">
+    <div class="modal-box">
+      <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 8px;">Tautan Galeri Tamu</h3>
+      <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px;">
+        Silakan klik tombol di bawah atau blok teks tautan berikut untuk menyalin:
+      </p>
+      <div class="form-group">
+        <input type="text" id="input-fallback-copy-url" class="form-control" readonly onclick="this.select();">
+      </div>
+      <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 15px;">
+        <button type="button" class="btn btn-outline" onclick="closeModal('modal-copy-link-fallback')">Tutup</button>
+        <button type="button" class="btn btn-gold" onclick="selectAndCopyFallbackInput()">Salin Teks</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Live Viewfinder Kamera (DSLR / Webcam / Shutter Button) -->
+  <div class="modal-overlay" id="modal-live-camera">
+    <div class="modal-box" style="max-width: 780px; width: 95%;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid var(--border-subtle); padding-bottom:10px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:20px;">📸</span>
+          <div>
+            <h3 style="font-size: 16.5px; font-weight: 800; color: var(--text-main); margin:0;">Live Viewfinder Kamera (DSLR / USB Cam)</h3>
+            <p style="font-size: 11.5px; color: var(--text-muted); margin: 2px 0 0;">Hubungkan DSLR lewat HDMI Capture Card atau gunakan kamera USB/Webcam studio.</p>
+          </div>
+        </div>
+        <button type="button" class="btn btn-outline btn-sm" onclick="closeLiveCameraModal()">✕</button>
+      </div>
+
+      <!-- Device Selector & Setting Bar -->
+      <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between; background:#faf8f5; padding:8px 12px; border-radius:8px; margin-bottom:12px; border:1px solid var(--border-subtle);">
+        <div style="display:flex; align-items:center; gap:8px; flex:1; min-width:240px;">
+          <label style="font-size:12px; font-weight:700; white-space:nowrap; margin:0;">🎥 Sumber Kamera:</label>
+          <select id="camera-device-select" class="form-control" style="font-size:12px; padding:4px 8px; flex:1;" onchange="switchCameraDevice(this.value)"></select>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <label style="font-size:12px; display:flex; align-items:center; gap:4px; cursor:pointer;">
+            <input type="checkbox" id="chk-camera-timer" style="cursor:pointer;">
+            <span>⏱️ Countdown 3 Detik</span>
+          </label>
+          <label style="font-size:12px; display:flex; align-items:center; gap:4px; cursor:pointer;">
+            <input type="checkbox" id="chk-camera-grid" checked onchange="toggleCameraGrid(this.checked)" style="cursor:pointer;">
+            <span>📐 Grid Guide</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Viewfinder Screen Container -->
+      <div style="position:relative; width:100%; aspect-ratio:4/3; background:#000; border-radius:10px; overflow:hidden; display:flex; align-items:center; justify-content:center; box-shadow:inset 0 0 20px rgba(0,0,0,0.8);">
+        <video id="live-camera-video" autoplay playsinline muted style="width:100%; height:100%; object-fit:contain;"></video>
+        
+        <!-- Live Badge -->
+        <div style="position:absolute; top:12px; left:12px; background:rgba(239,68,68,0.9); color:#fff; font-size:11px; font-weight:800; padding:3px 8px; border-radius:4px; display:flex; align-items:center; gap:5px; letter-spacing:0.5px;">
+          <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#fff; animation:pulse-live 1.2s infinite;"></span> LIVE REC
+        </div>
+
+        <!-- 3-Second Countdown Overlay -->
+        <div id="camera-countdown-overlay" style="display:none; position:absolute; inset:0; background:rgba(0,0,0,0.45); backdrop-filter:blur(2px); align-items:center; justify-content:center; z-index:10;">
+          <span id="camera-countdown-number" style="font-size:80px; font-weight:900; color:#fff; text-shadow:0 0 30px rgba(212,148,56,0.9);">3</span>
+        </div>
+
+        <!-- Grid Lines Overlay -->
+        <div id="camera-grid-overlay" style="position:absolute; inset:0; pointer-events:none; display:grid; grid-template-columns:1fr 1fr 1fr; grid-template-rows:1fr 1fr 1fr;">
+          <div style="border-right:1px dashed rgba(255,255,255,0.25); border-bottom:1px dashed rgba(255,255,255,0.25);"></div>
+          <div style="border-right:1px dashed rgba(255,255,255,0.25); border-bottom:1px dashed rgba(255,255,255,0.25);"></div>
+          <div style="border-bottom:1px dashed rgba(255,255,255,0.25);"></div>
+          <div style="border-right:1px dashed rgba(255,255,255,0.25); border-bottom:1px dashed rgba(255,255,255,0.25);"></div>
+          <div style="border-right:1px dashed rgba(255,255,255,0.25); border-bottom:1px dashed rgba(255,255,255,0.25);"></div>
+          <div style="border-bottom:1px dashed rgba(255,255,255,0.25);"></div>
+          <div style="border-right:1px dashed rgba(255,255,255,0.25);"></div>
+          <div style="border-right:1px dashed rgba(255,255,255,0.25);"></div>
+          <div></div>
+        </div>
+
+        <!-- Flash Effect Overlay -->
+        <div id="camera-flash-overlay" style="position:absolute; inset:0; background:#fff; opacity:0; pointer-events:none; transition:opacity 0.25s ease;"></div>
+      </div>
+
+      <!-- Shutter Action Bar -->
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:14px; gap:10px;">
+        <div style="font-size:11.5px; color:var(--text-muted);">
+          💡 Tip: Tekan tombol <strong>[Spasi]</strong> di keyboard untuk shutter cepat.
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <button type="button" class="btn btn-outline btn-sm" onclick="openModal('modal-ipad-dslr-guide')" style="font-size:12px; color:#475569; border-color:#cbd5e1;">🔌 Panduan iPad</button>
+          <button type="button" class="btn btn-outline" onclick="closeLiveCameraModal()">Tutup</button>
+          <button type="button" class="btn btn-gold" id="btn-camera-shutter" onclick="triggerCameraShutter()" style="font-size:14px; font-weight:800; padding:8px 22px; display:inline-flex; align-items:center; gap:8px;">
+            📸 JEPRET FOTO (SHUTTER)
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Panduan Pasang Aplikasi (PWA Install Standalone) -->
+  <div class="modal-overlay" id="modal-pwa-install">
+    <div class="modal-box" style="max-width: 490px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1px solid var(--border-subtle); padding-bottom:10px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:24px;">📲</span>
+          <div>
+            <h3 style="font-size: 16.5px; font-weight: 800; color: var(--text-main); margin:0;">Pasang Aplikasi Limz Studio</h3>
+            <p style="font-size: 11.5px; color: var(--text-muted); margin: 2px 0 0;">Akses cepat layar penuh di Android, iPhone, iPad &amp; Tablet.</p>
+          </div>
+        </div>
+        <button type="button" class="btn btn-outline btn-sm" onclick="closeModal('modal-pwa-install')">✕</button>
+      </div>
+
+      <!-- Android / PC Section -->
+      <div id="pwa-android-section" style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; padding:14px; margin-bottom:14px;">
+        <div style="font-size:13px; font-weight:700; color:#15803d; margin-bottom:4px; display:flex; align-items:center; gap:6px;">
+          <span>🤖 Pengguna Android / PC (Chrome / Edge)</span>
+        </div>
+        <p style="font-size:12px; color:#166534; margin-bottom:10px;">
+          Pasang aplikasi langsung ke layar utama Android atau desktop Anda dengan 1-klik tanpa melalui Play Store.
+        </p>
+        <button type="button" class="btn btn-gold btn-sm" id="btn-trigger-pwa-install" onclick="executePwaInstall()" style="width:100%; font-weight:700;">
+          ⬇️ Pasang Aplikasi ke Layar Utama Sekarang
+        </button>
+      </div>
+
+      <!-- iOS / iPadOS Section -->
+      <div style="background:#faf8f5; border:1px solid var(--border-subtle); border-radius:10px; padding:14px;">
+        <div style="font-size:13px; font-weight:700; color:var(--text-main); margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+          <span>🍎 Pengguna iPhone / iPad (Safari)</span>
+        </div>
+        <ol style="font-size:12px; color:var(--text-muted); line-height:1.6; padding-left:18px; margin:0;">
+          <li>Buka tautan web app ini di browser <strong>Safari</strong> iPhone atau iPad.</li>
+          <li>Ketuk ikon <strong>Bagikan / Share</strong> (kotak dengan panah atas <strong>⎋</strong>) di bilah navigasi Safari.</li>
+          <li>Gulir ke bawah dan pilih opsi <strong>"Tambah ke Layar Utama" (Add to Home Screen)</strong>.</li>
+          <li>Ketuk <strong>"Tambah"</strong> di pojok kanan atas. Ikon Limz Studio akan muncul di Home Screen iPad/iPhone Anda!</li>
+        </ol>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; margin-top:16px;">
+        <button type="button" class="btn btn-outline" onclick="closeModal('modal-pwa-install')">Tutup</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Panduan Sambung DSLR ke iPad / Tablet -->
+  <div class="modal-overlay" id="modal-ipad-dslr-guide">
+    <div class="modal-box" style="max-width: 560px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1px solid var(--border-subtle); padding-bottom:10px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:22px;">🔌</span>
+          <div>
+            <h3 style="font-size: 16.5px; font-weight: 800; color: var(--text-main); margin:0;">Panduan Sambung Kamera DSLR ke iPad / Tablet</h3>
+            <p style="font-size: 11.5px; color: var(--text-muted); margin: 2px 0 0;">Solusi live view &amp; tethering foto di lokasi acara photobooth.</p>
+          </div>
+        </div>
+        <button type="button" class="btn btn-outline btn-sm" onclick="closeModal('modal-ipad-dslr-guide')">✕</button>
+      </div>
+
+      <div style="max-height:60vh; overflow-y:auto; padding-right:4px;">
+        <!-- Metode A -->
+        <div style="background:#faf8f5; border:1px solid var(--border-subtle); border-radius:10px; padding:14px; margin-bottom:12px;">
+          <h4 style="font-size:13.5px; font-weight:800; color:var(--text-main); margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+            <span>1️⃣ Kabel HDMI + USB-C Video Capture Card (Rekomendasi iPadOS 17+)</span>
+          </h4>
+          <p style="font-size:12px; color:var(--text-muted); line-height:1.5; margin-bottom:6px;">
+            Apple di iPadOS 17+ dan Android 10+ mendukung perangkat UVC (USB Video Class).
+          </p>
+          <ul style="font-size:12px; color:var(--text-muted); line-height:1.6; padding-left:18px; margin:0;">
+            <li>Gunakan kabel Mini HDMI / Micro HDMI dari port HDMI kamera DSLR.</li>
+            <li>Colokkan ke mini USB-C Video Capture Card (misal: Cam Link / Ugreen Capture Card) ke port USB-C iPad.</li>
+            <li>Buka tombol <strong>📸 Live Viewfinder (DSLR / USB Cam)</strong> di web app ini, pilih input kamera capture card, dan jepret dengan tombol Shutter!</li>
+          </ul>
+        </div>
+
+        <!-- Metode B -->
+        <div style="background:#faf8f5; border:1px solid var(--border-subtle); border-radius:10px; padding:14px; margin-bottom:12px;">
+          <h4 style="font-size:13.5px; font-weight:800; color:var(--text-main); margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+            <span>2️⃣ Kabel USB Tethering / SD Card Reader iPad</span>
+          </h4>
+          <ul style="font-size:12px; color:var(--text-muted); line-height:1.6; padding-left:18px; margin:0;">
+            <li>Colokkan kabel data USB kamera ke port USB-C iPad atau gunakan USB-C Card Reader.</li>
+            <li>Foto akan langsung terbaca di aplikasi <em>Files</em> atau <em>Photos</em> iPad.</li>
+            <li>Gunakan tombol <strong>📱 Rol Kamera / iPad</strong> untuk memilih dan memasukkan foto langsung ke antrian preview studio.</li>
+          </ul>
+        </div>
+
+        <!-- Metode C -->
+        <div style="background:#faf8f5; border:1px solid var(--border-subtle); border-radius:10px; padding:14px;">
+          <h4 style="font-size:13.5px; font-weight:800; color:var(--text-main); margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+            <span>3️⃣ Wi-Fi Auto-Transfer (Sony / Canon / Nikon Wireless)</span>
+          </h4>
+          <p style="font-size:12px; color:var(--text-muted); line-height:1.5; margin:0;">
+            Gunakan aplikasi resmi (Sony Imaging Edge Mobile, Canon Camera Connect, atau Nikon SnapBridge) dengan mode <em>Auto Background Transfer</em> ke Camera Roll iPad. Setiap jepretan kamera masuk ke rol kamera iPad, lalu pilih dengan tombol <strong>📱 Rol Kamera / iPad</strong>.
+          </p>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; margin-top:14px;">
+        <button type="button" class="btn btn-gold btn-sm" onclick="closeModal('modal-ipad-dslr-guide')">Mengerti</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL PEMBUAT ANIMASI GIF (BURST / BOOMERANG) -->
+  <div class="modal-overlay" id="modal-gif-creator" style="display: none;">
+    <div class="modal-box" style="max-width: 580px; width: 95%; max-height: 92vh; overflow-y: auto;">
+      <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px; margin-bottom: 16px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 24px;">🎬</span>
+          <div>
+            <h3 style="font-size: 16px; font-weight: 700; margin: 0; color: var(--text-main);">Pembuat Animasi GIF (Burst / Boomerang)</h3>
+            <p style="font-size: 11.5px; color: var(--text-muted); margin: 2px 0 0;">Gabungkan multi-foto antrian menjadi animasi bergerak photobooth.</p>
+          </div>
+        </div>
+        <button type="button" onclick="closeModal('modal-gif-creator')" style="background:none; border:none; font-size:22px; cursor:pointer; color:var(--text-muted); line-height:1;">✕</button>
+      </div>
+
+      <!-- PREVIEW ANIMASI GIF -->
+      <div style="text-align: center; background: #191410; border-radius: 10px; padding: 14px; margin-bottom: 16px; position: relative; min-height: 280px; display: flex; align-items: center; justify-content: center; flex-direction: column;">
+        <div id="gif-render-spinner" style="display: none; position: absolute; inset: 0; background: rgba(25,20,16,0.85); border-radius: 10px; z-index: 10; flex-direction: column; align-items: center; justify-content: center; color: #fff;">
+          <div style="font-size: 34px; animation: spin 1s infinite linear; margin-bottom: 10px;">⚙️</div>
+          <div id="gif-spinner-text" style="font-size: 13.5px; font-weight: 700; color: var(--accent-gold);">Sedang Memproses Animasi GIF...</div>
+          <div style="font-size: 11px; color: #cbd5e1; margin-top: 4px;">Membubuhi tone warna & watermark pada setiap frame</div>
+        </div>
+
+        <img id="gif-preview-img" src="" alt="Pratinjau Animasi GIF" style="max-width: 100%; max-height: 360px; object-fit: contain; border-radius: 6px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+        <div id="gif-frame-indicator" style="margin-top: 8px; font-size: 11.5px; color: #fde68a; font-weight: 600;">
+          Frame: <span id="gif-current-frame">1</span> / <span id="gif-total-frames">1</span>
+        </div>
+      </div>
+
+      <!-- KONTROL PENGATURAN -->
+      <div style="background: #faf8f5; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px 16px; margin-bottom: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+          <label style="font-size: 12px; font-weight: 700; color: var(--text-main); margin: 0;">
+            ⚡ Kecepatan Animasi: <span id="lbl-gif-speed" style="color: var(--accent-gold); font-weight: 800;">250 ms / frame</span>
+          </label>
+          <span style="font-size: 11px; color: var(--text-muted);">(Geser slider untuk mengatur ritme)</span>
+        </div>
+        <input type="range" id="slider-gif-speed" min="100" max="600" step="50" value="250" style="width: 100%; accent-color: var(--accent-gold); margin-bottom: 12px;" oninput="updateGifSpeed(this.value)">
+
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; padding-top: 10px; border-top: 1px dashed var(--border-subtle);">
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--text-main); cursor: pointer; user-select: none;">
+            <input type="checkbox" id="check-gif-boomerang" checked style="accent-color: var(--accent-gold); width: 17px; height: 17px;" onchange="renderLiveGifPreview()">
+            <span>🔁 Mode Boomerang (Maju-Mundur Mulus)</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--text-main); cursor: pointer; user-select: none;">
+            <input type="checkbox" id="check-gif-watermark" checked style="accent-color: var(--accent-gold); width: 17px; height: 17px;" onchange="renderLiveGifPreview()">
+            <span>📐 Terapkan Watermark Studio</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- ACTION BUTTONS -->
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
+        <button type="button" class="btn btn-outline btn-sm" onclick="closeModal('modal-gif-creator')" style="font-size: 12px;">
+          Tutup
+        </button>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button type="button" class="btn btn-outline btn-sm" id="btn-download-gif" onclick="downloadCurrentGif()" style="font-size: 12px; font-weight: 700; color: #0284c7; border-color: #bae6fd; background: #f0f9ff;">
+            💾 Unduh File .GIF
+          </button>
+          <button type="button" class="btn btn-gold btn-sm" id="btn-enqueue-gif" onclick="enqueueGifToUploadList()" style="font-size: 12px; font-weight: 700;">
+            🚀 Masukkan ke Antrian Upload
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-box" id="global-toast">Pesan notifikasi</div>
+  <canvas id="watermark-canvas" style="display: none;"></canvas>
+
+  <!-- AUTO-LOADER MODUL VERCEL: Memuat css.html & javascript.html secara otomatis di GitHub/Vercel -->
+  <script>
+    (function() {
+      Promise.all([
+        fetch('/css.html').then(function(r) { return r.ok ? r.text() : ''; }).catch(function() { return ''; }),
+        fetch('/javascript.html').then(function(r) { return r.ok ? r.text() : ''; }).catch(function() { return ''; })
+      ]).then(function(results) {
+        var cssContent = results[0];
+        var jsContent = results[1];
+
+        if (cssContent) {
+          var styleContainer = document.createElement('div');
+          styleContainer.innerHTML = cssContent.trim();
+          var styleEl = styleContainer.querySelector('style');
+          if (styleEl) {
+            document.head.appendChild(styleEl);
+          }
+        }
+
+        document.body.classList.remove('vercel-loading');
+        document.body.classList.add('vercel-ready');
+
+        if (jsContent) {
+          var cleanJs = jsContent.replace(/^\s*<script[^>]*>/i, '').replace(/<\/script>\s*$/i, '');
+          var scriptEl = document.createElement('script');
+          scriptEl.text = cleanJs;
+          document.body.appendChild(scriptEl);
+          document.dispatchEvent(new Event('DOMContentLoaded'));
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
