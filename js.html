@@ -486,11 +486,30 @@
 
     /* =========================================================================
        RESOLVER ENDPOINT BACKEND GAS (/exec)
+       Memisahkan penyimpanan URL Backend API GAS dari URL Share Frontend Vercel
        ========================================================================= */
+    function sanitizeAndMigrateGasStorage() {
+      var legacyCustom = localStorage.getItem('limz_custom_webapp_url') || '';
+      if (legacyCustom.indexOf('https://script.google.com/macros/s/') === 0 && legacyCustom.indexOf('GANTI_DENGAN') === -1) {
+        var cleanExec = legacyCustom.split('?')[0].replace(/\/dev$/, '/exec').replace(/\/+$/, '');
+        localStorage.setItem('limz_gas_backend_exec_url', cleanExec);
+      }
+      // Jika menggunakan domain Vercel untuk QR & Share, pastikan limz_custom_webapp_url berisi domain Vercel
+      if (VERCEL_WRAPPER_CONFIG.USE_VERCEL_URL_FOR_QR && window.location.protocol.indexOf('http') === 0) {
+        localStorage.setItem('limz_custom_webapp_url', getVercelBaseOrigin());
+      }
+    }
+
     function resolveGasBackendUrl() {
-      var savedCustom = localStorage.getItem('limz_gas_backend_exec_url') || localStorage.getItem('limz_custom_webapp_url');
-      if (savedCustom && savedCustom.indexOf('https://script.google.com/macros/s/') === 0 && savedCustom.indexOf('GANTI_DENGAN') === -1) {
-        return savedCustom.split('?')[0].replace(/\/dev$/, '/exec').replace(/\/+$/, '');
+      var savedBackend = localStorage.getItem('limz_gas_backend_exec_url');
+      if (savedBackend && savedBackend.indexOf('https://script.google.com/macros/s/') === 0 && savedBackend.indexOf('GANTI_DENGAN') === -1) {
+        return savedBackend.split('?')[0].replace(/\/dev$/, '/exec').replace(/\/+$/, '');
+      }
+      var legacyCustom = localStorage.getItem('limz_custom_webapp_url');
+      if (legacyCustom && legacyCustom.indexOf('https://script.google.com/macros/s/') === 0 && legacyCustom.indexOf('GANTI_DENGAN') === -1) {
+        var cleanLegacy = legacyCustom.split('?')[0].replace(/\/dev$/, '/exec').replace(/\/+$/, '');
+        localStorage.setItem('limz_gas_backend_exec_url', cleanLegacy);
+        return cleanLegacy;
       }
       var cfgUrl = VERCEL_WRAPPER_CONFIG.GAS_EXEC_URL || '';
       if (cfgUrl && cfgUrl.indexOf('https://script.google.com/macros/s/') === 0 && cfgUrl.indexOf('GANTI_DENGAN') === -1) {
@@ -500,10 +519,59 @@
     }
 
     /* =========================================================================
+       KONVERTER URL UNIVERSAL: UBAH SEMUA LINK GAS KE PRETTY URL VERCEL
+       Mengubah https://script.google.com/.../exec?slug=...&view=slideshow
+       menjadi https://domain-vercel.app/monitor/{slug} atau /gallery/{slug}
+       ========================================================================= */
+    function rewriteToVercelUrl(rawUrl) {
+      if (!rawUrl || typeof rawUrl !== 'string') return rawUrl;
+      if (!VERCEL_WRAPPER_CONFIG.USE_VERCEL_URL_FOR_QR || window.location.protocol.indexOf('http') !== 0) {
+        return rawUrl;
+      }
+
+      var trimmed = rawUrl.trim();
+      var originUrl = getVercelBaseOrigin();
+
+      var isGasUrl = trimmed.indexOf('script.google.com/macros/s/') > -1;
+      var hasQuerySlugOrView = trimmed.indexOf('?slug=') > -1 || trimmed.indexOf('&slug=') > -1 || trimmed.indexOf('view=slideshow') > -1;
+
+      if (!isGasUrl && !hasQuerySlugOrView) {
+        return rawUrl;
+      }
+
+      try {
+        var parsed = new URL(trimmed, originUrl);
+        var slug = parsed.searchParams.get('slug') ? String(parsed.searchParams.get('slug')).trim() : '';
+        var view = parsed.searchParams.get('view') ? String(parsed.searchParams.get('view')).trim() : '';
+        var photoId = parsed.searchParams.get('photoId') ? String(parsed.searchParams.get('photoId')).trim() : '';
+
+        if (slug) {
+          if (view === 'slideshow') {
+            return originUrl + '/monitor/' + encodeURIComponent(slug);
+          }
+          if (photoId) {
+            return originUrl + '/gallery/' + encodeURIComponent(slug) + '/' + encodeURIComponent(photoId);
+          }
+          return originUrl + '/gallery/' + encodeURIComponent(slug);
+        }
+
+        if (isGasUrl) {
+          return originUrl + '/';
+        }
+      } catch (e) {
+        // Fallback jika gagal parsing URL
+      }
+
+      return rawUrl;
+    }
+
+    /* =========================================================================
        POLYFILL BRIDGE: window.google.script.run -> FETCH KE KODE.GS (doPost)
        Terintegrasi dengan Offline Queue IndexedDB khusus uploadPhotoWithWatermark
        ========================================================================= */
     function initGoogleScriptRunPolyfill() {
+      sanitizeAndMigrateGasStorage();
+
       if (typeof window.google !== 'undefined' && window.google.script && window.google.script.run) {
         return;
       }
@@ -550,11 +618,29 @@
               var argsArray = Array.prototype.slice.call(arguments);
               var actionName = String(prop);
 
+              // PENTING: JANGAN panggil getWebAppUrl ke Kode.gs agar appState.webAppUrl
+              // tidak tertimpa oleh URL https://script.google.com/macros/s/.../exec
+              if (actionName === 'getWebAppUrl' && VERCEL_WRAPPER_CONFIG.USE_VERCEL_URL_FOR_QR && window.location.protocol.indexOf('http') === 0) {
+                var vercelOrigin = getVercelBaseOrigin();
+                if (currentState.onSuccess) {
+                  setTimeout(function() {
+                    currentState.onSuccess(vercelOrigin, currentState.userObject);
+                  }, 10);
+                }
+                return;
+              }
+
               // Khusus penyimpanan URL Web App dari modal Dashboard
               if (actionName === 'saveWebAppUrl' && argsArray[0]) {
                 var inputUrl = String(argsArray[0]).trim();
                 if (inputUrl.indexOf('script.google.com/macros/s/') > -1) {
                   localStorage.setItem('limz_gas_backend_exec_url', inputUrl.split('?')[0].replace(/\/dev$/, '/exec'));
+                }
+                if (VERCEL_WRAPPER_CONFIG.USE_VERCEL_URL_FOR_QR && window.location.protocol.indexOf('http') === 0) {
+                  localStorage.setItem('limz_custom_webapp_url', getVercelBaseOrigin());
+                  if (window.appState) {
+                    window.appState.webAppUrl = getVercelBaseOrigin();
+                  }
                 }
               }
 
@@ -778,8 +864,62 @@
     /* =========================================================================
        HOOK PRETTY SHORTLINK QR & BACKUP DRAFT ANTRIAN INDEXEDDB
        ========================================================================= */
+    var isVercelInterceptorsInstalled = false;
+
+    function installGlobalNavigationInterceptors() {
+      if (isVercelInterceptorsInstalled) return;
+      isVercelInterceptorsInstalled = true;
+
+      // 1. Intercept window.open agar tab Monitor & Galeri TIDAK PERNAH membuka script.google.com
+      var origWindowOpen = window.open;
+      window.open = function(url, target, features) {
+        var safeUrl = rewriteToVercelUrl(url);
+        return origWindowOpen.call(window, safeUrl, target, features);
+      };
+
+      // 2. Intercept klik pada elemen <a href="..."> yang mengarah ke script.google.com atau ?slug=
+      function handleAnchorIntercept(e) {
+        var anchor = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+        if (!anchor) return;
+        var rawHref = anchor.getAttribute('href') || '';
+        if (rawHref.indexOf('script.google.com') > -1 || rawHref.indexOf('?slug=') > -1 || rawHref.indexOf('view=slideshow') > -1) {
+          var cleanHref = rewriteToVercelUrl(rawHref);
+          if (cleanHref && cleanHref !== rawHref) {
+            anchor.setAttribute('href', cleanHref);
+          }
+        }
+      }
+      document.addEventListener('click', handleAnchorIntercept, true);
+      document.addEventListener('auxclick', handleAnchorIntercept, true);
+      document.addEventListener('contextmenu', handleAnchorIntercept, true);
+
+      // 3. Intercept penyalinan link ke Clipboard agar link yang disalin selalu menggunakan domain Vercel
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        var origWriteText = navigator.clipboard.writeText.bind(navigator.clipboard);
+        navigator.clipboard.writeText = function(text) {
+          if (typeof text === 'string') {
+            var rewrittenText = text.replace(/https?:\/\/script\.google\.com\/macros\/s\/[^\s"'<>]+/gi, function(match) {
+              return rewriteToVercelUrl(match);
+            });
+            rewrittenText = rewriteToVercelUrl(rewrittenText);
+            return origWriteText(rewrittenText);
+          }
+          return origWriteText(text);
+        };
+      }
+    }
+
     function patchVercelUrlHelpers() {
       var originUrl = getVercelBaseOrigin();
+      sanitizeAndMigrateGasStorage();
+      installGlobalNavigationInterceptors();
+
+      // Pastikan appState.webAppUrl selalu bernilai domain Vercel
+      if (VERCEL_WRAPPER_CONFIG.USE_VERCEL_URL_FOR_QR && window.location.protocol.indexOf('http') === 0) {
+        if (window.appState) {
+          window.appState.webAppUrl = originUrl;
+        }
+      }
 
       // 1. Intercept penyimpanan URL Web App dari Modal Dashboard
       var origHandleSaveUrl = window.handleSaveWebAppUrlSubmit;
@@ -791,16 +931,29 @@
             localStorage.setItem('limz_gas_backend_exec_url', cleanGas);
           }
           origHandleSaveUrl();
+          if (VERCEL_WRAPPER_CONFIG.USE_VERCEL_URL_FOR_QR && window.location.protocol.indexOf('http') === 0) {
+            localStorage.setItem('limz_custom_webapp_url', originUrl);
+            if (window.appState) {
+              window.appState.webAppUrl = originUrl;
+            }
+          }
           updateVercelStatusBadge();
         };
       }
 
-      // 2. Terapkan Pretty Shortlink QR (/gallery/{slug} & /monitor/{slug})
+      // 2. Terapkan Pretty Shortlink QR (/gallery/{slug} & /monitor/{slug}) pada semua helper URL
       if (VERCEL_WRAPPER_CONFIG.USE_VERCEL_URL_FOR_QR && window.location.protocol.indexOf('http') === 0) {
         window.getPublicGalleryUrl = function(slug) {
           var cleanSlug = encodeURIComponent(String(slug || '').trim());
           return originUrl + '/gallery/' + cleanSlug;
         };
+
+        window.getSlideshowUrl = function(slug) {
+          var cleanSlug = encodeURIComponent(String(slug || '').trim());
+          return originUrl + '/monitor/' + cleanSlug;
+        };
+
+        window.getMonitorUrl = window.getSlideshowUrl;
 
         window.getDirectPhotoOrGalleryUrl = function(slug, photoId) {
           var base = window.getPublicGalleryUrl(slug);
