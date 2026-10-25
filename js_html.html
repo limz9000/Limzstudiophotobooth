@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Limz Studio Photobooth - Cloud Foto & Galeri Event</title>
+
+  <!-- PWA & Mobile Web App Capabilities -->
+  <meta name="theme-color" content="#191410">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Limz Studio">
+  <meta name="application-name" content="Limz Studio Photobooth">
+  <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22Limz%20Studio%20Photobooth%22%2C%22short_name%22%3A%22LimzStudio%22%2C%22start_url%22%3A%22%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23191410%22%2C%22theme_color%22%3A%22%23191410%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22https%3A%2F%2Fimages.unsplash.com%2Fphoto-1519741497674-611481863552%3Fauto%3Dformat%26fit%3Dcrop%26w%3D192%26q%3D80%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fpng%22%7D%2C%7B%22src%22%3A%22https%3A%2F%2Fimages.unsplash.com%2Fphoto-1519741497674-611481863552%3Fauto%3Dformat%26fit%3Dcrop%26w%3D512%26q%3D80%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fpng%22%7D%5D%7D">
+  <link rel="apple-touch-icon" href="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=180&q=80">
+
+  <!-- Google Fonts & External Libraries (Sama Persis dengan index.html) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Alex+Brush&family=Cinzel:wght@600;700;800;900&family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600;1,700&family=Great+Vibes&family=Playfair+Display:ital,wght@0,600;0,700;0,800;0,900;1,600;1,700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gifshot/0.3.2/gifshot.min.js"></script>
+
+  <style id="vercel-wrapper-base-style">
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      min-height: 100vh;
+      background-color: #0b0a08;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    #vercel-boot-loader {
+      position: fixed;
+      inset: 0;
+      background: #0b0a08;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 999999;
+      color: #f7f4ee;
+      transition: opacity 0.35s ease;
+    }
+    .vercel-boot-spinner {
+      width: 42px;
+      height: 42px;
+      border: 3px solid rgba(212, 148, 56, 0.25);
+      border-top-color: #d49438;
+      border-radius: 50%;
+      animation: vercelSpin 0.8s linear infinite;
+      margin-bottom: 14px;
+    }
+    @keyframes vercelSpin {
+      to { transform: rotate(360deg); }
+    }
+    #vercel-iframe-container {
+      display: none;
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100dvh;
+      border: none;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      z-index: 10;
+    }
+    #vercel-iframe-container iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+    /* Widget Floating Antrian Offline IndexedDB */
+    #vercel-offline-queue-widget {
+      position: fixed;
+      bottom: 24px;
+      left: 24px;
+      background: rgba(25, 20, 16, 0.96);
+      backdrop-filter: blur(10px);
+      color: #fbf9f5;
+      border: 1.5px solid #d49438;
+      border-radius: 12px;
+      padding: 12px 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+      z-index: 10900;
+      display: none;
+      align-items: center;
+      gap: 12px;
+      max-width: 380px;
+      font-size: 12.5px;
+      transition: all 0.25s ease;
+    }
+    .voq-badge-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #f59e0b;
+      box-shadow: 0 0 10px #f59e0b;
+      flex-shrink: 0;
+      animation: voqPulse 1.5s infinite;
+    }
+    .voq-badge-dot.syncing {
+      background: #10b981;
+      box-shadow: 0 0 10px #10b981;
+    }
+    @keyframes voqPulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.8); }
+    }
+    .voq-btn-sync {
+      background: #d49438;
+      color: #ffffff;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 11px;
+      font-size: 11.5px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.2s ease;
+    }
+    .voq-btn-sync:hover {
+      background: #b87b28;
+    }
+    .voq-btn-sync:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Layar Transisi Booting Awal -->
+  <div id="vercel-boot-loader">
+    <div class="vercel-boot-spinner"></div>
+    <div style="font-family: 'Cinzel', serif; font-size: 14px; letter-spacing: 2px; color: #d49438; font-weight: 700;">LIMZ STUDIO PHOTOBOOTH</div>
+    <div id="vercel-boot-status" style="font-size: 11.5px; color: #a39585; margin-top: 6px;">Menyiapkan ruang studio cloud...</div>
+  </div>
+
+  <!-- Widget Indikator Antrian Offline IndexedDB -->
+  <div id="vercel-offline-queue-widget">
+    <div id="voq-dot" class="voq-badge-dot"></div>
+    <div style="flex: 1; line-height: 1.35;">
+      <div style="font-weight: 700; color: #e2b86b;" id="voq-title">📦 0 Foto di Antrian Offline</div>
+      <div style="font-size: 11px; color: #cbd5e1; margin-top: 2px;" id="voq-subtitle">Tersimpan aman di IndexedDB perangkat</div>
+    </div>
+    <button type="button" id="voq-sync-btn" class="voq-btn-sync" onclick="triggerManualOfflineSync()">🔄 Upload</button>
+  </div>
+
+  <!-- Kontainer Fallback untuk Mode Iframe -->
+  <div id="vercel-iframe-container"></div>
+
+  <!-- Kontainer Target Perakitan DOM index.html Asli -->
+  <div id="vercel-app-mount"></div>
+
+  <script>
+    /* =========================================================================
+       KONFIGURASI PEMBUNGKUS GITHUB - VERCEL (TANPA UBAH KODE ASLI)
+       ========================================================================= */
+    var VERCEL_WRAPPER_CONFIG = {
+      // 1. Masukkan URL Web App Google Apps Script (/exec) Anda di sini.
+      GAS_EXEC_URL: 'https://script.google.com/macros/s/AKfycbxUzK9ZvwEhShBI4BDwNgau9aYIUH-XcMwVeIZX73OJwFhJTN0EnA28Cb2Z_p8qb93LVg/exec',
+
+      // 2. Pilih Mode Pembungkus: 'NATIVE_BRIDGE' atau 'IFRAME_WRAPPER'
+      MODE: 'NATIVE_BRIDGE',
+
+      // 3. Gunakan URL Domain Vercel & Pretty Shortlink (/gallery/slug & /monitor/slug) untuk QR Code
+      USE_VERCEL_URL_FOR_QR: true
+    };
+
+    /* =========================================================================
+       MODUL 1: SMART PATHNAME ROUTER (PRETTY SHORTLINK QR RESOLVER)
+       Mendeteksi /gallery/{slug}, /gallery/{slug}/{photoId}, & /monitor/{slug}
+       serta tetap mendukung parameter query ?slug=...&view=...&photoId=...
+       ========================================================================= */
+    function getVercelBaseOrigin() {
+      return window.location.origin;
+    }
+
+    function extractRouteParameters() {
+      var urlParams = new URLSearchParams(window.location.search);
+      var routeData = {
+        slug: urlParams.get('slug') ? String(urlParams.get('slug')).trim() : '',
+        view: urlParams.get('view') ? String(urlParams.get('view')).trim() : '',
+        photoId: urlParams.get('photoId') ? String(urlParams.get('photoId')).trim() : ''
+      };
+
+      var pathname = window.location.pathname || '';
+
+      // 1. Pola /gallery/{slug}/{photoId}
+      var matchGalleryPhoto = pathname.match(/^\/gallery\/([^\/]+)\/([^\/]+)\/?$/i);
+      if (matchGalleryPhoto) {
+        routeData.slug = decodeURIComponent(matchGalleryPhoto[1]);
+        routeData.photoId = decodeURIComponent(matchGalleryPhoto[2]);
+        return routeData;
+      }
+
+      // 2. Pola /gallery/{slug}
+      var matchGallery = pathname.match(/^\/gallery\/([^\/]+)\/?$/i);
+      if (matchGallery) {
+        routeData.slug = decodeURIComponent(matchGallery[1]);
+        return routeData;
+      }
+
+      // 3. Pola /monitor/{slug}
+      var matchMonitor = pathname.match(/^\/monitor\/([^\/]+)\/?$/i);
+      if (matchMonitor) {
+        routeData.slug = decodeURIComponent(matchMonitor[1]);
+        routeData.view = 'slideshow';
+        return routeData;
+      }
+
+      return routeData;
+    }
+
+    /* =========================================================================
+       MODUL 2: OFFLINE QUEUE & DRAFT BACKUP INDEXEDDB (LimzStudioOfflineDB)
+       Menyimpan antrian upload foto saat sinyal di venue putus & membackup draft
+       ========================================================================= */
+    var LimzOfflineDB = (function() {
+      var DB_NAME = 'LimzStudioOfflineDB';
+      var DB_VERSION = 1;
+      var STORE_QUEUE = 'upload_queue';
+      var STORE_DRAFTS = 'staged_drafts';
+      var dbPromise = null;
+
+      function openDB() {
+        if (dbPromise) return dbPromise;
+        dbPromise = new Promise(function(resolve, reject) {
+          if (!window.indexedDB) {
+            reject(new Error('IndexedDB tidak didukung di browser ini.'));
+            return;
+          }
+          var request = window.indexedDB.open(DB_NAME, DB_VERSION);
+          request.onupgradeneeded = function(event) {
+            var db = event.target.result;
+            if (!db.objectStoreNames.contains(STORE_QUEUE)) {
+              db.createObjectStore(STORE_QUEUE, { keyPath: 'queueId' });
+            }
+            if (!db.objectStoreNames.contains(STORE_DRAFTS)) {
+              db.createObjectStore(STORE_DRAFTS, { keyPath: 'id' });
+            }
+          };
+          request.onsuccess = function(event) {
+            resolve(event.target.result);
+          };
+          request.onerror = function(event) {
+            reject(event.target.error);
+          };
+        });
+        return dbPromise;
+      }
+
+      function enqueueUpload(payload) {
+        return openDB().then(function(db) {
+          return new Promise(function(resolve, reject) {
+            var tx = db.transaction([STORE_QUEUE], 'readwrite');
+            var store = tx.objectStore(STORE_QUEUE);
+            var item = {
+              queueId: 'q_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+              payload: payload,
+              createdAt: Date.now()
+            };
+            var req = store.put(item);
+            req.onsuccess = function() { resolve(item); };
+            req.onerror = function(e) { reject(e.target.error); };
+          });
+        });
+      }
+
+      function getAllQueuedUploads() {
+        return openDB().then(function(db) {
+          return new Promise(function(resolve, reject) {
+            var tx = db.transaction([STORE_QUEUE], 'readonly');
+            var store = tx.objectStore(STORE_QUEUE);
+            var req = store.getAll();
+            req.onsuccess = function() {
+              var list = req.result || [];
+              list.sort(function(a, b) { return a.createdAt - b.createdAt; });
+              resolve(list);
+            };
+            req.onerror = function(e) { reject(e.target.error); };
+          });
+        }).catch(function() { return []; });
+      }
+
+      function removeQueuedUpload(queueId) {
+        return openDB().then(function(db) {
+          return new Promise(function(resolve, reject) {
+            var tx = db.transaction([STORE_QUEUE], 'readwrite');
+            var store = tx.objectStore(STORE_QUEUE);
+            var req = store.delete(queueId);
+            req.onsuccess = function() { resolve(true); };
+            req.onerror = function(e) { reject(e.target.error); };
+          });
+        });
+      }
+
+      function saveStagedDrafts(stagedPhotosArray) {
+        return openDB().then(function(db) {
+          return new Promise(function(resolve) {
+            var tx = db.transaction([STORE_DRAFTS], 'readwrite');
+            var store = tx.objectStore(STORE_DRAFTS);
+            store.clear();
+            if (Array.isArray(stagedPhotosArray)) {
+              for (var i = 0; i < stagedPhotosArray.length; i++) {
+                var p = stagedPhotosArray[i];
+                store.put({
+                  id: p.id || ('staged_' + i),
+                  orderIndex: i,
+                  name: p.name || ('Photo_' + (i + 1) + '.jpg'),
+                  size: p.size || 0,
+                  dataUrl: p.dataUrl,
+                  originalDataUrl: p.originalDataUrl || p.dataUrl,
+                  isCropped: !!p.isCropped,
+                  isGif: !!p.isGif
+                });
+              }
+            }
+            tx.oncomplete = function() { resolve(true); };
+            tx.onerror = function() { resolve(false); };
+          });
+        }).catch(function() { return false; });
+      }
+
+      function getSavedStagedDrafts() {
+        return openDB().then(function(db) {
+          return new Promise(function(resolve) {
+            var tx = db.transaction([STORE_DRAFTS], 'readonly');
+            var store = tx.objectStore(STORE_DRAFTS);
+            var req = store.getAll();
+            req.onsuccess = function() {
+              var list = req.result || [];
+              list.sort(function(a, b) { return (a.orderIndex || 0) - (b.orderIndex || 0); });
+              resolve(list);
+            };
+            req.onerror = function() { resolve([]); };
+          });
+        }).catch(function() { return []; });
+      }
+
+      return {
+        enqueueUpload: enqueueUpload,
+        getAllQueuedUploads: getAllQueuedUploads,
+        removeQueuedUpload: removeQueuedUpload,
+        saveStagedDrafts: saveStagedDrafts,
+        getSavedStagedDrafts: getSavedStagedDrafts
+      };
+    })();
+
+    var isSyncingOfflineQueue = false;
+
+    function refreshOfflineQueueWidget() {
+      var widget = document.getElementById('vercel-offline-queue-widget');
+      var titleEl = document.getElementById('voq-title');
+      var subEl = document.getElementById('voq-subtitle');
+      var dotEl = document.getElementById('voq-dot');
+      var btnEl = document.getElementById('voq-sync-btn');
+      if (!widget) return;
+
+      LimzOfflineDB.getAllQueuedUploads().then(function(items) {
+        if (!items || items.length === 0) {
+          widget.style.display = 'none';
+          return;
+        }
+        widget.style.display = 'flex';
+        if (titleEl) {
+          titleEl.innerText = '📦 ' + items.length + ' Foto di Antrian Offline';
+        }
+        if (isSyncingOfflineQueue) {
+          if (subEl) subEl.innerText = 'Sedang mengunggah otomatis ke Google Drive...';
+          if (dotEl) dotEl.classList.add('syncing');
+          if (btnEl) {
+            btnEl.disabled = true;
+            btnEl.innerText = '⏳ Mengunggah...';
+          }
+        } else {
+          var onlineStatus = navigator.onLine ? 'Sinyal siap • Klik Upload atau tunggu auto-sync' : 'Menunggu sinyal internet kembali stabil...';
+          if (subEl) subEl.innerText = onlineStatus;
+          if (dotEl) dotEl.classList.remove('syncing');
+          if (btnEl) {
+            btnEl.disabled = false;
+            btnEl.innerText = '🔄 Upload (' + items.length + ')';
+          }
+        }
+      });
+    }
+
+    function processOfflineUploadQueue() {
+      if (isSyncingOfflineQueue || !navigator.onLine) {
+        refreshOfflineQueueWidget();
+        return;
+      }
+      var endpoint = resolveGasBackendUrl();
+      if (!endpoint) return;
+
+      LimzOfflineDB.getAllQueuedUploads().then(function(items) {
+        if (!items || items.length === 0) {
+          refreshOfflineQueueWidget();
+          return;
+        }
+
+        isSyncingOfflineQueue = true;
+        refreshOfflineQueueWidget();
+
+        function syncNext(index) {
+          if (index >= items.length || !navigator.onLine) {
+            isSyncingOfflineQueue = false;
+            refreshOfflineQueueWidget();
+            if (index > 0 && typeof window.showToast === 'function') {
+              window.showToast('✅ Antrian foto offline berhasil disinkronkan ke Google Drive!');
+              if (typeof window.refreshDashboardData === 'function' && window.appState && window.appState.currentView === 'view-dashboard') {
+                window.refreshDashboardData();
+              }
+            }
+            return;
+          }
+
+          var currentItem = items[index];
+          fetch(endpoint, {
+            method: 'POST',
+            redirect: 'follow',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({
+              action: 'uploadPhotoWithWatermark',
+              args: [currentItem.payload]
+            })
+          })
+          .then(function(res) {
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            return res.json();
+          })
+          .then(function(data) {
+            if (data && data.success) {
+              return LimzOfflineDB.removeQueuedUpload(currentItem.queueId).then(function() {
+                refreshOfflineQueueWidget();
+                syncNext(index + 1);
+              });
+            } else {
+              throw new Error((data && data.message) || 'Upload ditolak server');
+            }
+          })
+          .catch(function(err) {
+            console.warn('[Offline Queue Auto-Sync Paused]:', err);
+            isSyncingOfflineQueue = false;
+            refreshOfflineQueueWidget();
+          });
+        }
+
+        syncNext(0);
+      });
+    }
+
+    function triggerManualOfflineSync() {
+      if (!navigator.onLine) {
+        if (typeof window.showToast === 'function') {
+          window.showToast('⚠️ Perangkat masih offline. Foto tetap aman di IndexedDB.');
+        }
+        return;
+      }
+      processOfflineUploadQueue();
+    }
+
+    window.addEventListener('online', function() {
+      if (typeof window.showToast === 'function') {
+        window.showToast('🌐 Koneksi internet kembali aktif! Memeriksa antrian offline...');
+      }
+      processOfflineUploadQueue();
+    });
+
+    window.addEventListener('offline', function() {
+      refreshOfflineQueueWidget();
+      if (typeof window.showToast === 'function') {
+        window.showToast('📡 Sinyal terputus. Mode Antrian Offline IndexedDB aktif otomatis.');
+      }
+    });
+
+    setInterval(function() {
+      if (navigator.onLine && !isSyncingOfflineQueue) {
+        processOfflineUploadQueue();
+      }
+    }, 12000);
+
+    /* =========================================================================
+       RESOLVER ENDPOINT BACKEND GAS (/exec)
+       ========================================================================= */
+    function resolveGasBackendUrl() {
+      var savedCustom = localStorage.getItem('limz_gas_backend_exec_url') || localStorage.getItem('limz_custom_webapp_url');
+      if (savedCustom && savedCustom.indexOf('https://script.google.com/macros/s/') === 0 && savedCustom.indexOf('GANTI_DENGAN') === -1) {
+        return savedCustom.split('?')[0].replace(/\/dev$/, '/exec').replace(/\/+$/, '');
+      }
+      var cfgUrl = VERCEL_WRAPPER_CONFIG.GAS_EXEC_URL || '';
+      if (cfgUrl && cfgUrl.indexOf('https://script.google.com/macros/s/') === 0 && cfgUrl.indexOf('GANTI_DENGAN') === -1) {
+        return cfgUrl.split('?')[0].replace(/\/dev$/, '/exec').replace(/\/+$/, '');
+      }
+      return '';
+    }
+
+    /* =========================================================================
+       POLYFILL BRIDGE: window.google.script.run -> FETCH KE KODE.GS (doPost)
+       Terintegrasi dengan Offline Queue IndexedDB khusus uploadPhotoWithWatermark
+       ========================================================================= */
+    function initGoogleScriptRunPolyfill() {
+      if (typeof window.google !== 'undefined' && window.google.script && window.google.script.run) {
+        return;
+      }
+
+      function createRunnerInstance(state) {
+        var currentState = {
+          onSuccess: state && state.onSuccess ? state.onSuccess : null,
+          onFailure: state && state.onFailure ? state.onFailure : null,
+          userObject: state && state.userObject !== undefined ? state.userObject : undefined
+        };
+
+        return new Proxy({}, {
+          get: function(target, prop) {
+            if (prop === 'withSuccessHandler') {
+              return function(fn) {
+                return createRunnerInstance({
+                  onSuccess: fn,
+                  onFailure: currentState.onFailure,
+                  userObject: currentState.userObject
+                });
+              };
+            }
+            if (prop === 'withFailureHandler') {
+              return function(fn) {
+                return createRunnerInstance({
+                  onSuccess: currentState.onSuccess,
+                  onFailure: fn,
+                  userObject: currentState.userObject
+                });
+              };
+            }
+            if (prop === 'withUserObject') {
+              return function(obj) {
+                return createRunnerInstance({
+                  onSuccess: currentState.onSuccess,
+                  onFailure: currentState.onFailure,
+                  userObject: obj
+                });
+              };
+            }
+
+            // Eksekusi pemanggilan fungsi backend di Kode.gs
+            return function() {
+              var argsArray = Array.prototype.slice.call(arguments);
+              var actionName = String(prop);
+
+              // Khusus penyimpanan URL Web App dari modal Dashboard
+              if (actionName === 'saveWebAppUrl' && argsArray[0]) {
+                var inputUrl = String(argsArray[0]).trim();
+                if (inputUrl.indexOf('script.google.com/macros/s/') > -1) {
+                  localStorage.setItem('limz_gas_backend_exec_url', inputUrl.split('?')[0].replace(/\/dev$/, '/exec'));
+                }
+              }
+
+              var endpoint = resolveGasBackendUrl();
+              if (!endpoint) {
+                console.warn('[Vercel Bridge] GAS_EXEC_URL belum disetel untuk aksi: ' + actionName);
+                var fallbackMock = getOfflineFallbackResponse(actionName, argsArray);
+                if (currentState.onSuccess) {
+                  setTimeout(function() {
+                    currentState.onSuccess(fallbackMock, currentState.userObject);
+                  }, 150);
+                }
+                return;
+              }
+
+              // PROTEKSI OFFLINE QUEUE INDEXEDDB SAAT UPLOAD FOTO WATERMARK
+              if (actionName === 'uploadPhotoWithWatermark' && argsArray[0] && !navigator.onLine) {
+                LimzOfflineDB.enqueueUpload(argsArray[0]).then(function() {
+                  refreshOfflineQueueWidget();
+                  if (typeof window.showToast === 'function') {
+                    window.showToast('📦 Offline: Foto disimpan ke Antrian IndexedDB & akan diupload otomatis saat sinyal kembali.');
+                  }
+                  if (currentState.onSuccess) {
+                    currentState.onSuccess({
+                      success: true,
+                      queuedOffline: true,
+                      message: 'Foto disimpan di Antrian Offline IndexedDB.'
+                    }, currentState.userObject);
+                  }
+                });
+                return;
+              }
+
+              fetch(endpoint, {
+                method: 'POST',
+                redirect: 'follow',
+                headers: {
+                  'Content-Type': 'text/plain;charset=utf-8'
+                },
+                body: JSON.stringify({
+                  action: actionName,
+                  args: argsArray
+                })
+              })
+              .then(function(response) {
+                if (!response.ok) {
+                  throw new Error('HTTP Error ' + response.status);
+                }
+                return response.json();
+              })
+              .then(function(result) {
+                if (actionName === 'uploadPhotoWithWatermark' && (!result || !result.success)) {
+                  throw new Error((result && result.message) || 'Gagal unggah ke server');
+                }
+                if (currentState.onSuccess) {
+                  currentState.onSuccess(result, currentState.userObject);
+                }
+              })
+              .catch(function(err) {
+                console.error('[Vercel Bridge Error] ' + actionName + ':', err);
+
+                // Jika uploadPhotoWithWatermark gagal karena sinyal putus/timeout di tengah jalan, amankan ke IndexedDB
+                if (actionName === 'uploadPhotoWithWatermark' && argsArray[0]) {
+                  LimzOfflineDB.enqueueUpload(argsArray[0]).then(function() {
+                    refreshOfflineQueueWidget();
+                    if (typeof window.showToast === 'function') {
+                      window.showToast('⚠️ Koneksi tidak stabil: Foto diamankan ke Antrian Offline IndexedDB!');
+                    }
+                    if (currentState.onSuccess) {
+                      currentState.onSuccess({
+                        success: true,
+                        queuedOffline: true,
+                        message: 'Diamankan ke Antrian Offline IndexedDB'
+                      }, currentState.userObject);
+                    }
+                  });
+                  return;
+                }
+
+                if (currentState.onFailure) {
+                  currentState.onFailure(err.message || String(err), currentState.userObject);
+                }
+              });
+            };
+          }
+        });
+      }
+
+      window.google = {
+        script: {
+          run: createRunnerInstance({})
+        }
+      };
+    }
+
+    /* =========================================================================
+       FALLBACK RESPONSE JIKA URL /EXEC BELUM DIISI OLEH ADMIN
+       ========================================================================= */
+    function getOfflineFallbackResponse(action, args) {
+      if (action === 'getWebAppUrl') {
+        return getVercelBaseOrigin();
+      }
+      if (action === 'getStudioLogo') {
+        return { success: true, logoUrl: localStorage.getItem('limz_studio_logo') || '' };
+      }
+      if (action === 'loginUser') {
+        return {
+          success: true,
+          user: { id: 'USR-0001', nama: 'Lead Admin', email: args[0] || 'admin@limzstudio.com', role: 'Admin' }
+        };
+      }
+      if (action === 'getDashboardStats') {
+        return {
+          success: true,
+          stats: {
+            totalCollections: 1,
+            activeCollections: 1,
+            totalPhotos: 2,
+            totalViews: 120,
+            totalDownloads: 45,
+            latestCollections: [
+              { id: 'EVT-DEMO', title: 'Irvan & Susan Wedding', slug: 'irvan-susan', clientName: 'Irvan & Susan', eventDate: '2026-09-12', totalPhotos: 2, status: 'Active' }
+            ]
+          }
+        };
+      }
+      if (action === 'getCollections') {
+        return {
+          success: true,
+          items: [
+            {
+              id: 'EVT-DEMO',
+              title: 'Irvan & Susan Wedding',
+              slug: 'irvan-susan',
+              clientName: 'Irvan & Susan',
+              eventDate: '2026-09-12',
+              totalPhotos: 2,
+              status: 'Active',
+              coverUrl: 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=600&q=80',
+              folderId: 'demo-folder',
+              headerColor: '#1f2530',
+              headerMotif: 'floral-gold'
+            }
+          ],
+          total: 1,
+          currentPage: 1,
+          totalPages: 1
+        };
+      }
+      if (action === 'getSensorWords') {
+        return { success: true, words: [] };
+      }
+      if (action === 'getAllWishesForModeration' || action === 'getLiveWishes') {
+        return { success: true, wishes: [] };
+      }
+      return {
+        success: false,
+        message: 'URL Backend GAS (/exec) belum disetel. Klik tombol "Setel URL Web App (/exec)" di Dashboard.'
+      };
+    }
+
+    /* =========================================================================
+       PEMBERSIH SCRIPTLET GAS PADA INDEX.HTML ASLI
+       Menginjeksi hasil Smart Pathname Router ke #gas-query-data
+       ========================================================================= */
+    function cleanAndHydrateIndexHtml(rawHtml) {
+      var routeObj = extractRouteParameters();
+      var directSlug = routeObj.slug;
+      var directView = routeObj.view;
+      var originUrl = getVercelBaseOrigin();
+      var effectiveWebUrl = VERCEL_WRAPPER_CONFIG.USE_VERCEL_URL_FOR_QR ? originUrl : (resolveGasBackendUrl() || originUrl);
+
+      var bodyMatch = rawHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+      var bodyContent = bodyMatch ? bodyMatch[1] : rawHtml;
+
+      // 1. Hapus tag include('css') dan include('javascript')
+      bodyContent = bodyContent.replace(/<\?!=?\s*include\(['"]css['"]\);?\s*\?>/gi, '');
+      bodyContent = bodyContent.replace(/<\?!=?\s*include\(['"]javascript['"]\);?\s*\?>/gi, '');
+
+      // 2. Isi data #gas-query-data (termasuk hasil pembacaan /gallery/slug & /monitor/slug)
+      bodyContent = bodyContent.replace(
+        /<div id="gas-query-data"[^>]*>[\s\S]*?<\/div>/i,
+        '<div id="gas-query-data" style="display:none;">' + JSON.stringify(routeObj) + '</div>'
+      );
+      bodyContent = bodyContent.replace(
+        /<div id="gas-app-url"[^>]*>[\s\S]*?<\/div>/i,
+        '<div id="gas-app-url" style="display:none;">' + effectiveWebUrl + '</div>'
+      );
+      bodyContent = bodyContent.replace(
+        /<div id="gas-preloaded-coll"[^>]*>[\s\S]*?<\/div>/i,
+        '<div id="gas-preloaded-coll" style="display:none;">{}</div>'
+      );
+
+      // 3. Evaluasi class aktif view-landing, view-public-gallery, dan view-slideshow
+      bodyContent = bodyContent.replace(
+        /<\?!=?\s*\(!directSlug\s*\?\s*'view-active'\s*:\s*''\)\s*\?>/g,
+        (!directSlug ? 'view-active' : '')
+      );
+      bodyContent = bodyContent.replace(
+        /<\?!=?\s*\(directSlug\s*&&\s*directView\s*!==\s*'slideshow'\s*\?\s*'view-active'\s*:\s*''\)\s*\?>/g,
+        (directSlug && directView !== 'slideshow' ? 'view-active' : '')
+      );
+      bodyContent = bodyContent.replace(
+        /<\?!=?\s*\(directSlug\s*&&\s*directView\s*===\s*'slideshow'\s*\?\s*'view-active'\s*:\s*''\)\s*\?>/g,
+        (directSlug && directView === 'slideshow' ? 'view-active' : '')
+      );
+      bodyContent = bodyContent.replace(
+        /<\?!=?\s*\(directSlug\s*&&\s*directView\s*!==\s*'slideshow'\s*\?\s*'display:flex;\s*opacity:1;'\s*:\s*'display:none;\s*opacity:0;'\)\s*\?>/g,
+        (directSlug && directView !== 'slideshow' ? 'display:flex; opacity:1;' : 'display:none; opacity:0;')
+      );
+
+      // 4. Ganti sisa tag scriptlet <?!= ... : 'Default' ?> dengan nilai fallback default-nya
+      bodyContent = bodyContent.replace(/<\?!=?\s*\([^?]*?\s*:\s*'([^']*)'\)\s*\?>/g, '$1');
+
+      // 5. Bersihkan sisa blok deklarasi <? ... ?>
+      bodyContent = bodyContent.replace(/<\?[\s\S]*?\?>/g, '');
+
+      return bodyContent;
+    }
+
+    /* =========================================================================
+       HOOK PRETTY SHORTLINK QR & BACKUP DRAFT ANTRIAN INDEXEDDB
+       ========================================================================= */
+    function patchVercelUrlHelpers() {
+      var originUrl = getVercelBaseOrigin();
+
+      // 1. Intercept penyimpanan URL Web App dari Modal Dashboard
+      var origHandleSaveUrl = window.handleSaveWebAppUrlSubmit;
+      if (typeof origHandleSaveUrl === 'function') {
+        window.handleSaveWebAppUrlSubmit = function() {
+          var inputEl = document.getElementById('input-custom-webapp-url');
+          if (inputEl && inputEl.value && inputEl.value.indexOf('script.google.com/macros/s/') > -1) {
+            var cleanGas = inputEl.value.trim().split('?')[0].replace(/\/dev$/, '/exec').replace(/\/+$/, '');
+            localStorage.setItem('limz_gas_backend_exec_url', cleanGas);
+          }
+          origHandleSaveUrl();
+          updateVercelStatusBadge();
+        };
+      }
+
+      // 2. Terapkan Pretty Shortlink QR (/gallery/{slug} & /monitor/{slug})
+      if (VERCEL_WRAPPER_CONFIG.USE_VERCEL_URL_FOR_QR && window.location.protocol.indexOf('http') === 0) {
+        window.getPublicGalleryUrl = function(slug) {
+          var cleanSlug = encodeURIComponent(String(slug || '').trim());
+          return originUrl + '/gallery/' + cleanSlug;
+        };
+
+        window.getDirectPhotoOrGalleryUrl = function(slug, photoId) {
+          var base = window.getPublicGalleryUrl(slug);
+          if (photoId) {
+            return base + '/' + encodeURIComponent(String(photoId).trim());
+          }
+          return base;
+        };
+
+        window.openPublicGalleryNewTab = function(slug) {
+          var targetUrl = originUrl + '/gallery/' + encodeURIComponent(String(slug || '').trim());
+          window.open(targetUrl, '_blank');
+        };
+
+        window.openSlideshowNewTab = function(slug) {
+          var targetUrl = originUrl + '/monitor/' + encodeURIComponent(String(slug || '').trim());
+          window.open(targetUrl, '_blank');
+        };
+      }
+
+      // 3. Hook renderStagedPhotosUI untuk Auto-Backup & Restore Draft Antrian di IndexedDB
+      var isRestoringDrafts = false;
+      var origRenderStaged = window.renderStagedPhotosUI;
+      if (typeof origRenderStaged === 'function') {
+        window.renderStagedPhotosUI = function() {
+          origRenderStaged();
+          if (!isRestoringDrafts && window.appState && Array.isArray(window.appState.stagedPhotos)) {
+            LimzOfflineDB.saveStagedDrafts(window.appState.stagedPhotos);
+          }
+        };
+      }
+
+      // Pulihkan draft foto yang belum sempat di-upload jika browser sempat ter-refresh
+      LimzOfflineDB.getSavedStagedDrafts().then(function(savedDrafts) {
+        if (savedDrafts && savedDrafts.length > 0 && window.appState && (!window.appState.stagedPhotos || window.appState.stagedPhotos.length === 0)) {
+          isRestoringDrafts = true;
+          window.appState.stagedPhotos = savedDrafts.map(function(d) {
+            return {
+              id: d.id,
+              file: { name: d.name, size: d.size },
+              name: d.name,
+              size: d.size,
+              dataUrl: d.dataUrl,
+              originalDataUrl: d.originalDataUrl || d.dataUrl,
+              isCropped: !!d.isCropped,
+              isGif: !!d.isGif
+            };
+          });
+          window.appState.activeStagedIndex = 0;
+          if (typeof origRenderStaged === 'function') {
+            origRenderStaged();
+          }
+          isRestoringDrafts = false;
+          if (typeof window.showToast === 'function' && window.appState.currentView === 'view-dashboard') {
+            window.showToast('♻️ ' + savedDrafts.length + ' foto draft antrian dipulihkan dari IndexedDB.');
+          }
+        }
+      });
+
+      updateVercelStatusBadge();
+      refreshOfflineQueueWidget();
+      processOfflineUploadQueue();
+    }
+
+    function updateVercelStatusBadge() {
+      var btn = document.getElementById('btn-web-url-status');
+      if (!btn) return;
+      var gasUrl = resolveGasBackendUrl();
+      if (gasUrl) {
+        btn.innerHTML = '🟢 Cloud API & Shortlink QR: Aktif';
+        btn.style.color = 'var(--accent-green)';
+        btn.style.borderColor = 'var(--accent-green)';
+      } else {
+        btn.innerHTML = '🟡 Hubungkan URL GAS (/exec)';
+        btn.style.color = 'var(--accent-orange)';
+        btn.style.borderColor = 'var(--accent-orange)';
+      }
+    }
+
+    /* =========================================================================
+       MODE 2: SMART FULLSCREEN IFRAME WRAPPER (CADANGAN / OPSI LANGSUNG)
+       ========================================================================= */
+    function bootIframeWrapperMode() {
+      var gasUrl = resolveGasBackendUrl();
+      var loader = document.getElementById('vercel-boot-loader');
+      var container = document.getElementById('vercel-iframe-container');
+
+      if (!gasUrl) {
+        if (loader) {
+          loader.innerHTML = '<div style="max-width:440px; text-align:center; padding:24px; background:#191410; border:1px solid #d49438; border-radius:12px;">' +
+            '<h3 style="color:#d49438; margin-bottom:8px;">Konfigurasi URL GAS (/exec)</h3>' +
+            '<p style="font-size:12.5px; color:#cbd5e1; margin-bottom:14px;">Masukkan URL Deployment Google Apps Script (/exec) Anda untuk mengaktifkan aplikasi:</p>' +
+            '<input type="url" id="init-gas-url-input" placeholder="https://script.google.com/macros/s/.../exec" style="width:100%; padding:10px; border-radius:6px; border:1px solid #574328; margin-bottom:12px;">' +
+            '<button onclick="saveInitialGasUrl()" style="background:#d49438; color:#fff; border:none; padding:10px 20px; border-radius:6px; font-weight:700; cursor:pointer; width:100%;">Simpan & Buka Aplikasi</button>' +
+            '</div>';
+        }
+        return;
+      }
+
+      var routeObj = extractRouteParameters();
+      var params = new URLSearchParams();
+      if (routeObj.slug) params.set('slug', routeObj.slug);
+      if (routeObj.view) params.set('view', routeObj.view);
+      if (routeObj.photoId) params.set('photoId', routeObj.photoId);
+      var qs = params.toString();
+
+      var targetSrc = gasUrl + (qs ? ('?' + qs) : '');
+      container.style.display = 'block';
+      container.innerHTML = '<iframe src="' + targetSrc + '" allow="camera *; microphone *; clipboard-write *; clipboard-read *; display-capture *; fullscreen *" allowfullscreen></iframe>';
+
+      if (loader) {
+        loader.style.opacity = '0';
+        setTimeout(function() { loader.style.display = 'none'; }, 350);
+      }
+    }
+
+    function saveInitialGasUrl() {
+      var val = document.getElementById('init-gas-url-input').value;
+      if (val && val.indexOf('https://script.google.com/macros/s/') === 0) {
+        localStorage.setItem('limz_gas_backend_exec_url', val.trim().split('?')[0].replace(/\/dev$/, '/exec'));
+        window.location.reload();
+      }
+    }
+
+    /* =========================================================================
+       HELPER FETCH ASSET ABSOLUT (ANTI-404 DI SUBPATH /gallery/... & /monitor/...)
+       ========================================================================= */
+    function fetchAssetText(fileName) {
+      return fetch('/' + fileName).then(function(r) {
+        if (r.ok) return r.text();
+        return fetch('./' + fileName).then(function(r2) {
+          if (!r2.ok) throw new Error(fileName + ' not found');
+          return r2.text();
+        });
+      });
+    }
+
+    /* =========================================================================
+       MODE 1: NATIVE BRIDGE ASSEMBLER (MERAKIT CSS.HTML + INDEX.HTML + JAVASCRIPT.HTML)
+       ========================================================================= */
+    function bootNativeBridgeAssembler() {
+      initGoogleScriptRunPolyfill();
+
+      Promise.all([
+        fetchAssetText('css.html'),
+        fetchAssetText('index.html'),
+        fetchAssetText('javascript.html')
+      ])
+      .then(function(results) {
+        var rawCss = results[0];
+        var rawIndex = results[1];
+        var rawJs = results[2];
+
+        // 1. Suntikkan css.html ke dalam <head>
+        var styleWrapper = document.createElement('div');
+        styleWrapper.innerHTML = rawCss;
+        var styleTags = styleWrapper.querySelectorAll('style');
+        for (var s = 0; s < styleTags.length; s++) {
+          document.head.appendChild(styleTags[s]);
+        }
+
+        // 2. Bersihkan scriptlet GAS pada index.html dan pasang ke #vercel-app-mount
+        var cleanBodyHtml = cleanAndHydrateIndexHtml(rawIndex);
+        var mountEl = document.getElementById('vercel-app-mount');
+        mountEl.innerHTML = cleanBodyHtml;
+
+        // 3. Ekstrak dan jalankan script dari javascript.html
+        var scriptMatch = rawJs.match(/<script[^>]*>([\s\S]*?)<\/script>/i);
+        var jsCode = scriptMatch ? scriptMatch[1] : rawJs;
+
+        var scriptEl = document.createElement('script');
+        scriptEl.text = jsCode;
+        document.body.appendChild(scriptEl);
+
+        // 4. Inisialisasi DOMContentLoaded aplikasi asli lalu terapkan patch Pretty Shortlink & IndexedDB
+        document.dispatchEvent(new Event('DOMContentLoaded'));
+        patchVercelUrlHelpers();
+
+        // 5. Sembunyikan layar transisi booting
+        var loader = document.getElementById('vercel-boot-loader');
+        if (loader) {
+          loader.style.opacity = '0';
+          setTimeout(function() { loader.style.display = 'none'; }, 350);
+        }
+      })
+      .catch(function(err) {
+        console.warn('[Vercel Wrapper] Beralih ke Mode Iframe karena file modular lokal tidak ditemukan:', err);
+        bootIframeWrapperMode();
+      });
+    }
+
+    // Jalankan Pembungkus Saat Halaman Dimuat
+    if (VERCEL_WRAPPER_CONFIG.MODE === 'IFRAME_WRAPPER') {
+      bootIframeWrapperMode();
+    } else {
+      bootNativeBridgeAssembler();
+    }
+  </script>
+</body>
+</html>
