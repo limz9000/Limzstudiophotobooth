@@ -1,22 +1,36 @@
 {
-"version": 2,
-"cleanUrls": true,
-"rewrites": [
-{
-"source": "/",
-"destination": "/js.html"
-},
-{
-"source": "/gallery/:slug/:photoId",
-"destination": "/js.html?slug=:slug&photoId=:photoId"
-},
-{
-"source": "/gallery/:slug",
-"destination": "/js.html?slug=:slug"
-},
-{
-"source": "/monitor/:slug",
-"destination": "/js.html?view=slideshow&slug=:slug"
-}
-]
+  "version": 2,
+  "public": true,
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "ALLOWALL" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/:slug/monitor",
+      "destination": "/index.html?slug=:slug&view=slideshow"
+    },
+    {
+      "source": "/:slug/p/:photoId",
+      "destination": "/index.html?slug=:slug&photoId=:photoId"
+    },
+    {
+      "source": "/:slug",
+      "destination": "/index.html?slug=:slug"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
 }
