@@ -1,20 +1,17 @@
 <!DOCTYPE html>
 <html lang="id">
-
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport"
-    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Limz Studio Photobooth - Digital Gallery & Live Monitor</title>
-
+  
   <!-- Favicon & PWA Theme -->
   <meta name="theme-color" content="#0d0a08">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Limz Studio">
-  <link rel="icon" type="image/png"
-    href="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=192&q=80">
-
+  <link rel="icon" type="image/png" href="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=192&q=80">
+  
   <style>
     * {
       box-sizing: border-box;
@@ -23,8 +20,7 @@
       -webkit-tap-highlight-color: transparent;
     }
 
-    html,
-    body {
+    html, body {
       width: 100%;
       height: 100%;
       height: 100dvh;
@@ -33,14 +29,14 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
 
-    /* Iframe Layar Penuh Bebas Notice */
+    /* Iframe Layar Penuh Bebas Notice Google Apps Script (0 Jeda / Langsung Tampil) */
     #app-frame {
       position: absolute;
-      top: 0;
+      top: -42px;
       left: 0;
       width: 100%;
-      height: 100%;
-      height: 100dvh;
+      height: calc(100% + 42px);
+      height: calc(100dvh + 42px);
       border: none;
       outline: none;
       display: block;
@@ -48,59 +44,7 @@
       background: #0d0a08;
     }
 
-    /* Smooth Preloader Elegan Selagi Menghubungkan ke GAS */
-    #wrapper-loader {
-      position: fixed;
-      inset: 0;
-      background: #0d0a08;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      z-index: 9999;
-      color: #fff;
-      transition: opacity 0.4s ease, visibility 0.4s ease;
-    }
-
-    .loader-brand {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 24px;
-    }
-
-    .loader-logo-ring {
-      width: 64px;
-      height: 64px;
-      border-radius: 50%;
-      border: 2px solid rgba(212, 148, 56, 0.25);
-      border-top-color: #d49438;
-      animation: spinRing 0.9s cubic-bezier(0.65, 0, 0.35, 1) infinite;
-      box-shadow: 0 0 24px rgba(212, 148, 56, 0.3);
-    }
-
-    @keyframes spinRing {
-      to {
-        transform: rotate(360deg);
-      }
-    }
-
-    .loader-title {
-      font-size: 13px;
-      letter-spacing: 3px;
-      text-transform: uppercase;
-      color: #d49438;
-      font-weight: 700;
-    }
-
-    .loader-sub {
-      font-size: 11px;
-      color: #94a3b8;
-      letter-spacing: 1px;
-    }
-
-    /* Modal Setting Cepat jika URL GAS belum diatur */
+    /* Modal Bantuan jika belum memasukkan URL GAS */
     #setup-modal {
       display: none;
       position: fixed;
@@ -171,28 +115,21 @@
     }
   </style>
 </head>
-
 <body>
 
-  <!-- Preloader halus saat awal koneksi -->
-  <div id="wrapper-loader">
-    <div class="loader-brand">
-      <div class="loader-logo-ring"></div>
-      <div class="loader-title">LIMZ STUDIO</div>
-      <div class="loader-sub">Menyiapkan Galeri &amp; Live Monitor...</div>
-    </div>
-  </div>
-
-  <!-- Iframe Fullscreen yang membungkus Google Apps Script tanpa notice -->
-  <iframe id="app-frame" src="about:blank"
-    allow="camera; microphone; clipboard-write; clipboard-read; fullscreen; web-share" loading="eager"></iframe>
+  <!-- Iframe Fullscreen langsung tampil seketika tanpa loading screen -->
+  <iframe 
+    id="app-frame" 
+    src="about:blank"
+    allow="camera; microphone; clipboard-write; clipboard-read; fullscreen; web-share"
+    loading="eager"
+  ></iframe>
 
   <!-- Modal Bantuan jika belum memasukkan URL GAS -->
   <div id="setup-modal">
     <div class="setup-box">
       <h2>Konfigurasi URL Google Apps Script</h2>
-      <p>Masukkan URL Web App Google Apps Script Anda (akhiran <code>/exec</code>) untuk mengaktifkan pembungkus Vercel:
-      </p>
+      <p>Masukkan URL Web App Google Apps Script Anda (akhiran <code>/exec</code>) untuk mengaktifkan pembungkus Vercel:</p>
       <input type="url" id="input-gas-url" placeholder="https://script.google.com/macros/s/.../exec" required>
       <button type="button" onclick="saveGasUrlConfig()">Simpan &amp; Buka Galeri</button>
     </div>
@@ -203,10 +140,8 @@
      * =========================================================================
      * PENGATURAN UTAMA: MASUKKAN URL GOOGLE APPS SCRIPT ANDA DI BAWAH INI
      * =========================================================================
-     * Masukkan URL Web App deployment Anda yang berakhiran '/exec'.
-     * Anda juga bisa mengubahnya sewaktu-waktu tanpa deploy ulang via localStorage.
      */
-    var DEFAULT_GAS_URL = "https://script.google.com/macros/s/AKfycbxUzK9ZvwEhShBI4BDwNgau9aYIUH-XcMwVeIZX73OJwFhJTN0EnA28Cb2Z_p8qb93LVg/exec";
+    var DEFAULT_GAS_URL = ""; 
 
     function getActiveGasUrl() {
       // 1. Cek query param ?gasUrl= jika ada override manual
@@ -245,16 +180,16 @@
     /**
      * Parsing URL Cantik Vercel:
      * - /                         -> [GAS_URL] (Landing / Dashboard)
-     * - /tes3                     -> [GAS_URL]?slug=tes3
-     * - /tes3/monitor             -> [GAS_URL]?view=slideshow&slug=tes3
-     * - /tes3/p/PHOTO123          -> [GAS_URL]?slug=tes3&photoId=PHOTO123
+     * - /tes                      -> [GAS_URL]?slug=tes
+     * - /tes/monitor              -> [GAS_URL]?view=slideshow&slug=tes
+     * - /tes/p/PHOTO123           -> [GAS_URL]?slug=tes&photoId=PHOTO123
      * - /admin                    -> [GAS_URL]
      */
     function routeAndMountIframe(gasBaseUrl) {
       var pathname = window.location.pathname.replace(/^\/+|\/+$/g, '');
       var pathSegments = pathname ? pathname.split('/') : [];
       var searchParams = new URLSearchParams(window.location.search);
-
+      
       // Hapus param gasUrl dari URL yang dikirim ke GAS agar bersih
       searchParams.delete('gasUrl');
 
@@ -299,37 +234,12 @@
       } else if (targetSlug) {
         document.title = 'Galeri Event - ' + targetSlug.toUpperCase();
       }
-
-      // Hilangkan loader saat iframe selesai dimuat
-      frame.onload = function () {
-        var loader = document.getElementById('wrapper-loader');
-        if (loader) {
-          loader.style.opacity = '0';
-          setTimeout(function () {
-            loader.style.visibility = 'hidden';
-            loader.style.display = 'none';
-          }, 400);
-        }
-      };
-
-      // Fallback timeout jika jaringan lambat agar loader tidak menggantung
-      setTimeout(function () {
-        var loader = document.getElementById('wrapper-loader');
-        if (loader && loader.style.display !== 'none') {
-          loader.style.opacity = '0';
-          setTimeout(function () {
-            loader.style.visibility = 'hidden';
-            loader.style.display = 'none';
-          }, 400);
-        }
-      }, 5000);
     }
 
-    // Eksekusi saat wrapper dibuka
+    // Eksekusi langsung tanpa loader
     (function initWrapper() {
       var gasUrl = getActiveGasUrl();
       if (!gasUrl) {
-        document.getElementById('wrapper-loader').style.display = 'none';
         document.getElementById('setup-modal').style.display = 'flex';
       } else {
         routeAndMountIframe(gasUrl);
@@ -337,5 +247,4 @@
     })();
   </script>
 </body>
-
 </html>
