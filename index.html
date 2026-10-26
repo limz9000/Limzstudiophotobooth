@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Limz Studio Photobooth - Digital Gallery & Live Monitor</title>
+  
+  <!-- Favicon & PWA Theme -->
+  <meta name="theme-color" content="#0d0a08">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Limz Studio">
+  <link rel="icon" type="image/png" href="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=192&q=80">
+  
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      height: 100dvh;
+      overflow: hidden;
+      background-color: #0d0a08;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    /* Iframe Layar Penuh Bebas Notice */
+    #app-frame {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      height: 100dvh;
+      border: none;
+      outline: none;
+      display: block;
+      z-index: 1;
+      background: #0d0a08;
+    }
+
+    /* Smooth Preloader Elegan Selagi Menghubungkan ke GAS */
+    #wrapper-loader {
+      position: fixed;
+      inset: 0;
+      background: #0d0a08;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      color: #fff;
+      transition: opacity 0.4s ease, visibility 0.4s ease;
+    }
+
+    .loader-brand {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .loader-logo-ring {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      border: 2px solid rgba(212, 148, 56, 0.25);
+      border-top-color: #d49438;
+      animation: spinRing 0.9s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+      box-shadow: 0 0 24px rgba(212, 148, 56, 0.3);
+    }
+
+    @keyframes spinRing {
+      to { transform: rotate(360deg); }
+    }
+
+    .loader-title {
+      font-size: 13px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: #d49438;
+      font-weight: 700;
+    }
+
+    .loader-sub {
+      font-size: 11px;
+      color: #94a3b8;
+      letter-spacing: 1px;
+    }
+
+    /* Modal Setting Cepat jika URL GAS belum diatur */
+    #setup-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.88);
+      backdrop-filter: blur(8px);
+      z-index: 10000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .setup-box {
+      background: #181c24;
+      border: 1px solid rgba(212, 148, 56, 0.4);
+      border-radius: 16px;
+      padding: 28px;
+      max-width: 480px;
+      width: 100%;
+      color: #fff;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+    }
+
+    .setup-box h2 {
+      font-size: 18px;
+      color: #d49438;
+      margin-bottom: 8px;
+    }
+
+    .setup-box p {
+      font-size: 13px;
+      color: #cbd5e1;
+      line-height: 1.5;
+      margin-bottom: 18px;
+    }
+
+    .setup-box input {
+      width: 100%;
+      padding: 12px 14px;
+      background: #0b0e14;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 13px;
+      margin-bottom: 16px;
+      outline: none;
+    }
+
+    .setup-box input:focus {
+      border-color: #d49438;
+    }
+
+    .setup-box button {
+      width: 100%;
+      padding: 12px;
+      background: #d49438;
+      color: #0b0e14;
+      font-weight: 700;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: background 0.2s;
+    }
+
+    .setup-box button:hover {
+      background: #f59e0b;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Preloader halus saat awal koneksi -->
+  <div id="wrapper-loader">
+    <div class="loader-brand">
+      <div class="loader-logo-ring"></div>
+      <div class="loader-title">LIMZ STUDIO</div>
+      <div class="loader-sub">Menyiapkan Galeri &amp; Live Monitor...</div>
+    </div>
+  </div>
+
+  <!-- Iframe Fullscreen yang membungkus Google Apps Script tanpa notice -->
+  <iframe 
+    id="app-frame" 
+    src="about:blank"
+    allow="camera; microphone; clipboard-write; clipboard-read; fullscreen; web-share"
+    loading="eager"
+  ></iframe>
+
+  <!-- Modal Bantuan jika belum memasukkan URL GAS -->
+  <div id="setup-modal">
+    <div class="setup-box">
+      <h2>Konfigurasi URL Google Apps Script</h2>
+      <p>Masukkan URL Web App Google Apps Script Anda (akhiran <code>/exec</code>) untuk mengaktifkan pembungkus Vercel:</p>
+      <input type="url" id="input-gas-url" placeholder="https://script.google.com/macros/s/.../exec" required>
+      <button type="button" onclick="saveGasUrlConfig()">Simpan &amp; Buka Galeri</button>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * =========================================================================
+     * PENGATURAN UTAMA: MASUKKAN URL GOOGLE APPS SCRIPT ANDA DI BAWAH INI
+     * =========================================================================
+     * Masukkan URL Web App deployment Anda yang berakhiran '/exec'.
+     * Anda juga bisa mengubahnya sewaktu-waktu tanpa deploy ulang via localStorage.
+     */
+    var DEFAULT_GAS_URL = ""; 
+
+    function getActiveGasUrl() {
+      // 1. Cek query param ?gasUrl= jika ada override manual
+      var urlParams = new URLSearchParams(window.location.search);
+      var queryGasUrl = urlParams.get('gasUrl');
+      if (queryGasUrl && queryGasUrl.indexOf('/exec') > -1) {
+        localStorage.setItem('limz_gas_exec_url', queryGasUrl.trim());
+        return queryGasUrl.trim();
+      }
+
+      // 2. Cek localStorage
+      var saved = localStorage.getItem('limz_gas_exec_url');
+      if (saved && saved.trim() !== '' && saved.indexOf('/exec') > -1) {
+        return saved.trim();
+      }
+
+      // 3. Fallback ke DEFAULT_GAS_URL
+      if (DEFAULT_GAS_URL && DEFAULT_GAS_URL.trim() !== '' && DEFAULT_GAS_URL.indexOf('AKfycb') > -1) {
+        return DEFAULT_GAS_URL.trim();
+      }
+
+      return "";
+    }
+
+    function saveGasUrlConfig() {
+      var val = document.getElementById('input-gas-url').value.trim();
+      if (!val || val.indexOf('/exec') === -1) {
+        alert('Harap masukkan URL Web App Google Apps Script yang valid (berakhiran /exec)!');
+        return;
+      }
+      localStorage.setItem('limz_gas_exec_url', val);
+      document.getElementById('setup-modal').style.display = 'none';
+      routeAndMountIframe(val);
+    }
+
+    /**
+     * Parsing URL Cantik Vercel:
+     * - /                         -> [GAS_URL] (Landing / Dashboard)
+     * - /tes3                     -> [GAS_URL]?slug=tes3
+     * - /tes3/monitor             -> [GAS_URL]?view=slideshow&slug=tes3
+     * - /tes3/p/PHOTO123          -> [GAS_URL]?slug=tes3&photoId=PHOTO123
+     * - /admin                    -> [GAS_URL]
+     */
+    function routeAndMountIframe(gasBaseUrl) {
+      var pathname = window.location.pathname.replace(/^\/+|\/+$/g, '');
+      var pathSegments = pathname ? pathname.split('/') : [];
+      var searchParams = new URLSearchParams(window.location.search);
+      
+      // Hapus param gasUrl dari URL yang dikirim ke GAS agar bersih
+      searchParams.delete('gasUrl');
+
+      var targetSlug = '';
+      var targetView = '';
+      var targetPhotoId = '';
+
+      if (pathSegments.length > 0 && pathSegments[0] !== 'index.html' && pathSegments[0] !== 'admin') {
+        targetSlug = decodeURIComponent(pathSegments[0]);
+        if (pathSegments.length > 1) {
+          if (pathSegments[1] === 'monitor' || pathSegments[1] === 'slideshow') {
+            targetView = 'slideshow';
+          } else if (pathSegments[1] === 'p' && pathSegments[2]) {
+            targetPhotoId = decodeURIComponent(pathSegments[2]);
+          }
+        }
+      }
+
+      if (targetSlug && !searchParams.has('slug')) {
+        searchParams.set('slug', targetSlug);
+      }
+      if (targetView && !searchParams.has('view')) {
+        searchParams.set('view', targetView);
+      }
+      if (targetPhotoId && !searchParams.has('photoId')) {
+        searchParams.set('photoId', targetPhotoId);
+      }
+
+      // Bangun URL Final yang dibungkus ke dalam iframe
+      var queryString = searchParams.toString();
+      var finalIframeUrl = gasBaseUrl;
+      if (queryString) {
+        finalIframeUrl += (finalIframeUrl.indexOf('?') > -1 ? '&' : '?') + queryString;
+      }
+
+      var frame = document.getElementById('app-frame');
+      frame.src = finalIframeUrl;
+
+      // Update Judul Tab Sesuai Konteks Halaman
+      if (targetView === 'slideshow') {
+        document.title = 'Live Monitor - ' + (targetSlug ? targetSlug.toUpperCase() : 'Event');
+      } else if (targetSlug) {
+        document.title = 'Galeri Event - ' + targetSlug.toUpperCase();
+      }
+
+      // Hilangkan loader saat iframe selesai dimuat
+      frame.onload = function() {
+        var loader = document.getElementById('wrapper-loader');
+        if (loader) {
+          loader.style.opacity = '0';
+          setTimeout(function() {
+            loader.style.visibility = 'hidden';
+            loader.style.display = 'none';
+          }, 400);
+        }
+      };
+
+      // Fallback timeout jika jaringan lambat agar loader tidak menggantung
+      setTimeout(function() {
+        var loader = document.getElementById('wrapper-loader');
+        if (loader && loader.style.display !== 'none') {
+          loader.style.opacity = '0';
+          setTimeout(function() {
+            loader.style.visibility = 'hidden';
+            loader.style.display = 'none';
+          }, 400);
+        }
+      }, 5000);
+    }
+
+    // Eksekusi saat wrapper dibuka
+    (function initWrapper() {
+      var gasUrl = getActiveGasUrl();
+      if (!gasUrl) {
+        document.getElementById('wrapper-loader').style.display = 'none';
+        document.getElementById('setup-modal').style.display = 'flex';
+      } else {
+        routeAndMountIframe(gasUrl);
+      }
+    })();
+  </script>
+</body>
+</html>

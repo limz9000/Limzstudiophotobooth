@@ -1,0 +1,17 @@
+{
+  "name": "limz-studio-photobooth-wrapper",
+  "version": "1.0.0",
+  "description": "Zero-notice Vercel & GitHub wrapper for Limz Studio Photobooth Google Apps Script",
+  "private": true,
+  "scripts": {
+    "start": "npx serve ."
+  },
+  "keywords": [
+    "photobooth",
+    "google-apps-script",
+    "vercel",
+    "wrapper"
+  ],
+  "author": "Limz Studio",
+  "license": "MIT"
+}
