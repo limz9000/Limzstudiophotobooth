@@ -1,17 +1,20 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Limz Studio Photobooth - Digital Gallery & Live Monitor</title>
-  
+
   <!-- Favicon & PWA Theme -->
   <meta name="theme-color" content="#0d0a08">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Limz Studio">
-  <link rel="icon" type="image/png" href="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=192&q=80">
-  
+  <link rel="icon" type="image/png"
+    href="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=192&q=80">
+
   <style>
     * {
       box-sizing: border-box;
@@ -20,7 +23,8 @@
       -webkit-tap-highlight-color: transparent;
     }
 
-    html, body {
+    html,
+    body {
       width: 100%;
       height: 100%;
       height: 100dvh;
@@ -77,7 +81,9 @@
     }
 
     @keyframes spinRing {
-      to { transform: rotate(360deg); }
+      to {
+        transform: rotate(360deg);
+      }
     }
 
     .loader-title {
@@ -165,6 +171,7 @@
     }
   </style>
 </head>
+
 <body>
 
   <!-- Preloader halus saat awal koneksi -->
@@ -177,18 +184,15 @@
   </div>
 
   <!-- Iframe Fullscreen yang membungkus Google Apps Script tanpa notice -->
-  <iframe 
-    id="app-frame" 
-    src="about:blank"
-    allow="camera; microphone; clipboard-write; clipboard-read; fullscreen; web-share"
-    loading="eager"
-  ></iframe>
+  <iframe id="app-frame" src="about:blank"
+    allow="camera; microphone; clipboard-write; clipboard-read; fullscreen; web-share" loading="eager"></iframe>
 
   <!-- Modal Bantuan jika belum memasukkan URL GAS -->
   <div id="setup-modal">
     <div class="setup-box">
       <h2>Konfigurasi URL Google Apps Script</h2>
-      <p>Masukkan URL Web App Google Apps Script Anda (akhiran <code>/exec</code>) untuk mengaktifkan pembungkus Vercel:</p>
+      <p>Masukkan URL Web App Google Apps Script Anda (akhiran <code>/exec</code>) untuk mengaktifkan pembungkus Vercel:
+      </p>
       <input type="url" id="input-gas-url" placeholder="https://script.google.com/macros/s/.../exec" required>
       <button type="button" onclick="saveGasUrlConfig()">Simpan &amp; Buka Galeri</button>
     </div>
@@ -202,7 +206,7 @@
      * Masukkan URL Web App deployment Anda yang berakhiran '/exec'.
      * Anda juga bisa mengubahnya sewaktu-waktu tanpa deploy ulang via localStorage.
      */
-    var DEFAULT_GAS_URL = ""; 
+    var DEFAULT_GAS_URL = "https://script.google.com/macros/s/AKfycbxUzK9ZvwEhShBI4BDwNgau9aYIUH-XcMwVeIZX73OJwFhJTN0EnA28Cb2Z_p8qb93LVg/exec";
 
     function getActiveGasUrl() {
       // 1. Cek query param ?gasUrl= jika ada override manual
@@ -250,7 +254,7 @@
       var pathname = window.location.pathname.replace(/^\/+|\/+$/g, '');
       var pathSegments = pathname ? pathname.split('/') : [];
       var searchParams = new URLSearchParams(window.location.search);
-      
+
       // Hapus param gasUrl dari URL yang dikirim ke GAS agar bersih
       searchParams.delete('gasUrl');
 
@@ -297,11 +301,11 @@
       }
 
       // Hilangkan loader saat iframe selesai dimuat
-      frame.onload = function() {
+      frame.onload = function () {
         var loader = document.getElementById('wrapper-loader');
         if (loader) {
           loader.style.opacity = '0';
-          setTimeout(function() {
+          setTimeout(function () {
             loader.style.visibility = 'hidden';
             loader.style.display = 'none';
           }, 400);
@@ -309,11 +313,11 @@
       };
 
       // Fallback timeout jika jaringan lambat agar loader tidak menggantung
-      setTimeout(function() {
+      setTimeout(function () {
         var loader = document.getElementById('wrapper-loader');
         if (loader && loader.style.display !== 'none') {
           loader.style.opacity = '0';
-          setTimeout(function() {
+          setTimeout(function () {
             loader.style.visibility = 'hidden';
             loader.style.display = 'none';
           }, 400);
@@ -333,4 +337,5 @@
     })();
   </script>
 </body>
+
 </html>
