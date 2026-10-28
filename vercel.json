@@ -3,7 +3,7 @@
   "name": "limz-studio-photobooth",
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/((?!.*\\..*).*)",
       "destination": "/index.html"
     }
   ],
