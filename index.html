@@ -2748,6 +2748,45 @@
         color: var(--text-muted);
         line-height: 1.5;
     }
+
+    /* Cloud Photos Grid (Dokumentasi Foto Acara Ini - 2 Baris Rapi) */
+    .cloud-photo-grid-2rows {
+        display: grid !important;
+        grid-template-columns: repeat(6, 1fr) !important;
+        gap: 14px !important;
+        width: 100% !important;
+        margin-top: 10px !important;
+    }
+    @media (max-width: 1200px) {
+        .cloud-photo-grid-2rows {
+            grid-template-columns: repeat(4, 1fr) !important;
+        }
+    }
+    @media (max-width: 768px) {
+        .cloud-photo-grid-2rows {
+            grid-template-columns: repeat(3, 1fr) !important;
+            gap: 10px !important;
+        }
+    }
+    @media (max-width: 480px) {
+        .cloud-photo-grid-2rows {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 8px !important;
+        }
+    }
+
+    /* Antrian Foto Masuk - Grid / Wrap Mode (Semua Foto Tampil Tanpa Slider) */
+    .staged-thumbnails-grid {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 14px !important;
+        overflow-x: visible !important;
+        max-height: 520px !important;
+        overflow-y: auto !important;
+        padding: 4px 2px 8px !important;
+        scrollbar-width: thin;
+    }
+
 </style>
 </head>
 
@@ -3309,10 +3348,10 @@
                                                 style="display: none; background: #c27803; color: #fff; border: none; font-size: 12px; font-weight: 700; padding: 8px 16px; border-radius: 20px; box-shadow: 0 0 16px rgba(194,120,3,0.45); cursor: pointer; align-items: center; gap: 6px;">
                                                 ✨ Buat Animasi GIF (<span id="staged-gif-count">0</span>)
                                             </button>
-                                            <button type="button" onclick="clearStagedPhotos()"
-                                                style="background: transparent; border: none; color: #f87171; font-size: 12.5px; font-weight: 600; cursor: pointer; padding: 6px 12px;"
-                                                title="Kosongkan antrian foto">
-                                                Batal
+                                            <button type="button" id="btn-clear-staged-photos" onclick="clearStagedPhotos()"
+                                                style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.45); color: #fca5a5; font-size: 12px; font-weight: 700; cursor: pointer; padding: 7px 14px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s ease;"
+                                                title="Kosongkan seluruh foto di antrian">
+                                                🗑️ Kosongkan Antrian
                                             </button>
                                             <button type="button" class="btn btn-gold btn-sm" id="btn-start-upload" onclick="startStagedPhotosUpload()"
                                                 style="background: #d49438; color: #fff; border: none; font-size: 13px; font-weight: 700; padding: 8px 20px; border-radius: 10px; box-shadow: 0 4px 14px rgba(212,148,56,0.35); display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
@@ -3322,8 +3361,8 @@
                                     </div>
 
                                     <!-- KONTEN THUMBNAIL PORTRAIT PERSIS SS 2 -->
-                                    <div id="staged-thumbnails-container"
-                                        style="display: flex; gap: 14px; overflow-x: auto; margin-top: 18px; padding: 4px 2px 8px; scrollbar-width: thin;">
+                                    <div id="staged-thumbnails-container" class="staged-thumbnails-grid"
+                                        style="display: flex; flex-wrap: wrap; gap: 14px; overflow-x: visible; margin-top: 18px; padding: 4px 2px 8px; max-height: 520px; overflow-y: auto; scrollbar-width: thin;">
                                     </div>
                                 </div>
                             </div>
@@ -10877,6 +10916,13 @@
                 var watermarkedBase64 = canvas.toDataURL('image/jpeg', 0.88);
                 sendOrQueue(watermarkedBase64);
             };
+            img.onerror = function () {
+                console.warn('Gagal memuat frame untuk GIF:', item.name);
+                loaded++;
+                if (loaded >= photos.length) {
+                    callback(processed.filter(Boolean));
+                }
+            };
             img.src = item.dataUrl;
         }
 
@@ -11267,14 +11313,15 @@
 
                 // Batas keamanan performa memori browser jika file kamera mentah masif (> 1920px),
                 // dengan tetap menjaga rasio aspek asli 100% tanpa mengubah orientasi
-                var maxSafetyDim = 1920;
-                if (w > maxSafetyDim || h > maxSafetyDim) {
-                    if (w > h) {
-                        h = Math.round((h * maxSafetyDim) / w);
-                        w = maxSafetyDim;
+                // Standar Emas Animasi GIF Photobooth: Max 540px agar render kilat (1-2 detik) dan hemat memori
+                var maxGifDim = 540;
+                if (w > maxGifDim || h > maxGifDim) {
+                    if (w >= h) {
+                        h = Math.round((h * maxGifDim) / w);
+                        w = maxGifDim;
                     } else {
-                        w = Math.round((w * maxSafetyDim) / h);
-                        h = maxSafetyDim;
+                        w = Math.round((w * maxGifDim) / h);
+                        h = maxGifDim;
                     }
                 }
 
@@ -11386,9 +11433,23 @@
         gifState.previewInterval = setInterval(showNextFrame, gifState.speedMs);
     }
 
+    function resetGifButtonStates() {
+        gifState.isEnqueuing = false;
+        var btnEnqueue = document.getElementById('btn-enqueue-gif');
+        if (btnEnqueue) {
+            btnEnqueue.disabled = false;
+            btnEnqueue.innerText = '🚀 Masukkan ke Antrian Upload';
+        }
+        var btnDownload = document.getElementById('btn-download-gif');
+        if (btnDownload) {
+            btnDownload.disabled = false;
+            btnDownload.innerText = '💾 Unduh File .GIF';
+        }
+    }
+
     function buildAnimatedGifBlob(callback) {
         if (!gifState.frames || gifState.frames.length === 0) {
-            showToast('Frame foto belum siap.');
+            showToast('⚠️ Frame foto belum siap.');
             return;
         }
 
@@ -11396,29 +11457,41 @@
         if (spinner) spinner.style.display = 'flex';
 
         var intervalSec = Math.max(0.08, gifState.speedMs / 1000);
-        var finalW = gifState.targetWidth || 640;
-        var finalH = gifState.targetHeight || 640;
+        var finalW = Math.min(540, gifState.targetWidth || 540);
+        var finalH = Math.min(540, gifState.targetHeight || 540);
 
-        if (typeof gifshot !== 'undefined' && gifshot.createGIF) {
-            gifshot.createGIF({
-                images: gifState.frames,
-                interval: intervalSec,
-                gifWidth: finalW,
-                gifHeight: finalH,
-                numWorkers: 2
-            }, function (obj) {
+        function runGifshotWorker(workerCount) {
+            if (typeof gifshot !== 'undefined' && gifshot.createGIF) {
+                gifshot.createGIF({
+                    images: gifState.frames,
+                    interval: intervalSec,
+                    gifWidth: finalW,
+                    gifHeight: finalH,
+                    numWorkers: workerCount
+                }, function (obj) {
+                    if (!obj.error) {
+                        if (spinner) spinner.style.display = 'none';
+                        gifState.generatedDataUrl = obj.image;
+                        if (callback) callback(obj.image);
+                    } else {
+                        if (workerCount > 0) {
+                            console.warn('Worker gagal, mencoba mode sinkron kanvas...');
+                            runGifshotWorker(0);
+                        } else {
+                            if (spinner) spinner.style.display = 'none';
+                            showToast('⚠️ Gagal membuat animasi GIF: ' + obj.error);
+                            resetGifButtonStates();
+                        }
+                    }
+                });
+            } else {
                 if (spinner) spinner.style.display = 'none';
-                if (!obj.error) {
-                    gifState.generatedDataUrl = obj.image;
-                    callback(obj.image);
-                } else {
-                    showToast('⚠️ Gagal membuat animasi GIF: ' + obj.error);
-                }
-            });
-        } else {
-            if (spinner) spinner.style.display = 'none';
-            showToast('⚠️ Sedang memuat modul GIF, silakan coba sesaat lagi...');
+                showToast('⚠️ Sedang memuat modul GIF, silakan coba sesaat lagi...');
+                resetGifButtonStates();
+            }
         }
+
+        runGifshotWorker(2);
     }
 
     function downloadCurrentGif() {
