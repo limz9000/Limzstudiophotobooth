@@ -6361,9 +6361,9 @@
             '  if (window.opener) { window.opener.postMessage({ type: "LIMZ_TETHER_STATUS", active: false }, "*"); }' +
             '  if (broadcast) { broadcast.postMessage({ type: "LIMZ_TETHER_STATUS", active: false }); }' +
             '});' +
-            '<\/script>' +
-            '</body>' +
-            '</html>');
+            '</scr' + 'ipt>' +
+            '</bo' + 'dy>' +
+            '</ht' + 'ml>');
         doc.close();
     }
 
@@ -8921,6 +8921,8 @@
                     }
                 })
                 .getWebAppUrl();
+        }
+
         if (!appState.webAppUrl) {
             appState.webAppUrl = DEFAULT_BACKEND_GAS_URL;
         }
