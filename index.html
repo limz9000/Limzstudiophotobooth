@@ -2889,7 +2889,7 @@
                 <form onsubmit="event.preventDefault(); handleLoginSubmit();" autocomplete="off">
                     <div class="form-group">
                         <label>Email Studio / Crew</label>
-                        <input type="email" id="login-email" class="form-control" placeholder="Masukkan email studio/crew" autocomplete="off" required>
+                        <input type="text" id="login-email" class="form-control" placeholder="admin@limzstudio.com atau 'admin'" autocomplete="off" required>
                     </div>
                     <div class="form-group">
                         <label>Password</label>
@@ -2897,7 +2897,7 @@
                     </div>
 
                     <div class="form-group"
-                        style="display: flex; align-items: center; justify-content: flex-start; gap: 8px; margin-top: -4px; margin-bottom: 18px;">
+                        style="display: flex; align-items: center; justify-content: flex-start; gap: 8px; margin-top: -4px; margin-bottom: 14px;">
                         <input type="checkbox" id="login-remember-me" checked
                             style="accent-color: var(--accent-gold); width: 16px; height: 16px; cursor: pointer;">
                         <label for="login-remember-me"
@@ -2908,7 +2908,20 @@
 
                     <button type="submit" class="btn btn-gold" style="width: 100%;" id="btn-login-submit">Masuk
                         Panel</button>
-                    <button type="button" class="btn btn-outline" style="width: 100%; margin-top: 8px;"
+
+                    <!-- Quick Auto-Fill Credentials Helper -->
+                    <div style="margin-top: 15px; padding: 12px; background: #fdfaf3; border: 1px dashed var(--accent-gold); border-radius: var(--radius-sm); font-size: 11.5px; color: #5a4e3e;">
+                        <div style="font-weight: 700; margin-bottom: 6px; color: var(--accent-gold); display: flex; align-items: center; justify-content: space-between;">
+                            <span>🔑 Akun Resmi Terdaftar:</span>
+                            <span style="font-size: 10px; font-weight: normal; color: var(--text-muted);">(Klik tombol untuk isi otomatis)</span>
+                        </div>
+                        <div style="display: flex; gap: 6px; margin-top: 6px;">
+                            <button type="button" class="btn btn-outline btn-sm" style="flex: 1; font-size: 11px; padding: 6px 8px; border-color: var(--accent-gold); color: #734e14;" onclick="fillLoginCredentials('admin')">⚡ Admin (admin123)</button>
+                            <button type="button" class="btn btn-outline btn-sm" style="flex: 1; font-size: 11px; padding: 6px 8px; border-color: #cbd5e1; color: #475569;" onclick="fillLoginCredentials('crew')">⚡ Crew (crew123)</button>
+                        </div>
+                    </div>
+
+                    <button type="button" class="btn btn-outline" style="width: 100%; margin-top: 10px;"
                         onclick="switchView('view-landing')">Kembali ke Beranda</button>
                 </form>
             </div>
@@ -11447,6 +11460,19 @@
         });
     }
 
+    function fillLoginCredentials(role) {
+        var em = document.getElementById('login-email');
+        var pw = document.getElementById('login-password');
+        if (role === 'admin') {
+            if (em) em.value = 'admin@limzstudio.com';
+            if (pw) pw.value = 'admin123';
+        } else {
+            if (em) em.value = 'crew@limzstudio.com';
+            if (pw) pw.value = 'crew123';
+        }
+        showToast('✨ Akun ' + role.toUpperCase() + ' terisi otomatis! Silakan klik Masuk Panel.');
+    }
+
     function handleLoginSubmit() {
         var email = (document.getElementById('login-email').value || '').trim();
         var pass = (document.getElementById('login-password').value || '').trim();
@@ -11457,6 +11483,10 @@
             return;
         }
 
+        // Auto-expand shortcut jika user hanya mengetik "admin" atau "crew"
+        if (email.toLowerCase() === 'admin') email = 'admin@limzstudio.com';
+        if (email.toLowerCase() === 'crew') email = 'crew@limzstudio.com';
+
         var btn = document.getElementById('btn-login-submit');
         btn.innerText = 'Memverifikasi...';
         btn.disabled = true;
@@ -11465,7 +11495,7 @@
             .withSuccessHandler(function (res) {
                 btn.innerText = 'Masuk Panel';
                 btn.disabled = false;
-                if (res.success) {
+                if (res && res.success) {
                     appState.currentUser = res.user;
                     if (rememberMe) {
                         try {
@@ -11476,13 +11506,13 @@
                     }
                     onLoginSuccess();
                 } else {
-                    showToast(res.message);
+                    showToast(res && res.message ? res.message : '⚠️ Kombinasi email dan password salah.');
                 }
             })
             .withFailureHandler(function (err) {
                 btn.innerText = 'Masuk Panel';
                 btn.disabled = false;
-                showToast('Gagal login: ' + err);
+                showToast('⚠️ Gagal menghubungi server: ' + (err.message || err));
             })
             .loginUser(email, pass);
     }
