@@ -388,6 +388,13 @@
         initIndexedDB();
         checkUrlRouting();
         initKeyboardShortcuts();
+        var btnCreateGif = document.getElementById('btn-create-gif');
+        if (btnCreateGif) {
+            btnCreateGif.addEventListener('click', function (e) {
+                if (e) { e.preventDefault(); e.stopPropagation(); }
+                openGifCreatorModal();
+            });
+        }
     }
 
     if (document.readyState === 'loading') {
@@ -2468,7 +2475,13 @@
         if (countEl) countEl.innerText = count;
         if (gifCount) gifCount.innerText = count;
 
-        if (btnGif) btnGif.style.display = (count > 1) ? 'inline-flex' : 'none';
+        if (btnGif) {
+            btnGif.style.display = (count > 1) ? 'inline-flex' : 'none';
+            btnGif.onclick = function (e) {
+                if (e) { e.preventDefault(); e.stopPropagation(); }
+                openGifCreatorModal();
+            };
+        }
         if (multiBadge) multiBadge.style.display = (count > 1) ? 'inline-block' : 'none';
 
         if (count === 0) {
@@ -4082,8 +4095,11 @@
                 loadSlideshowBySlug(slug);
             } else {
                 document.getElementById('view-public-gallery').style.display = 'block';
+                // Langsung jalankan animasi countdown detik ke-0 (0 ms jeda visual!)
+                startThreeSecondSplashScreen({ slug: slug, title: slug.replace(/-/g, ' ').toUpperCase() }, '');
+
                 if (preloadedColl && preloadedColl.id) {
-                    openPublicGallery(preloadedColl, true);
+                    openPublicGallery(preloadedColl, false);
                 } else {
                     loadPublicGalleryBySlug(slug, false);
                 }
@@ -4097,13 +4113,15 @@
         google.script.run
             .withSuccessHandler(function (res) {
                 if (res.success && res.collection) {
-                    openPublicGallery(res.collection, true);
+                    openPublicGallery(res.collection, false);
                 } else {
+                    dismissSplashScreen();
                     showToast(res.message || 'Event galeri tidak ditemukan.');
                     switchView('view-landing');
                 }
             })
             .withFailureHandler(function () {
+                dismissSplashScreen();
                 showToast('Gagal terhubung ke database.');
                 switchView('view-landing');
             })
@@ -4234,7 +4252,7 @@
         splash.style.display = 'flex';
         splash.style.opacity = '1';
 
-        var secondsLeft = 5;
+        var secondsLeft = 3;
         if (countEl) countEl.innerText = secondsLeft;
 
         if (splashCountdownTimer) clearInterval(splashCountdownTimer);
@@ -4246,8 +4264,13 @@
                     countEl.innerText = secondsLeft;
                 }
             } else {
-                clearInterval(splashCountdownTimer);
-                dismissSplashScreen();
+                // Selesai hitungan: Jika data sudah tiba atau lewat batas toleransi, buka galeri seketika
+                if (appState.activeCollectionId || secondsLeft <= -2) {
+                    clearInterval(splashCountdownTimer);
+                    dismissSplashScreen();
+                } else {
+                    if (countEl) countEl.innerText = '1';
+                }
             }
         }, 1000);
     }
@@ -5657,15 +5680,30 @@
                 return;
             }
 
-            // Default: pilih semua foto dalam antrian
+            // 1. Buka Modal Langsung Seketika (0 milidetik jeda visual!)
+            openModal('modal-gif-creator');
+
+            // 2. Aktifkan visual spinner pemrosesan
+            var spinner = document.getElementById('gif-render-spinner');
+            if (spinner) spinner.style.display = 'flex';
+
+            // 3. Tampilkan frame pertama segera agar kanvas tidak tampak kosong
+            var previewImg = document.getElementById('gif-preview-img');
+            if (previewImg && appState.stagedPhotos[0]) {
+                previewImg.src = appState.stagedPhotos[0].dataUrl || appState.stagedPhotos[0].originalDataUrl || '';
+            }
+
+            // 4. Inisialisasi daftar pilihan foto antrian
             gifState.selectedIndices = appState.stagedPhotos.map(function (_, idx) { return idx; });
             renderGifPhotoPickerUI();
 
             gifState.targetWidth = 0;
             gifState.targetHeight = 0;
-            openModal('modal-gif-creator');
+
             var sliderEl = document.getElementById('slider-gif-speed');
             updateGifSpeed(sliderEl ? sliderEl.value : 250);
+
+            // 5. Render live preview animasi
             renderLiveGifPreview();
         } catch (e) {
             console.error('Error saat membuka modal GIF:', e);
@@ -5907,16 +5945,22 @@
         gifState.isBoomerang = isBoomerang;
 
         prepareProcessedGifFrames(function (baseFrames) {
-            var sequence = baseFrames.slice();
-            if (isBoomerang && baseFrames.length > 2) {
-                for (var i = baseFrames.length - 2; i > 0; i--) {
-                    sequence.push(baseFrames[i]);
+            var sequence = (baseFrames && baseFrames.length > 0)
+                ? baseFrames.slice()
+                : (appState.stagedPhotos || []).map(function (p) { return p.dataUrl || p.originalDataUrl; });
+
+            if (isBoomerang && sequence.length > 2) {
+                for (var i = sequence.length - 2; i > 0; i--) {
+                    sequence.push(sequence[i]);
                 }
             }
             gifState.frames = sequence;
 
             var totalFramesEl = document.getElementById('gif-total-frames');
             if (totalFramesEl) totalFramesEl.innerText = sequence.length;
+
+            var spinner = document.getElementById('gif-render-spinner');
+            if (spinner) spinner.style.display = 'none';
 
             startGifPreviewLoop();
         });
