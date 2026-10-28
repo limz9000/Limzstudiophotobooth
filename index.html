@@ -27,7 +27,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gifshot/0.3.2/gifshot.min.js"></script>
 
-    <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="/style.css">
 </head>
 
 <body>
@@ -185,18 +185,6 @@
 
                     <button type="submit" class="btn btn-gold" style="width: 100%;" id="btn-login-submit">Masuk
                         Panel</button>
-
-                    <!-- Quick Auto-Fill Credentials Helper -->
-                    <div style="margin-top: 15px; padding: 12px; background: #fdfaf3; border: 1px dashed var(--accent-gold); border-radius: var(--radius-sm); font-size: 11.5px; color: #5a4e3e;">
-                        <div style="font-weight: 700; margin-bottom: 6px; color: var(--accent-gold); display: flex; align-items: center; justify-content: space-between;">
-                            <span>🔑 Akun Resmi Terdaftar:</span>
-                            <span style="font-size: 10px; font-weight: normal; color: var(--text-muted);">(Klik tombol untuk isi otomatis)</span>
-                        </div>
-                        <div style="display: flex; gap: 6px; margin-top: 6px;">
-                            <button type="button" class="btn btn-outline btn-sm" style="flex: 1; font-size: 11px; padding: 6px 8px; border-color: var(--accent-gold); color: #734e14;" onclick="fillLoginCredentials('admin')">⚡ Admin (admin123)</button>
-                            <button type="button" class="btn btn-outline btn-sm" style="flex: 1; font-size: 11px; padding: 6px 8px; border-color: #cbd5e1; color: #475569;" onclick="fillLoginCredentials('crew')">⚡ Crew (crew123)</button>
-                        </div>
-                    </div>
 
                     <button type="button" class="btn btn-outline" style="width: 100%; margin-top: 10px;"
                         onclick="switchView('view-landing')">Kembali ke Beranda</button>
@@ -1554,7 +1542,7 @@
     </div>
 
     <div id="view-public-gallery"
-        class="view-container view-active">
+        class="view-container">
         <div id="gallery-splash-loader" class="gallery-splash-loader"
             style="">
             <div class="splash-bg-overlay" id="splash-bg-overlay"
@@ -1651,7 +1639,7 @@
     </div>
 
     <div id="view-slideshow"
-        class="view-container view-active">
+        class="view-container">
         <div class="monitor-screen">
             <!-- Tombol Layar Penuh Floating Layar Panggung TV -->
             <button type="button" class="mon-fs-btn" onclick="toggleFullScreenMode()"
@@ -2768,7 +2756,7 @@
     <div class="toast-box" id="global-toast">Pesan notifikasi</div>
     <canvas id="watermark-canvas" style="display: none;"></canvas>
 
-    <script src="./app.js" defer></script>
+    <script src="/app.js"></script>
 </body>
 
 </html>

@@ -5651,21 +5651,26 @@
     };
 
     function openGifCreatorModal() {
-        if (!appState.stagedPhotos || appState.stagedPhotos.length <= 1) {
-            showToast('⚠️ Masukkan minimal 2 foto ke antrian untuk membuat animasi GIF.');
-            return;
+        try {
+            if (!appState.stagedPhotos || appState.stagedPhotos.length <= 1) {
+                showToast('⚠️ Masukkan minimal 2 foto ke antrian untuk membuat animasi GIF.');
+                return;
+            }
+
+            // Default: pilih semua foto dalam antrian
+            gifState.selectedIndices = appState.stagedPhotos.map(function (_, idx) { return idx; });
+            renderGifPhotoPickerUI();
+
+            gifState.targetWidth = 0;
+            gifState.targetHeight = 0;
+            openModal('modal-gif-creator');
+            var sliderEl = document.getElementById('slider-gif-speed');
+            updateGifSpeed(sliderEl ? sliderEl.value : 250);
+            renderLiveGifPreview();
+        } catch (e) {
+            console.error('Error saat membuka modal GIF:', e);
+            showToast('⚠️ Gagal membuka pembuat animasi GIF: ' + e.message);
         }
-
-        // Default: pilih semua foto dalam antrian
-        gifState.selectedIndices = appState.stagedPhotos.map(function (_, idx) { return idx; });
-        renderGifPhotoPickerUI();
-
-        gifState.targetWidth = 0;
-        gifState.targetHeight = 0;
-        openModal('modal-gif-creator');
-        var sliderEl = document.getElementById('slider-gif-speed');
-        updateGifSpeed(sliderEl ? sliderEl.value : 250);
-        renderLiveGifPreview();
     }
 
     function renderGifPhotoPickerUI() {
@@ -5674,13 +5679,13 @@
         if (!container) return;
         container.innerHTML = '';
 
-        var total = appState.stagedPhotos.length;
+        var total = appState.stagedPhotos ? appState.stagedPhotos.length : 0;
         var selected = gifState.selectedIndices || [];
         if (lblCount) {
             lblCount.innerText = '(' + selected.length + '/' + total + ' dipilih)';
         }
 
-        appState.stagedPhotos.forEach(function (item, idx) {
+        (appState.stagedPhotos || []).forEach(function (item, idx) {
             var isChecked = selected.indexOf(idx) !== -1;
             var card = document.createElement('label');
             card.style.display = 'inline-flex';
@@ -5697,7 +5702,8 @@
             card.style.boxShadow = isChecked ? '0 0 6px rgba(212,175,55,0.4)' : 'none';
             card.style.transition = 'all 0.15s ease';
 
-            var thumbImg = '<img src="' + item.dataUrl + '" style="width:100%; height:48px; object-fit:cover; border-radius:4px; display:block; filter:' + (isChecked ? 'none' : 'grayscale(80%) opacity(0.55)') + ';">';
+            var imgSrc = item.dataUrl || item.originalDataUrl || '';
+            var thumbImg = '<img src="' + imgSrc + '" style="width:100%; height:48px; object-fit:cover; border-radius:4px; display:block; filter:' + (isChecked ? 'none' : 'grayscale(80%) opacity(0.55)') + ';">';
             var chk = '<input type="checkbox" onchange="toggleGifPhotoSelection(' + idx + ', this.checked)" ' + (isChecked ? 'checked' : '') + ' style="position:absolute; top:4px; left:4px; width:16px; height:16px; accent-color:#2563eb; cursor:pointer;">';
             var num = '<span style="font-size:10px; font-weight:700; color:' + (isChecked ? 'var(--accent-gold)' : '#64748b') + '; margin-top:2px;">#' + (idx + 1) + '</span>';
 
@@ -5726,9 +5732,9 @@
 
     function selectAllGifPhotos(isAll) {
         if (isAll) {
-            gifState.selectedIndices = appState.stagedPhotos.map(function (_, idx) { return idx; });
+            gifState.selectedIndices = (appState.stagedPhotos || []).map(function (_, idx) { return idx; });
         } else {
-            if (appState.stagedPhotos.length >= 2) {
+            if (appState.stagedPhotos && appState.stagedPhotos.length >= 2) {
                 gifState.selectedIndices = [0, 1];
                 showToast('ℹ️ Menyisakan 2 foto minimal untuk animasi GIF.');
             }
@@ -5752,16 +5758,39 @@
     function prepareProcessedGifFrames(callback) {
         var indices = (gifState.selectedIndices && gifState.selectedIndices.length >= 2)
             ? gifState.selectedIndices
-            : appState.stagedPhotos.map(function (_, i) { return i; });
+            : (appState.stagedPhotos || []).map(function (_, i) { return i; });
 
-        var photos = indices.map(function (idx) { return appState.stagedPhotos[idx]; }).filter(Boolean);
+        var photos = indices.map(function (idx) { return (appState.stagedPhotos || [])[idx]; }).filter(Boolean);
         if (photos.length === 0) {
-            photos = appState.stagedPhotos.slice();
+            photos = (appState.stagedPhotos || []).slice();
+        }
+
+        if (photos.length === 0) {
+            if (callback) callback([]);
+            return;
         }
 
         var withWm = document.getElementById('check-gif-watermark') ? document.getElementById('check-gif-watermark').checked : true;
         var processed = [];
         var loaded = 0;
+        var hasTriggered = false;
+
+        function checkDone() {
+            if (loaded >= photos.length && !hasTriggered) {
+                hasTriggered = true;
+                clearTimeout(safetyTimer);
+                var valid = processed.filter(Boolean);
+                if (callback) callback(valid.length > 0 ? valid : photos.map(function (p) { return p.dataUrl || p.originalDataUrl; }));
+            }
+        }
+
+        var safetyTimer = setTimeout(function () {
+            if (!hasTriggered) {
+                hasTriggered = true;
+                var valid = processed.filter(Boolean);
+                if (callback) callback(valid.length > 0 ? valid : photos.map(function (p) { return p.dataUrl || p.originalDataUrl; }));
+            }
+        }, 4000);
 
         var customPngImg = appState.customWatermarkImgObj;
         var wmPosXPercent = parseFloat(localStorage.getItem('limz_wm_pos_x') || '88') / 100;
@@ -5769,93 +5798,105 @@
         var wmScalePercent = parseFloat(localStorage.getItem('limz_wm_scale') || '22') / 100;
         var wmOpacity = parseFloat(localStorage.getItem('limz_wm_opacity') || '85') / 100;
 
-        var filterStr = getCanvasFilterString();
+        var filterStr = (typeof getCanvasFilterString === 'function') ? getCanvasFilterString() : 'none';
         var temp = (appState.photoFilterState && appState.photoFilterState.temperature) || 0;
         var tint = (appState.photoFilterState && appState.photoFilterState.tint) || 0;
 
         photos.forEach(function (item, idx) {
+            var rawSrc = item.dataUrl || item.originalDataUrl || '';
+            if (!rawSrc) {
+                loaded++;
+                checkDone();
+                return;
+            }
             var img = new Image();
             img.onload = function () {
-                var canvas = document.createElement('canvas');
-                var w = img.naturalWidth || img.width;
-                var h = img.naturalHeight || img.height;
+                try {
+                    var canvas = document.createElement('canvas');
+                    var w = img.naturalWidth || img.width;
+                    var h = img.naturalHeight || img.height;
 
-                // Batas keamanan performa memori browser jika file kamera mentah masif (> 1920px),
-                // dengan tetap menjaga rasio aspek asli 100% tanpa mengubah orientasi
-                // Standar Emas Animasi GIF Photobooth: Max 540px agar render kilat (1-2 detik) dan hemat memori
-                var maxGifDim = 540;
-                if (w > maxGifDim || h > maxGifDim) {
-                    if (w >= h) {
-                        h = Math.round((h * maxGifDim) / w);
-                        w = maxGifDim;
-                    } else {
-                        w = Math.round((w * maxGifDim) / h);
-                        h = maxGifDim;
+                    var maxGifDim = 540;
+                    if (w > maxGifDim || h > maxGifDim) {
+                        if (w >= h) {
+                            h = Math.round((h * maxGifDim) / w);
+                            w = maxGifDim;
+                        } else {
+                            w = Math.round((w * maxGifDim) / h);
+                            h = maxGifDim;
+                        }
                     }
-                }
 
-                if (idx === 0 || !gifState.targetWidth) {
-                    gifState.targetWidth = w;
-                    gifState.targetHeight = h;
-                }
+                    if (idx === 0 || !gifState.targetWidth) {
+                        gifState.targetWidth = w;
+                        gifState.targetHeight = h;
+                    }
 
-                canvas.width = w;
-                canvas.height = h;
-                var ctx = canvas.getContext('2d');
+                    canvas.width = w;
+                    canvas.height = h;
+                    var ctx = canvas.getContext('2d');
 
-                ctx.filter = filterStr;
-                ctx.drawImage(img, 0, 0, w, h);
-                ctx.filter = 'none';
+                    ctx.filter = filterStr;
+                    ctx.drawImage(img, 0, 0, w, h);
+                    ctx.filter = 'none';
 
-                if (temp !== 0 || tint !== 0) {
-                    ctx.save();
-                    ctx.globalCompositeOperation = 'soft-light';
-                    var r = 128, g = 128, bVal = 128;
-                    if (temp > 0) { r += Math.round(temp * 2.2); bVal -= Math.round(temp * 1.5); }
-                    else if (temp < 0) { bVal += Math.round(-temp * 2.2); r -= Math.round(-temp * 1.5); }
-                    if (tint > 0) { r += Math.round(tint * 1.8); bVal += Math.round(tint * 1.8); g -= Math.round(tint * 1.5); }
-                    else if (tint < 0) { g += Math.round(-tint * 2.2); r -= Math.round(-tint * 1.2); }
-                    r = Math.max(0, Math.min(255, r)); g = Math.max(0, Math.min(255, g)); bVal = Math.max(0, Math.min(255, bVal));
-                    var maxShift = Math.max(Math.abs(temp), Math.abs(tint));
-                    ctx.fillStyle = 'rgba(' + r + ',' + g + ',' + bVal + ',' + ((maxShift / 50) * 0.45) + ')';
-                    ctx.fillRect(0, 0, w, h);
-                    ctx.restore();
-                }
-
-                if (withWm) {
-                    if (customPngImg && customPngImg.complete && customPngImg.naturalWidth > 0) {
-                        var wmWidth = Math.round(w * wmScalePercent);
-                        var aspect = customPngImg.naturalHeight / customPngImg.naturalWidth;
-                        var wmHeight = Math.round(wmWidth * aspect);
-                        var maxX = Math.max(0, w - wmWidth);
-                        var maxY = Math.max(0, h - wmHeight);
-                        var x = Math.round(maxX * wmPosXPercent);
-                        var y = Math.round(maxY * wmPosYPercent);
+                    if (temp !== 0 || tint !== 0) {
                         ctx.save();
-                        ctx.globalAlpha = wmOpacity;
-                        ctx.drawImage(customPngImg, x, y, wmWidth, wmHeight);
+                        ctx.globalCompositeOperation = 'soft-light';
+                        var r = 128, g = 128, bVal = 128;
+                        if (temp > 0) { r += Math.round(temp * 2.2); bVal -= Math.round(temp * 1.5); }
+                        else if (temp < 0) { bVal += Math.round(-temp * 2.2); r -= Math.round(-temp * 1.5); }
+                        if (tint > 0) { r += Math.round(tint * 1.8); bVal += Math.round(tint * 1.8); g -= Math.round(tint * 1.5); }
+                        else if (tint < 0) { g += Math.round(-tint * 2.2); r -= Math.round(-tint * 1.2); }
+                        r = Math.max(0, Math.min(255, r)); g = Math.max(0, Math.min(255, g)); bVal = Math.max(0, Math.min(255, bVal));
+                        var maxShift = Math.max(Math.abs(temp), Math.abs(tint));
+                        ctx.fillStyle = 'rgba(' + r + ',' + g + ',' + bVal + ',' + ((maxShift / 50) * 0.45) + ')';
+                        ctx.fillRect(0, 0, w, h);
                         ctx.restore();
-                    } else {
-                        var fontSize = Math.max(14, Math.floor(w * 0.03));
-                        ctx.font = 'bold ' + fontSize + 'px "Cinzel", Georgia, serif';
-                        ctx.fillStyle = 'rgba(255, 255, 255, ' + wmOpacity + ')';
-                        ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
-                        ctx.shadowOffsetX = 2; ctx.shadowOffsetY = 2; ctx.shadowBlur = 5;
-                        ctx.textAlign = (wmPosXPercent > 0.65) ? 'right' : ((wmPosXPercent < 0.35) ? 'left' : 'center');
-                        var text = 'LIMZ STUDIO PHOTOBOOTH';
-                        var textX = Math.round(w * wmPosXPercent);
-                        var textY = Math.round(h * wmPosYPercent);
-                        ctx.fillText(text, textX, textY);
                     }
-                }
 
-                processed[idx] = canvas.toDataURL('image/jpeg', 0.85);
-                loaded++;
-                if (loaded >= photos.length) {
-                    callback(processed);
+                    if (withWm) {
+                        if (customPngImg && customPngImg.complete && customPngImg.naturalWidth > 0) {
+                            var wmWidth = Math.round(w * wmScalePercent);
+                            var aspect = customPngImg.naturalHeight / customPngImg.naturalWidth;
+                            var wmHeight = Math.round(wmWidth * aspect);
+                            var maxX = Math.max(0, w - wmWidth);
+                            var maxY = Math.max(0, h - wmHeight);
+                            var x = Math.round(maxX * wmPosXPercent);
+                            var y = Math.round(maxY * wmPosYPercent);
+                            ctx.save();
+                            ctx.globalAlpha = wmOpacity;
+                            ctx.drawImage(customPngImg, x, y, wmWidth, wmHeight);
+                            ctx.restore();
+                        } else {
+                            var fontSize = Math.max(14, Math.floor(w * 0.03));
+                            ctx.font = 'bold ' + fontSize + 'px "Cinzel", Georgia, serif';
+                            ctx.fillStyle = 'rgba(255, 255, 255, ' + wmOpacity + ')';
+                            ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
+                            ctx.shadowOffsetX = 2; ctx.shadowOffsetY = 2; ctx.shadowBlur = 5;
+                            ctx.textAlign = (wmPosXPercent > 0.65) ? 'right' : ((wmPosXPercent < 0.35) ? 'left' : 'center');
+                            var text = 'LIMZ STUDIO PHOTOBOOTH';
+                            var textX = Math.round(w * wmPosXPercent);
+                            var textY = Math.round(h * wmPosYPercent);
+                            ctx.fillText(text, textX, textY);
+                        }
+                    }
+
+                    processed[idx] = canvas.toDataURL('image/jpeg', 0.85);
+                } catch (err) {
+                    console.warn('Gagal render canvas frame GIF ' + idx, err);
+                    processed[idx] = rawSrc;
                 }
+                loaded++;
+                checkDone();
             };
-            img.src = item.dataUrl;
+            img.onerror = function () {
+                console.warn('Gagal memuat image frame GIF ' + idx);
+                processed[idx] = rawSrc;
+                loaded++;
+                checkDone();
+            };
+            img.src = rawSrc;
         });
     }
 
@@ -6016,6 +6057,14 @@
             showToast('🚀 1 Animasi GIF berhasil dimasukkan ke antrian upload!');
         });
     }
+
+    window.openGifCreatorModal = openGifCreatorModal;
+    window.downloadCurrentGif = downloadCurrentGif;
+    window.enqueueGifToUploadList = enqueueGifToUploadList;
+    window.selectAllGifPhotos = selectAllGifPhotos;
+    window.toggleGifPhotoSelection = toggleGifPhotoSelection;
+    window.updateGifSpeed = updateGifSpeed;
+    window.renderLiveGifPreview = renderLiveGifPreview;
 
     function fillLoginCredentials(role) {
         var em = document.getElementById('login-email');
