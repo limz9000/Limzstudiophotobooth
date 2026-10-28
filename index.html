@@ -5215,31 +5215,6 @@
                 <button type="button" class="btn btn-outline" onclick="closeModal('modal-pwa-install')">Tutup</button>
             </div>
         </div>
-    <!-- Modal Setel URL Web App / Backend GAS untuk Netlify & Vercel -->
-    <div class="modal-overlay" id="modal-set-webapp-url" style="display: none;">
-        <div class="modal-box" style="max-width: 480px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1px solid var(--border-subtle); padding-bottom:10px;">
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <span style="font-size:22px;">🌐</span>
-                    <div>
-                        <h3 style="font-size: 16px; font-weight: 800; color: var(--text-main); margin:0;">Hubungkan Backend Google Apps Script</h3>
-                        <p style="font-size: 11.5px; color: var(--text-muted); margin: 2px 0 0;">Diperlukan jika menjalankan web di Netlify, Vercel, atau domain mandiri.</p>
-                    </div>
-                </div>
-                <button type="button" class="btn btn-outline btn-sm" onclick="closeModal('modal-set-webapp-url')">✕</button>
-            </div>
-            <div style="margin-bottom: 16px;">
-                <p style="font-size: 12px; color: var(--text-muted); line-height: 1.5; margin-bottom: 12px;">
-                    Masukkan URL Web App Google Apps Script Anda (berakhiran <code>/exec</code>) agar frontend Netlify ini dapat menyimpan foto ke Google Drive dan Google Sheets Anda:
-                </p>
-                <input type="text" id="input-custom-webapp-url" class="form-control" placeholder="https://script.google.com/macros/s/AKfycb.../exec" style="width: 100%; font-size: 12px; padding: 10px 12px; border-radius: 8px;">
-            </div>
-            <div style="display:flex; justify-content:flex-end; gap:8px;">
-                <button type="button" class="btn btn-outline btn-sm" onclick="closeModal('modal-set-webapp-url')">Batal</button>
-                <button type="button" class="btn btn-gold btn-sm" onclick="handleSaveWebAppUrlSubmit()">💾 Simpan &amp; Hubungkan</button>
-            </div>
-        </div>
-    </div>
 
     <!-- Modal Panduan Sambung Kamera Sony, Canon, & Nikon (Wired & Wireless Hot Folder) -->
     <div class="modal-overlay" id="modal-ipad-dslr-guide">
@@ -5609,6 +5584,8 @@
        UNIVERSAL GAS / VERCEL HEADLESS API RUNNER (REST BRIDGE)
        Membuat seluruh pemanggilan backend berjalan otomatis baik di GAS maupun Vercel
        ========================================================================= */
+    var DEFAULT_BACKEND_GAS_URL = 'https://script.google.com/macros/s/AKfycbxUzK9ZvwEhShBI4BDwNgau9aYIUH-XcMwVeIZX73OJwFhJTN0EnA28Cb2Z_p8qb93LVg/exec';
+
     function executeGasApiFetch(action, args, onSuccess, onFailure) {
         var targetUrl = appState.webAppUrl;
         if (!targetUrl) {
@@ -5620,6 +5597,11 @@
 
         if (!targetUrl) {
             targetUrl = localStorage.getItem('limz_custom_webapp_url') || '';
+        }
+
+        if (!targetUrl) {
+            targetUrl = DEFAULT_BACKEND_GAS_URL;
+            appState.webAppUrl = targetUrl;
         }
 
         if (!targetUrl) {
@@ -8947,16 +8929,11 @@
                     }
                 })
                 .getWebAppUrl();
+        if (!appState.webAppUrl) {
+            appState.webAppUrl = DEFAULT_BACKEND_GAS_URL;
         }
 
         updateWebAppStatusPill();
-
-        var isInIframe = (window.self !== window.top);
-        if (!appState.webAppUrl && !isInIframe) {
-            setTimeout(function () {
-                if (!appState.webAppUrl) openSetWebAppUrlModal();
-            }, 800);
-        }
 
         var savedLockedTone = localStorage.getItem('limz_locked_tone_profile');
         if (savedLockedTone) {
