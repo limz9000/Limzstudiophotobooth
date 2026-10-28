@@ -2755,33 +2755,19 @@
 
 <body>
 
-    <? 
-    var directSlug = (typeof query !== 'undefined' && query && query.slug) ? String(query.slug).trim() : ''; 
-    var directView = (typeof query !== 'undefined' && query && query.view) ? String(query.view).trim() : ''; 
-    var directPhotoId = (typeof query !== 'undefined' && query && query.photoId) ? String(query.photoId).trim() : '';
-    var serverWebAppUrl = (typeof webAppUrl !== 'undefined' && webAppUrl) ? String(webAppUrl).trim() : '';
-    var preloadedColl = null;
-    if (directSlug) {
-      try {
-        var collRes = getCollectionBySlug(directSlug, false);
-        if (collRes && collRes.success && collRes.collection) {
-          preloadedColl = collRes.collection;
-        }
-      } catch (eColl) {}
-    }
-  ?>
+    
 
     <div id="gas-query-data" style="display:none;">
-        <?!= (typeof query !== 'undefined' ? JSON.stringify(query) : '{}') ?>
+        
     </div>
     <div id="gas-app-url" style="display:none;">
-        <?!= serverWebAppUrl ?>
+        
     </div>
     <div id="gas-preloaded-coll" style="display:none;">
-        <?!= (preloadedColl ? JSON.stringify(preloadedColl) : '{}') ?>
+        
     </div>
 
-    <div id="view-landing" class="view-container <?!= (!directSlug ? 'view-active' : '') ?>">
+    <div id="view-landing" class="view-container view-active">
         <div class="landing-wrapper">
             <nav class="landing-navbar">
                 <div class="landing-nav-container">
@@ -4278,11 +4264,11 @@
     </div>
 
     <div id="view-public-gallery"
-        class="view-container <?!= (directSlug && directView !== 'slideshow' ? 'view-active' : '') ?>">
+        class="view-container ">
         <div id="gallery-splash-loader" class="gallery-splash-loader"
-            style="<?!= (directSlug && directView !== 'slideshow' ? 'display:flex; opacity:1;' : 'display:none; opacity:0;') ?>">
+            style="">
             <div class="splash-bg-overlay" id="splash-bg-overlay"
-                style="<?!= (preloadedColl && preloadedColl.coverUrl ? 'background-image:url(\'' + preloadedColl.coverUrl + '\');' : '') ?>">
+                style="">
             </div>
 
             <!-- Top Pill Timer (Opening in 5 s) -->
@@ -4302,15 +4288,15 @@
         </div>
 
         <div class="public-hero-cover" id="pub-hero-banner"
-            style="<?!= (preloadedColl && preloadedColl.coverUrl ? ('background-image: url(\'' + preloadedColl.coverUrl + '\');') : 'background: linear-gradient(135deg, #181c24 0%, #0d0a08 100%);') ?>">
+            style="">
             <div class="public-hero-overlay"></div>
             <div class="public-hero-content">
                 <div class="public-event-badge" id="pub-hero-badge">LIMZ STUDIO PHOTOBOOTH GALLERY</div>
                 <h1 class="public-couple-title" id="pub-event-title">
-                    <?!= (preloadedColl && preloadedColl.title ? preloadedColl.title : 'Wedding Gallery') ?>
+                    
                 </h1>
                 <p style="font-size: 14px; color: #e8e2d5; margin-bottom: 22px;" id="pub-event-date">
-                    <?!= (preloadedColl && preloadedColl.eventDate ? preloadedColl.eventDate : '-') ?>
+                    
                 </p>
                 <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
                     <button class="btn btn-gold btn-sm" onclick="downloadAllPhotosZip()">📥 Unduh Semua Foto</button>
@@ -4375,7 +4361,7 @@
     </div>
 
     <div id="view-slideshow"
-        class="view-container <?!= (directSlug && directView === 'slideshow' ? 'view-active' : '') ?>">
+        class="view-container ">
         <div class="monitor-screen">
             <!-- Tombol Layar Penuh Floating Layar Panggung TV -->
             <button type="button" class="mon-fs-btn" onclick="toggleFullScreenMode()"
@@ -4401,10 +4387,10 @@
 
                 <div class="monitor-hdr-center">
                     <div class="monitor-couple-name" id="mon-couple-title">
-                        <?!= (preloadedColl && preloadedColl.title ? preloadedColl.title : '') ?>
+                        
                     </div>
                     <div class="monitor-date-subtitle" id="mon-date-subtitle">
-                        <?!= (preloadedColl && preloadedColl.eventDate ? preloadedColl.eventDate.toUpperCase() : '') ?>
+                        
                     </div>
                 </div>
 
@@ -5863,7 +5849,7 @@
         showToast('🟡 Mode Offline aktif: Jepretan & upload foto akan disimpan aman di memori lokal iPad/laptop!');
     });
 
-    document.addEventListener('DOMContentLoaded', function () {
+    function bootstrapApp() {
         checkSavedUserSession();
         initSidebarState();
         initAppConfig();
@@ -5875,7 +5861,13 @@
         initIndexedDB();
         checkUrlRouting();
         initKeyboardShortcuts();
-    });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', bootstrapApp);
+    } else {
+        bootstrapApp();
+    }
 
     /* =========================================================================
        MODUL RESPONSIVE SIDEBAR (COLLAPSIBLE / MINI MODE)
