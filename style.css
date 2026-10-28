@@ -1369,6 +1369,8 @@
     }
 
     .splash-bg-overlay {
+        background-color: #17120e;
+        background-image: radial-gradient(circle at center, #261f18 0%, #0d0a08 100%);
         position: absolute;
         top: 0;
         left: 0;
