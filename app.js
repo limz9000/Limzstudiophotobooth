@@ -1,4 +1,4 @@
-﻿var appState = {
+var appState = {
         currentUser: null,
         currentView: 'view-landing',
         activeCollectionId: null,
