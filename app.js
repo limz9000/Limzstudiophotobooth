@@ -6721,8 +6721,28 @@
                 var ctx = canvas.getContext('2d');
                 var rot = item.rotation || 0;
                 var isRotated90 = (rot === 90 || rot === 270);
-                canvas.width = isRotated90 ? img.height : img.width;
-                canvas.height = isRotated90 ? img.width : img.height;
+                var rawW = isRotated90 ? (img.naturalHeight || img.height) : (img.naturalWidth || img.width);
+                var rawH = isRotated90 ? (img.naturalWidth || img.width) : (img.naturalHeight || img.height);
+
+                // Standar visual emas 2K QHD (2048px): Super tajam di layar Retina/4K, payload Base64 hanya 1.2MB - 1.8MB (100% aman di GAS & Drive)
+                var maxDimension = 2048;
+                var finalW = rawW;
+                var finalH = rawH;
+
+                if (rawW > maxDimension || rawH > maxDimension) {
+                    if (rawW >= rawH) {
+                        finalW = maxDimension;
+                        finalH = Math.round(maxDimension * (rawH / rawW));
+                    } else {
+                        finalH = maxDimension;
+                        finalW = Math.round(maxDimension * (rawW / rawH));
+                    }
+                }
+
+                canvas.width = finalW;
+                canvas.height = finalH;
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
 
                 var gradingToApply = item.appliedGrading || appState.photoFilterState;
                 var filterStr = (typeof getCanvasFilterString === 'function') ? getCanvasFilterString(gradingToApply) : 'none';
@@ -6732,10 +6752,12 @@
                     ctx.save();
                     ctx.translate(canvas.width / 2, canvas.height / 2);
                     ctx.rotate(rot * Math.PI / 180);
-                    ctx.drawImage(img, -img.width / 2, -img.height / 2);
+                    var drawW = isRotated90 ? canvas.height : canvas.width;
+                    var drawH = isRotated90 ? canvas.width : canvas.height;
+                    ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
                     ctx.restore();
                 } else {
-                    ctx.drawImage(img, 0, 0);
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                 }
                 ctx.filter = 'none';
 
@@ -7080,7 +7102,10 @@
 
             uploadPipeline.isProcessing = false;
             uploadPipeline.activeItem = null;
-            processNextInUploadPipeline();
+            // Pacing cooldown 450ms untuk memberi nafas ke Google Drive API & memori browser
+            setTimeout(function () {
+                processNextInUploadPipeline();
+            }, 450);
         }
 
         function handleFailure(errMsg, uploadPayload) {
@@ -7099,7 +7124,10 @@
 
             uploadPipeline.isProcessing = false;
             uploadPipeline.activeItem = null;
-            processNextInUploadPipeline();
+            // Pacing cooldown 450ms
+            setTimeout(function () {
+                processNextInUploadPipeline();
+            }, 450);
         }
 
         function executeSend(base64Ready) {
@@ -7117,18 +7145,36 @@
                 return;
             }
 
-            google.script.run
-                .withSuccessHandler(function (res) {
-                    if (res && res.success) {
-                        handleSuccess(res, base64Ready);
-                    } else {
-                        handleFailure((res ? res.message : 'Ditolak server Cloud'), uploadPayload);
-                    }
-                })
-                .withFailureHandler(function (err) {
-                    handleFailure('Koneksi timeout / terputus: ' + err, uploadPayload);
-                })
-                .uploadPhotoWithWatermark(uploadPayload);
+            function attemptUpload(attemptCount) {
+                google.script.run
+                    .withSuccessHandler(function (res) {
+                        if (res && res.success) {
+                            handleSuccess(res, base64Ready);
+                        } else {
+                            if (attemptCount < 1) {
+                                console.warn('Upload pertama ditolak server (' + (res ? res.message : 'Ditolak server') + '), mencoba auto-retry on-the-fly...');
+                                setTimeout(function () {
+                                    attemptUpload(attemptCount + 1);
+                                }, 1200);
+                            } else {
+                                handleFailure((res ? res.message : 'Ditolak server Cloud'), uploadPayload);
+                            }
+                        }
+                    })
+                    .withFailureHandler(function (err) {
+                        if (attemptCount < 1) {
+                            console.warn('Koneksi jaringan tersendat (' + err + '), mencoba auto-retry on-the-fly...');
+                            setTimeout(function () {
+                                attemptUpload(attemptCount + 1);
+                            }, 1200);
+                        } else {
+                            handleFailure('Koneksi timeout / terputus: ' + err, uploadPayload);
+                        }
+                    })
+                    .uploadPhotoWithWatermark(uploadPayload);
+            }
+
+            attemptUpload(0);
         }
 
         prepareWatermarkedPhotoDataUrl(item, function (readyBase64) {
