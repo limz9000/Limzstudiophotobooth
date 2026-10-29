@@ -12,6 +12,10 @@
     html.route-gallery #view-public-gallery {
         display: block !important;
     }
+    /* Pratinjau Bersih Saat Watermark Dinonaktifkan */
+    body.no-watermark #wm-simulator-overlay {
+        display: none !important;
+    }
     :root {
         --bg-dark: #191410;
         --bg-sidebar: #140f0c;

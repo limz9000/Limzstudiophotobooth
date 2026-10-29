@@ -3223,6 +3223,11 @@
     function handleWatermarkToggleChange(isEnabled) {
         appState.isWatermarkEnabled = isEnabled;
         localStorage.setItem('limz_wm_enabled', isEnabled ? 'true' : 'false');
+        if (isEnabled) {
+            document.body.classList.remove('no-watermark');
+        } else {
+            document.body.classList.add('no-watermark');
+        }
         var label = document.getElementById('label-wm-toggle-status');
         if (label) {
             label.innerText = isEnabled ? 'Aktif' : 'Nonaktif';
@@ -3240,17 +3245,22 @@
             wrapper.style.opacity = isEnabled ? '1' : '0.4';
             wrapper.style.pointerEvents = isEnabled ? 'auto' : 'none';
         }
-        var simBox = document.getElementById('wm-sim-drag-box');
+        var simBox = document.getElementById('wm-simulator-overlay');
         if (simBox) {
             simBox.style.display = isEnabled ? 'block' : 'none';
         }
-        showToast(isEnabled ? '✅ Watermark aktif pada foto.' : 'ℹ️ Watermark dinonaktifkan (foto diunggah polos/bersih).');
+        showToast(isEnabled ? '✅ Watermark aktif pada foto.' : 'ℹ️ Watermark dinonaktifkan (pratinjau & upload polos/bersih).');
     }
 
     function initWatermarkSettings() {
         var savedEnabled = localStorage.getItem('limz_wm_enabled');
         var isEnabled = (savedEnabled !== 'false');
         appState.isWatermarkEnabled = isEnabled;
+        if (isEnabled) {
+            document.body.classList.remove('no-watermark');
+        } else {
+            document.body.classList.add('no-watermark');
+        }
         var toggleEl = document.getElementById('toggle-wm-enabled');
         if (toggleEl) toggleEl.checked = isEnabled;
         var labelToggle = document.getElementById('label-wm-toggle-status');
@@ -3270,74 +3280,10 @@
             wrapper.style.opacity = isEnabled ? '1' : '0.4';
             wrapper.style.pointerEvents = isEnabled ? 'auto' : 'none';
         }
-        var simBox = document.getElementById('wm-sim-drag-box');
+        var simBox = document.getElementById('wm-simulator-overlay');
         if (simBox) {
             simBox.style.display = isEnabled ? 'block' : 'none';
         }
-
-        var savedPng = localStorage.getItem('limz_custom_watermark_png');
-        var savedX = localStorage.getItem('limz_wm_pos_x') || '88';
-        var savedY = localStorage.getItem('limz_wm_pos_y') || '90';
-        var savedScale = localStorage.getItem('limz_wm_scale') || '22';
-        var savedOpacity = localStorage.getItem('limz_wm_opacity') || '85';
-
-        var sliderX = document.getElementById('slider-wm-pos-x');
-        var sliderY = document.getElementById('slider-wm-pos-y');
-        var sliderScale = document.getElementById('slider-wm-scale');
-        var sliderOpacity = document.getElementById('slider-wm-opacity');
-
-        if (sliderX) sliderX.value = savedX;
-        if (sliderY) sliderY.value = savedY;
-        if (sliderScale) sliderScale.value = savedScale;
-        if (sliderOpacity) sliderOpacity.value = savedOpacity;
-
-        document.getElementById('label-wm-pos-x').innerText = savedX + '%';
-        document.getElementById('label-wm-pos-y').innerText = savedY + '%';
-        document.getElementById('label-wm-scale').innerText = savedScale + '%';
-        document.getElementById('label-wm-opacity').innerText = savedOpacity + '%';
-
-        if (savedPng && savedPng.indexOf('data:image') === 0) {
-            appState.customWatermarkPngData = savedPng;
-            var img = new Image();
-            img.onload = function () {
-                appState.customWatermarkImgObj = img;
-                renderWatermarkPreviewUI(savedPng);
-                updateWatermarkSimulatorDisplay();
-            };
-            img.src = savedPng;
-        } else {
-            renderWatermarkPreviewUI(null);
-            updateWatermarkSimulatorDisplay();
-        }
-    }
-
-    function handleWatermarkPngSelected(files) {
-        if (!files || !files[0]) return;
-        var file = files[0];
-
-        var reader = new FileReader();
-        reader.onload = function (e) {
-            var base64Data = e.target.result;
-            var tempImg = new Image();
-            tempImg.onload = function () {
-                appState.customWatermarkPngData = base64Data;
-                appState.customWatermarkImgObj = tempImg;
-
-                try {
-                    localStorage.setItem('limz_custom_watermark_png', base64Data);
-                } catch (storageErr) {
-                    console.warn('Storage limit: Watermark PNG disimpan di sesi memori.');
-                }
-
-                renderWatermarkPreviewUI(base64Data);
-                showToast('✅ Logo watermark PNG berhasil disimpan & aktif!');
-            };
-            tempImg.onerror = function () {
-                showToast('File gambar tidak valid. Gunakan format PNG transparan!');
-            };
-            tempImg.src = base64Data;
-        };
-        reader.readAsDataURL(file);
     }
 
     function removeCustomWatermarkPng() {
@@ -3381,12 +3327,20 @@
         var logoImg = document.getElementById('wm-sim-logo-img');
         var fallbackText = document.getElementById('wm-sim-fallback-text');
 
+        if (!overlay) return;
+
+        // Pratinjau bersih tanpa watermark saat switch nonaktif
+        if (appState.isWatermarkEnabled === false) {
+            overlay.style.display = 'none';
+            return;
+        } else {
+            overlay.style.display = 'block';
+        }
+
         var posX = parseFloat(document.getElementById('slider-wm-pos-x').value || 88);
         var posY = parseFloat(document.getElementById('slider-wm-pos-y').value || 90);
         var scale = parseFloat(document.getElementById('slider-wm-scale').value || 22);
         var opacity = parseFloat(document.getElementById('slider-wm-opacity').value || 85) / 100;
-
-        if (!overlay) return;
 
         overlay.style.width = scale + '%';
         overlay.style.opacity = opacity;
@@ -4383,15 +4337,35 @@
 
     function loadGalleryPhotos(collId) {
         var grid = document.getElementById('pub-photo-grid');
-        grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:20px; color:var(--text-muted);">Memuat seluruh dokumentasi foto dari Google Drive...</div>';
 
+        // 1. Coba tampilkan dari Local Storage Cache secara instan (0 milidetik!)
+        var cached = null;
+        try {
+            var raw = localStorage.getItem('limz_cached_photos_' + collId);
+            if (raw) cached = JSON.parse(raw);
+        } catch (e) { }
+
+        if (cached && Array.isArray(cached) && cached.length > 0) {
+            appState.photos = cached;
+            renderGalleryPhotos(appState.photos);
+        } else {
+            grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:30px; color:var(--text-muted);"><div style="font-size:24px; margin-bottom:8px;">⏳</div>Memuat dokumentasi foto event...</div>';
+        }
+
+        // 2. Fetch data foto terbaru di latar belakang
         google.script.run
             .withSuccessHandler(function (res) {
-                appState.photos = res.photos || [];
-                renderGalleryPhotos(appState.photos);
-                checkAutoOpenDirectPhoto();
+                if (res && res.photos) {
+                    appState.photos = res.photos;
+                    try { localStorage.setItem('limz_cached_photos_' + collId, JSON.stringify(res.photos)); } catch (e) { }
+                    renderGalleryPhotos(appState.photos);
+                    checkAutoOpenDirectPhoto();
+                }
             })
-            .getPhotosByCollection(collId, 1, 0, true);
+            .withFailureHandler(function (err) {
+                console.warn('Gagal sinkron foto galeri:', err);
+            })
+            .getPhotosByCollection(collId, 1, 0, false);
     }
 
     function renderGalleryPhotos(photos) {
@@ -4418,8 +4392,18 @@
                 return function () { openLightbox(item); };
             })(p);
 
-            div.innerHTML = '<img src="' + p.thumbnailUrl + '" loading="lazy" alt="Guest Photo">' +
-                '<span class="photo-card-download-btn" onclick="event.stopPropagation(); triggerDownloadOri(\'' + p.downloadUrl + '\', \'' + (p.photoId || '-') + '\')">⬇️ Download Ori</span>' +
+            // Thumbnail ringan sz=w500 untuk kisi galeri super cepat & irit kuota
+            var thumbSrc = p.thumbnailUrl || '';
+            if (thumbSrc && thumbSrc.indexOf('sz=') > -1) {
+                thumbSrc = thumbSrc.replace(/sz=w\d+/, 'sz=w500');
+            } else if (p.driveFileId) {
+                thumbSrc = 'https://drive.google.com/thumbnail?id=' + p.driveFileId + '&sz=w500';
+            }
+
+            var safeDownloadUrl = p.downloadUrl || (p.driveFileId ? ('https://drive.google.com/uc?export=download&id=' + p.driveFileId) : thumbSrc);
+
+            div.innerHTML = '<img src="' + thumbSrc + '" loading="lazy" alt="Guest Photo">' +
+                '<span class="photo-card-download-btn" onclick="event.stopPropagation(); triggerDownloadOri(\'' + safeDownloadUrl + '\', \'' + (p.photoId || '-') + '\')">⬇️ Download Ori</span>' +
                 '<span class="photo-card-wa-btn" onclick="event.stopPropagation(); sharePhotoToWhatsApp(\'' + (p.photoId || '') + '\')" title="Kirim Foto ke WhatsApp">💬 WA</span>';
             fragment.appendChild(div);
         }
@@ -4471,13 +4455,142 @@
         }
     }
 
-    function downloadAllPhotosZip() {
+    async function downloadAllPhotosZip() {
+        if (!appState.photos || appState.photos.length === 0) {
+            showToast('Belum ada foto dalam galeri untuk diunduh.');
+            return;
+        }
+
         if (appState.activeCollectionId) {
             google.script.run.logActivity(appState.activeCollectionId, 'DownloadAll', 'ALL', navigator.userAgent);
         }
-        showToast('Mengarahkan ke folder unduhan Google Drive resolusi penuh...');
-        if (appState.activeCollectionData && appState.activeCollectionData.folderId) {
-            window.open('https://drive.google.com/drive/folders/' + appState.activeCollectionData.folderId, '_blank');
+
+        var collTitle = (appState.activeCollectionData && appState.activeCollectionData.title)
+            ? appState.activeCollectionData.title.replace(/[^a-zA-Z0-9_-]/g, '_')
+            : 'Galeri_Foto';
+
+        // Jika JSZip tidak tersedia di browser, lakukan fallback unduh langsung file-per-file
+        if (typeof JSZip === 'undefined') {
+            showToast('⬇️ Mengunduh ' + appState.photos.length + ' foto langsung ke perangkat...');
+            for (var k = 0; k < appState.photos.length; k++) {
+                (function (photoItem, delay) {
+                    setTimeout(function () {
+                        var directUrl = photoItem.downloadUrl || ('https://drive.google.com/uc?export=download&id=' + photoItem.driveFileId);
+                        var a = document.createElement('a');
+                        a.href = directUrl;
+                        a.download = photoItem.fileName || ('foto_' + (delay / 350 + 1) + '.jpg');
+                        a.target = '_blank';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                    }, delay);
+                })(appState.photos[k], k * 400);
+            }
+            return;
+        }
+
+        showToast('📦 Sedang mengemas ' + appState.photos.length + ' foto ke file ZIP...');
+        var zip = new JSZip();
+        var folder = zip.folder(collTitle);
+        var total = appState.photos.length;
+        var completed = 0;
+
+        function fetchBlobWithFallback(photo) {
+            var fileId = photo.driveFileId;
+            if (!fileId && photo.downloadUrl) {
+                var m = photo.downloadUrl.match(/id=([a-zA-Z0-9-_]+)/);
+                if (m && m[1]) fileId = m[1];
+            }
+
+            var highResUrl = fileId
+                ? ('https://lh3.googleusercontent.com/d/' + fileId)
+                : (photo.thumbnailUrl ? photo.thumbnailUrl.replace(/sz=w\d+/, 'sz=w1920') : photo.downloadUrl);
+
+            return new Promise(function (resolve) {
+                var img = new Image();
+                img.crossOrigin = 'Anonymous';
+                img.onload = function () {
+                    try {
+                        var canvas = document.createElement('canvas');
+                        canvas.width = img.naturalWidth || img.width;
+                        canvas.height = img.naturalHeight || img.height;
+                        var ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0);
+                        canvas.toBlob(function (blob) {
+                            if (blob) {
+                                resolve(blob);
+                            } else {
+                                resolve(null);
+                            }
+                        }, 'image/jpeg', 0.95);
+                    } catch (e) {
+                        resolve(null);
+                    }
+                };
+                img.onerror = function () {
+                    resolve(null);
+                };
+                setTimeout(function () { resolve(null); }, 10000);
+                img.src = highResUrl;
+            });
+        }
+
+        for (var i = 0; i < total; i++) {
+            var item = appState.photos[i];
+            var fName = item.fileName || ('Foto_' + (i + 1) + '.jpg');
+            if (fName.indexOf('.') === -1) fName += '.jpg';
+
+            try {
+                var blob = await fetchBlobWithFallback(item);
+                if (blob) {
+                    folder.file(fName, blob);
+                    completed++;
+                }
+            } catch (err) { }
+
+            if ((i + 1) % 5 === 0 || i === total - 1) {
+                showToast('📦 Mengemas foto: ' + (i + 1) + ' dari ' + total + '...');
+            }
+        }
+
+        if (completed === 0) {
+            showToast('Mengunduh foto langsung ke folder unduhan...');
+            for (var d = 0; d < Math.min(total, 25); d++) {
+                (function (pItem, waitTime) {
+                    setTimeout(function () {
+                        var dl = pItem.downloadUrl || ('https://drive.google.com/uc?export=download&id=' + pItem.driveFileId);
+                        var aEl = document.createElement('a');
+                        aEl.href = dl;
+                        aEl.download = pItem.fileName || ('foto_' + (waitTime / 350 + 1) + '.jpg');
+                        aEl.target = '_blank';
+                        document.body.appendChild(aEl);
+                        aEl.click();
+                        document.body.removeChild(aEl);
+                    }, waitTime);
+                })(appState.photos[d], d * 400);
+            }
+            return;
+        }
+
+        showToast('✨ Memproses berkas ZIP (' + completed + ' foto)...');
+        try {
+            var zipBlob = await zip.generateAsync({
+                type: 'blob',
+                compression: 'DEFLATE',
+                compressionOptions: { level: 4 }
+            });
+            var zipUrl = URL.createObjectURL(zipBlob);
+            var dlAnchor = document.createElement('a');
+            dlAnchor.href = zipUrl;
+            dlAnchor.download = collTitle + '-Semua-Foto.zip';
+            document.body.appendChild(dlAnchor);
+            dlAnchor.click();
+            document.body.removeChild(dlAnchor);
+            setTimeout(function () { URL.revokeObjectURL(zipUrl); }, 15000);
+            showToast('✅ Berhasil mengunduh semua foto dalam file ZIP!');
+        } catch (zipErr) {
+            console.error('ZIP generation error:', zipErr);
+            showToast('Gagal membuat ZIP, mengalihkan ke unduhan langsung...');
         }
     }
 
