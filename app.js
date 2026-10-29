@@ -4016,6 +4016,15 @@
     }
 
     function switchView(viewId) {
+        if (appState.currentView === viewId) {
+            var activeTarget = document.getElementById(viewId);
+            if (activeTarget && activeTarget.style.display !== 'block') {
+                activeTarget.style.display = 'block';
+                activeTarget.classList.add('view-active');
+            }
+            return;
+        }
+
         if (viewId !== 'view-public-gallery' && appState.galleryPollInterval) {
             clearInterval(appState.galleryPollInterval);
             appState.galleryPollInterval = null;
@@ -4313,6 +4322,8 @@
     }
 
     function openPublicGallery(coll, withSplash) {
+        var isAlreadyActive = (appState.activeCollectionId === coll.id && appState.currentView === 'view-public-gallery');
+
         appState.activeCollectionId = coll.id;
         appState.activeCollectionData = coll;
 
@@ -4325,6 +4336,10 @@
             document.getElementById('pub-hero-banner').style.backgroundImage = 'url(\'' + cover + '\')';
         } else {
             document.getElementById('pub-hero-banner').style.backgroundImage = 'none';
+        }
+
+        if (isAlreadyActive) {
+            return;
         }
 
         switchView('view-public-gallery');
@@ -4513,9 +4528,17 @@
         google.script.run
             .withSuccessHandler(function (res) {
                 if (res && res.photos) {
+                    var isSame = false;
+                    if (appState.photos && appState.photos.length === res.photos.length) {
+                        if (appState.photos.length === 0 || (appState.photos[0].photoId === res.photos[0].photoId && appState.photos[appState.photos.length - 1].photoId === res.photos[res.photos.length - 1].photoId)) {
+                            isSame = true;
+                        }
+                    }
                     appState.photos = res.photos;
                     try { localStorage.setItem('limz_cached_photos_' + collId, JSON.stringify(res.photos)); } catch (e) { }
-                    renderGalleryPhotos(appState.photos);
+                    if (!isSame) {
+                        renderGalleryPhotos(appState.photos);
+                    }
                     checkAutoOpenDirectPhoto();
                 }
             })
@@ -4698,9 +4721,320 @@
         pagContainer.innerHTML = html;
     }
 
+    var lightboxState = {
+        currentIndex: -1,
+        zoom: 1,
+        panX: 0,
+        panY: 0,
+        isPanning: false,
+        startX: 0,
+        startY: 0,
+        lastTapTime: 0
+    };
+
+    function ensureLightboxStylesAndControls() {
+        if (!document.getElementById('lightbox-enhanced-styles')) {
+            var st = document.createElement('style');
+            st.id = 'lightbox-enhanced-styles';
+            st.innerHTML = `
+                .lightbox-arrow-btn {
+                    position: absolute;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    width: 48px;
+                    height: 48px;
+                    border-radius: 50%;
+                    background: rgba(22, 18, 14, 0.82);
+                    backdrop-filter: blur(8px);
+                    border: 1px solid rgba(212, 175, 55, 0.55);
+                    color: #fff;
+                    font-size: 32px;
+                    line-height: 1;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    z-index: 100;
+                    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                    user-select: none;
+                    -webkit-user-select: none;
+                    box-shadow: 0 4px 18px rgba(0,0,0,0.6);
+                }
+                .lightbox-arrow-btn:hover {
+                    background: var(--accent-gold, #d4af37);
+                    color: #000;
+                    border-color: var(--accent-gold, #d4af37);
+                    transform: translateY(-50%) scale(1.12);
+                    box-shadow: 0 0 20px rgba(212, 175, 55, 0.7);
+                }
+                .lightbox-arrow-btn.prev { left: 14px; }
+                .lightbox-arrow-btn.next { right: 14px; }
+                @media (max-width: 640px) {
+                    .lightbox-arrow-btn { width: 38px; height: 38px; font-size: 24px; }
+                    .lightbox-arrow-btn.prev { left: 8px; }
+                    .lightbox-arrow-btn.next { right: 8px; }
+                }
+                .lightbox-img-box {
+                    touch-action: none;
+                    user-select: none;
+                    position: relative;
+                    overflow: hidden;
+                }
+                #lightbox-img {
+                    transform-origin: center center;
+                    transition: transform 0.25s ease-out;
+                    will-change: transform;
+                }
+            `;
+            document.head.appendChild(st);
+        }
+
+        var box = document.querySelector('.lightbox-img-box');
+        if (box && !document.getElementById('lightbox-btn-prev')) {
+            var btnPrev = document.createElement('button');
+            btnPrev.id = 'lightbox-btn-prev';
+            btnPrev.type = 'button';
+            btnPrev.className = 'lightbox-arrow-btn prev';
+            btnPrev.innerHTML = '‹';
+            btnPrev.title = 'Foto Sebelumnya (← atau Geser Kanan)';
+            btnPrev.onclick = function(e) {
+                e.stopPropagation();
+                lightboxNavigate(-1);
+            };
+            box.appendChild(btnPrev);
+
+            var btnNext = document.createElement('button');
+            btnNext.id = 'lightbox-btn-next';
+            btnNext.type = 'button';
+            btnNext.className = 'lightbox-arrow-btn next';
+            btnNext.innerHTML = '›';
+            btnNext.title = 'Foto Selanjutnya (→ atau Geser Kiri)';
+            btnNext.onclick = function(e) {
+                e.stopPropagation();
+                lightboxNavigate(1);
+            };
+            box.appendChild(btnNext);
+
+            initLightboxInteractions(box);
+        }
+
+        var header = document.querySelector('.lightbox-header');
+        if (header && !document.getElementById('lightbox-zoom-toggle')) {
+            var zoomBtn = document.createElement('button');
+            zoomBtn.id = 'lightbox-zoom-toggle';
+            zoomBtn.type = 'button';
+            zoomBtn.className = 'btn btn-outline btn-sm';
+            zoomBtn.style.cssText = 'color: #fff; border-color: #57483a; display: inline-flex; align-items: center; gap: 4px; font-size: 12px; margin-right: 8px;';
+            zoomBtn.title = 'Perbesar / Perkecil Foto (Bisa klik ganda pada foto)';
+            zoomBtn.innerHTML = '<span id="lightbox-zoom-icon">🔍⁺</span> <span id="lightbox-zoom-text">Zoom</span>';
+            zoomBtn.onclick = function(e) {
+                e.stopPropagation();
+                toggleLightboxZoom();
+            };
+            var closeBtn = header.querySelector('button[onclick*="closeLightbox"]');
+            if (closeBtn) {
+                header.insertBefore(zoomBtn, closeBtn);
+            } else {
+                header.appendChild(zoomBtn);
+            }
+        }
+    }
+
+    function initLightboxInteractions(box) {
+        var img = document.getElementById('lightbox-img');
+        if (!img || !box) return;
+
+        // Double-click to zoom
+        img.addEventListener('dblclick', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleLightboxZoom();
+        });
+
+        // Pointer / Touch Handlers for Swipe & Pan
+        var touchStartX = 0;
+        var touchStartY = 0;
+        var isPointerDown = false;
+        var startPanX = 0;
+        var startPanY = 0;
+
+        box.addEventListener('pointerdown', function(e) {
+            if (e.target.closest('.lightbox-arrow-btn') || e.target.closest('button')) return;
+
+            // Double tap detection on mobile
+            var now = Date.now();
+            if (now - lightboxState.lastTapTime < 320) {
+                toggleLightboxZoom();
+                lightboxState.lastTapTime = 0;
+                return;
+            }
+            lightboxState.lastTapTime = now;
+
+            isPointerDown = true;
+            touchStartX = e.clientX;
+            touchStartY = e.clientY;
+            startPanX = lightboxState.panX;
+            startPanY = lightboxState.panY;
+
+            if (lightboxState.zoom > 1) {
+                lightboxState.isPanning = true;
+                box.setPointerCapture(e.pointerId);
+                applyLightboxTransform();
+            }
+        });
+
+        box.addEventListener('pointermove', function(e) {
+            if (!isPointerDown) return;
+
+            var dx = e.clientX - touchStartX;
+            var dy = e.clientY - touchStartY;
+
+            if (lightboxState.zoom > 1 && lightboxState.isPanning) {
+                lightboxState.panX = startPanX + dx;
+                lightboxState.panY = startPanY + dy;
+                applyLightboxTransform();
+            }
+        });
+
+        function onPointerEnd(e) {
+            if (!isPointerDown) return;
+            isPointerDown = false;
+
+            if (lightboxState.zoom > 1) {
+                lightboxState.isPanning = false;
+                applyLightboxTransform();
+                return;
+            }
+
+            // Swipe detection when zoom is 1x
+            var deltaX = e.clientX - touchStartX;
+            var deltaY = e.clientY - touchStartY;
+            if (Math.abs(deltaX) > 45 && Math.abs(deltaX) > Math.abs(deltaY) * 1.4) {
+                if (deltaX < 0) {
+                    lightboxNavigate(1); // Swipe left -> Next photo
+                } else {
+                    lightboxNavigate(-1); // Swipe right -> Previous photo
+                }
+            }
+        }
+
+        box.addEventListener('pointerup', onPointerEnd);
+        box.addEventListener('pointercancel', onPointerEnd);
+
+        // Keyboard arrow navigation
+        if (!window._lightboxKeyInit) {
+            window._lightboxKeyInit = true;
+            window.addEventListener('keydown', function(e) {
+                var modal = document.getElementById('modal-lightbox');
+                if (!modal || modal.style.display !== 'flex') return;
+
+                if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    lightboxNavigate(-1);
+                } else if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    lightboxNavigate(1);
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    closeLightbox();
+                }
+            });
+        }
+    }
+
+    function resetLightboxZoom() {
+        lightboxState.zoom = 1;
+        lightboxState.panX = 0;
+        lightboxState.panY = 0;
+        lightboxState.isPanning = false;
+        applyLightboxTransform();
+    }
+
+    function toggleLightboxZoom() {
+        if (lightboxState.zoom > 1) {
+            resetLightboxZoom();
+        } else {
+            lightboxState.zoom = 2.5;
+            lightboxState.panX = 0;
+            lightboxState.panY = 0;
+            applyLightboxTransform();
+        }
+    }
+
+    function applyLightboxTransform() {
+        var img = document.getElementById('lightbox-img');
+        if (!img) return;
+
+        if (lightboxState.zoom <= 1) {
+            img.style.transform = 'none';
+            img.style.cursor = 'zoom-in';
+            img.style.transition = 'transform 0.25s ease-out';
+        } else {
+            img.style.transform = 'translate(' + lightboxState.panX + 'px, ' + lightboxState.panY + 'px) scale(' + lightboxState.zoom + ')';
+            img.style.cursor = lightboxState.isPanning ? 'grabbing' : 'grab';
+            img.style.transition = lightboxState.isPanning ? 'none' : 'transform 0.15s ease-out';
+        }
+
+        var zoomBtnText = document.getElementById('lightbox-zoom-text');
+        var zoomIcon = document.getElementById('lightbox-zoom-icon');
+        if (zoomBtnText) {
+            zoomBtnText.innerText = (lightboxState.zoom > 1) ? (Math.round(lightboxState.zoom * 100) + '%') : 'Zoom';
+        }
+        if (zoomIcon) {
+            zoomIcon.innerText = (lightboxState.zoom > 1) ? '🔍⁻' : '🔍⁺';
+        }
+    }
+
+    function lightboxNavigate(direction) {
+        var photos = appState.photos || [];
+        if (!photos || photos.length <= 1) return;
+
+        var total = photos.length;
+        var nextIdx = lightboxState.currentIndex + direction;
+
+        if (nextIdx < 0) nextIdx = total - 1;
+        if (nextIdx >= total) nextIdx = 0;
+
+        var targetPhoto = photos[nextIdx];
+        if (targetPhoto) {
+            openLightbox(targetPhoto);
+
+            // Jika foto berada di halaman pagination berbeda, update halaman di latar belakang
+            if (typeof galleryPaginationState !== 'undefined' && galleryPaginationState.perPage > 0) {
+                var targetPage = Math.floor(nextIdx / galleryPaginationState.perPage) + 1;
+                if (galleryPaginationState.currentPage !== targetPage) {
+                    galleryPaginationState.currentPage = targetPage;
+                    renderGalleryPhotosPage();
+                }
+            }
+        }
+    }
+
     function openLightbox(photo) {
         appState.currentLightboxPhoto = photo;
-        document.getElementById('lightbox-file-name').innerText = photo.fileName || 'Foto Momen Indah';
+        ensureLightboxStylesAndControls();
+        resetLightboxZoom();
+
+        var photos = appState.photos || [];
+        var total = photos.length;
+        var foundIdx = -1;
+        for (var k = 0; k < photos.length; k++) {
+            if (photos[k] === photo || (photo.photoId && photos[k].photoId === photo.photoId) || (photo.driveFileId && photos[k].driveFileId === photo.driveFileId)) {
+                foundIdx = k;
+                break;
+            }
+        }
+        lightboxState.currentIndex = (foundIdx !== -1) ? foundIdx : 0;
+
+        var countStr = (total > 0 && lightboxState.currentIndex >= 0)
+            ? ('[Foto ' + (lightboxState.currentIndex + 1) + ' dari ' + total + '] • ')
+            : '';
+        document.getElementById('lightbox-file-name').innerText = countStr + (photo.fileName || 'Foto Momen Indah');
+
+        var prevBtn = document.getElementById('lightbox-btn-prev');
+        var nextBtn = document.getElementById('lightbox-btn-next');
+        if (prevBtn) prevBtn.style.display = (total > 1) ? 'flex' : 'none';
+        if (nextBtn) nextBtn.style.display = (total > 1) ? 'flex' : 'none';
 
         var fileId = photo.driveFileId;
         if (!fileId && photo.downloadUrl) {
@@ -4728,6 +5062,7 @@
 
     function closeLightbox() {
         appState.currentLightboxPhoto = null;
+        resetLightboxZoom();
         document.getElementById('modal-lightbox').style.display = 'none';
         document.getElementById('lightbox-img').src = '';
     }
