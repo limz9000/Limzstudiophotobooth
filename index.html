@@ -27,6 +27,21 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gifshot/0.3.2/gifshot.min.js"></script>
 
+    <!-- Zero-Flicker Pre-Route Detection (Menghilangkan Kedipan Putih Monitor & Galeri) -->
+    <script>
+        (function () {
+            try {
+                var p = window.location.pathname.replace(/^\/+|\/+$/g, '').split('/');
+                var s = new URLSearchParams(window.location.search);
+                var slug = s.get('slug') || (p.length > 0 && p[0] && p[0] !== 'index.html' ? p[0] : null);
+                var view = s.get('view') || (p.length > 1 && (p[1] === 'monitor' || p[1] === 'slideshow') ? 'slideshow' : null);
+                if (slug) {
+                    document.documentElement.classList.add(view === 'slideshow' ? 'route-monitor' : 'route-gallery');
+                }
+            } catch (e) { }
+        })();
+    </script>
+
     <link rel="stylesheet" href="/style.css">
 </head>
 

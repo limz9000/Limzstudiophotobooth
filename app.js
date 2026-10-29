@@ -4102,9 +4102,15 @@
                     ? preloadedColl.coverUrl
                     : (localStorage.getItem('limz_cover_' + slug) || '');
 
+                var isAlreadyDismissed = false;
+                try { isAlreadyDismissed = (sessionStorage.getItem('limz_splash_dismissed_' + slug) === '1'); } catch (e) { }
+                if (isAlreadyDismissed) appState.splashDismissed = true;
+
                 if (cachedCover && !appState.splashDismissed) {
-                    // Jika ada cover tersimpan / preloaded, langsung tampilkan animasi cover pembuka seketika!
                     startThreeSecondSplashScreen({ slug: slug, coverUrl: cachedCover }, cachedCover);
+                } else if (appState.splashDismissed) {
+                    var splashInitial = document.getElementById('gallery-splash-loader');
+                    if (splashInitial) splashInitial.style.display = 'none';
                 }
 
                 if (preloadedColl && preloadedColl.id) {
@@ -4131,14 +4137,13 @@
                         splashBg.style.backgroundImage = 'url(\'' + res.collection.coverUrl + '\')';
                     }
 
-                    // ANTI-LOOP GUARD: Jika tamu sudah klik OPEN GALLERY atau countdown sudah dismiss, JANGAN PERNAH re-trigger
-                    var splash = document.getElementById('gallery-splash-loader');
-                    var isSplashVisible = splash && splash.style.display !== 'none' && splash.style.opacity !== '0';
-                    if (!isSplashVisible && !appState.splashDismissed) {
-                        openPublicGallery(res.collection, true);
-                    } else {
-                        openPublicGallery(res.collection, false);
-                    }
+                    // ANTI-LOOP GUARD MUTLAK: Respon server TIDAK BOLEH PERNAH memicu countdown ulang!
+                    try {
+                        if (sessionStorage.getItem('limz_splash_dismissed_' + slug) === '1') {
+                            appState.splashDismissed = true;
+                        }
+                    } catch (e) { }
+                    openPublicGallery(res.collection, false);
                 } else {
                     dismissSplashScreen();
                     showToast(res.message || 'Event galeri tidak ditemukan.');
@@ -4265,7 +4270,27 @@
 
     var splashCountdownTimer = null;
     function startThreeSecondSplashScreen(coll, coverUrl) {
-        if (appState.splashDismissed) return;
+        var sSlug = (coll && coll.slug) || '';
+        if (!sSlug) {
+            try {
+                var pSegs = window.location.pathname.replace(/^\/+|\/+$/g, '').split('/');
+                sSlug = (pSegs.length > 0 && pSegs[0] !== 'index.html') ? pSegs[0] : (new URLSearchParams(window.location.search).get('slug') || '');
+            } catch (e) { }
+        }
+        if (sSlug) {
+            try {
+                if (sessionStorage.getItem('limz_splash_dismissed_' + sSlug) === '1') {
+                    appState.splashDismissed = true;
+                }
+            } catch (e) { }
+        }
+
+        // Jika sudah ditutup oleh tamu, BATALKAN TOTAL!
+        if (appState.splashDismissed) {
+            var splashEl = document.getElementById('gallery-splash-loader');
+            if (splashEl) splashEl.style.display = 'none';
+            return;
+        }
 
         var splash = document.getElementById('gallery-splash-loader');
         var bg = document.getElementById('splash-bg-overlay');
@@ -4306,7 +4331,17 @@
     }
 
     function dismissSplashScreen() {
-        appState.splashDismissed = true; // KUNCI MUTLAK: Sekali ditutup, tidak akan pernah bisa looping lagi
+        appState.splashDismissed = true; // Kunci mutlak di memori
+        // Kunci ganda di sessionStorage agar tidak pernah rollback
+        try {
+            var pathSegs = window.location.pathname.replace(/^\/+|\/+$/g, '').split('/');
+            var curSlug = (pathSegs.length > 0 && pathSegs[0] !== 'index.html') ? pathSegs[0] : (new URLSearchParams(window.location.search).get('slug') || '');
+            if (curSlug) sessionStorage.setItem('limz_splash_dismissed_' + curSlug, '1');
+            if (appState.activeCollectionData && appState.activeCollectionData.slug) {
+                sessionStorage.setItem('limz_splash_dismissed_' + appState.activeCollectionData.slug, '1');
+            }
+        } catch (e) { }
+
         if (splashCountdownTimer) {
             clearInterval(splashCountdownTimer);
             splashCountdownTimer = null;
@@ -4318,7 +4353,7 @@
             setTimeout(function () {
                 splash.style.display = 'none';
                 checkAutoOpenDirectPhoto();
-            }, 120); // Respon instan 120ms
+            }, 120);
         } else {
             checkAutoOpenDirectPhoto();
         }
@@ -4517,20 +4552,26 @@
     function preloadAndSwapImage(imgId, targetSrc) {
         if (!targetSrc) return;
         var el = document.getElementById(imgId);
-        if (!el || el.src === targetSrc) return;
+        if (!el) return;
+        // Anti-flicker: jika gambar yang sedang tampil sudah sama persis, abaikan agar tidak berkedip
+        if (el.dataset.currentSrc === targetSrc || el.src === targetSrc) return;
 
         var swapped = false;
         function doSwap() {
             if (!swapped) {
                 swapped = true;
-                el.src = targetSrc;
+                el.style.opacity = '0.35';
+                setTimeout(function () {
+                    el.src = targetSrc;
+                    el.dataset.currentSrc = targetSrc;
+                    el.style.opacity = '1';
+                }, 40);
             }
         }
 
         var preloader = new Image();
         preloader.onload = doSwap;
         preloader.onerror = doSwap;
-        // Jeda cadangan 1200ms: jika koneksi Google lambat merespons preloader, tetap swap instan
         setTimeout(doSwap, 1200);
         preloader.src = targetSrc;
     }
