@@ -521,6 +521,7 @@
         openModal('modal-live-camera');
         enumerateCameraDevices();
         startLiveCameraStream();
+        handleLiveCameraSettingChange();
         window.addEventListener('keydown', handleCameraKeydown);
     }
 
@@ -532,10 +533,55 @@
 
     function handleCameraKeydown(e) {
         var modal = document.getElementById('modal-live-camera');
-        if (e.code === 'Space' && modal && modal.classList.contains('active')) {
+        if (e.code === 'Space' && modal && (modal.style.display === 'flex' || modal.classList.contains('active'))) {
             e.preventDefault();
             triggerCameraShutter();
         }
+    }
+
+    function handleLiveCameraSettingChange() {
+        var tvEl = document.getElementById('cam-setting-shutter');
+        var avEl = document.getElementById('cam-setting-aperture');
+        var isoEl = document.getElementById('cam-setting-iso');
+        var evEl = document.getElementById('cam-setting-ev');
+        var wbEl = document.getElementById('cam-setting-wb');
+
+        var tv = tvEl ? tvEl.value : '1/160s';
+        var av = avEl ? avEl.value : 'f/2.8';
+        var iso = isoEl ? isoEl.value : '400';
+        var ev = evEl ? evEl.value : '0.0 EV';
+        var wb = wbEl ? wbEl.value : 'auto';
+
+        var hudBadge = document.getElementById('live-cam-hud-badge');
+        if (hudBadge) {
+            hudBadge.innerText = '[Tv ' + tv + ' | Av ' + av + ' | ISO ' + iso + ' | ' + ev + ']';
+        }
+
+        var hudText = document.getElementById('hud-exposure-text');
+        if (hudText) {
+            hudText.innerHTML = 'Tv <b>' + tv + '</b> &bull; Av <b>' + av + '</b> &bull; ISO <b>' + iso + '</b> &bull; <b>' + ev + '</b> &bull; ' + wb.toUpperCase();
+        }
+
+        if (typeof appState !== 'undefined') {
+            appState.liveCameraSettings = { shutter: tv, aperture: av, iso: iso, ev: ev, wb: wb };
+        }
+
+        // Terapkan constraint hardware jika didukung oleh video track kamera
+        try {
+            if (liveCameraStream) {
+                var track = liveCameraStream.getVideoTracks()[0];
+                if (track && typeof track.applyConstraints === 'function') {
+                    var capabilities = (typeof track.getCapabilities === 'function') ? track.getCapabilities() : {};
+                    var advancedConstraints = {};
+                    if (capabilities.whiteBalanceMode) {
+                        advancedConstraints.whiteBalanceMode = (wb === 'auto') ? 'continuous' : 'manual';
+                    }
+                    if (Object.keys(advancedConstraints).length > 0) {
+                        track.applyConstraints({ advanced: [advancedConstraints] }).catch(function () { });
+                    }
+                }
+            }
+        } catch (err) { }
     }
 
     function enumerateCameraDevices() {
@@ -687,7 +733,15 @@
         if (appState.photoFilterState && appState.photoFilterState.isLocked) {
             newSnap.appliedGrading = JSON.parse(JSON.stringify(appState.photoFilterState));
         }
+        if (appState.liveCameraSettings) {
+            newSnap.appliedCameraSettings = JSON.parse(JSON.stringify(appState.liveCameraSettings));
+        }
         appState.stagedPhotos.push(newSnap);
+
+        // Auto-save jepretan kamera langsung ke folder lokal PC atau IndexedDB iPad
+        if (appState.localExportDirHandle || isTabletOrMobileDevice()) {
+            savePhotoToLocalDirectory(fileName, dataUrl);
+        }
 
         appState.activeStagedIndex = appState.stagedPhotos.length - 1;
         renderStagedPhotosUI();
@@ -4952,18 +5006,13 @@
             setTimeout(function () {
                 splash.style.display = 'none';
                 checkAutoOpenDirectPhoto();
-                // Auto-scroll langsung ke isi galeri foto momen
-                var photoGrid = document.getElementById('pub-photo-grid');
-                if (photoGrid) {
-                    photoGrid.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
+                // Tampil bersih dari bagian paling atas galeri (tanpa auto-scroll)
+                window.scrollTo(0, 0);
             }, 120);
         } else {
             checkAutoOpenDirectPhoto();
-            var photoGrid = document.getElementById('pub-photo-grid');
-            if (photoGrid) {
-                photoGrid.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
+            // Tampil bersih dari bagian paling atas galeri (tanpa auto-scroll)
+            window.scrollTo(0, 0);
         }
     }
 

@@ -688,7 +688,7 @@
                                         🔍 Deteksi USB
                                     </button>
                                     <button type="button" class="btn btn-outline btn-sm camera-src-btn"
-                                        onclick="triggerMobileCameraCapture(event)"
+                                        onclick="openLiveCameraModal(event)"
                                         style="font-size: 10.5px; font-weight: 700; color: #0f766e; border-color: #99f6e4; background: #f0fdfa; padding: 3px 8px;"
                                         title="Buka Live View Kamera DSLR / Mirrorless / Webcam langsung">
                                         📸 Live View
@@ -2435,6 +2435,102 @@
                 <div id="camera-flash-overlay"
                     style="position:absolute; inset:0; background:#fff; opacity:0; pointer-events:none; transition:opacity 0.25s ease;">
                 </div>
+
+                <!-- Camera Screen HUD Overlay (DSLR / Mirrorless Camera LCD View) -->
+                <div id="camera-screen-hud"
+                    style="position:absolute; bottom:10px; left:12px; right:12px; display:flex; justify-content:space-between; align-items:center; pointer-events:none; font-size:11.5px; font-weight:800; color:#facc15; text-shadow:0 1px 3px rgba(0,0,0,0.9); z-index:5;">
+                    <div id="hud-exposure-text" style="background:rgba(0,0,0,0.7); padding:3px 10px; border-radius:4px; border:1px solid rgba(255,255,255,0.25);">
+                        Tv <b>1/160s</b> &bull; Av <b>f/2.8</b> &bull; ISO <b>400</b> &bull; <b>0.0 EV</b> &bull; AWB
+                    </div>
+                    <div id="hud-camera-model-tag" style="background:rgba(0,0,0,0.7); padding:3px 10px; border-radius:4px; border:1px solid rgba(255,255,255,0.25); color:#38bdf8;">
+                        📷 Remote Camera Live View
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bilah Pengaturan Kamera Langsung (Shutter Speed, Aperture, ISO, EV, WB) -->
+            <div id="live-camera-settings-bar"
+                style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:space-between; background:#0f172a; color:#f8fafc; padding:10px 14px; border-radius:8px; margin-top:10px; border:1px solid #334155;">
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <!-- Shutter Speed (Tv) -->
+                    <div style="display:flex; align-items:center; gap:4px;">
+                        <span style="font-size:11px; font-weight:700; color:#94a3b8;">Tv (Shutter):</span>
+                        <select id="cam-setting-shutter" class="form-control" onchange="handleLiveCameraSettingChange()"
+                            style="font-size:11px; padding:3px 6px; background:#1e293b; color:#38bdf8; border:1px solid #475569; border-radius:4px; font-weight:700;">
+                            <option value="1/60s">1/60s</option>
+                            <option value="1/100s">1/100s</option>
+                            <option value="1/125s">1/125s</option>
+                            <option value="1/160s" selected>1/160s</option>
+                            <option value="1/200s">1/200s</option>
+                            <option value="1/250s">1/250s</option>
+                            <option value="1/320s">1/320s</option>
+                            <option value="1/500s">1/500s</option>
+                            <option value="1/1000s">1/1000s</option>
+                        </select>
+                    </div>
+
+                    <!-- Aperture (Av) -->
+                    <div style="display:flex; align-items:center; gap:4px;">
+                        <span style="font-size:11px; font-weight:700; color:#94a3b8;">Av (Aperture):</span>
+                        <select id="cam-setting-aperture" class="form-control" onchange="handleLiveCameraSettingChange()"
+                            style="font-size:11px; padding:3px 6px; background:#1e293b; color:#4ade80; border:1px solid #475569; border-radius:4px; font-weight:700;">
+                            <option value="f/1.4">f/1.4</option>
+                            <option value="f/1.8">f/1.8</option>
+                            <option value="f/2.8" selected>f/2.8</option>
+                            <option value="f/4.0">f/4.0</option>
+                            <option value="f/5.6">f/5.6</option>
+                            <option value="f/8.0">f/8.0</option>
+                            <option value="f/11">f/11</option>
+                        </select>
+                    </div>
+
+                    <!-- ISO -->
+                    <div style="display:flex; align-items:center; gap:4px;">
+                        <span style="font-size:11px; font-weight:700; color:#94a3b8;">ISO:</span>
+                        <select id="cam-setting-iso" class="form-control" onchange="handleLiveCameraSettingChange()"
+                            style="font-size:11px; padding:3px 6px; background:#1e293b; color:#facc15; border:1px solid #475569; border-radius:4px; font-weight:700;">
+                            <option value="100">ISO 100</option>
+                            <option value="200">ISO 200</option>
+                            <option value="400" selected>ISO 400</option>
+                            <option value="800">ISO 800</option>
+                            <option value="1600">ISO 1600</option>
+                            <option value="3200">ISO 3200</option>
+                            <option value="6400">ISO 6400</option>
+                        </select>
+                    </div>
+
+                    <!-- Exposure Compensation (EV) -->
+                    <div style="display:flex; align-items:center; gap:4px;">
+                        <span style="font-size:11px; font-weight:700; color:#94a3b8;">EV:</span>
+                        <select id="cam-setting-ev" class="form-control" onchange="handleLiveCameraSettingChange()"
+                            style="font-size:11px; padding:3px 6px; background:#1e293b; color:#fb923c; border:1px solid #475569; border-radius:4px; font-weight:700;">
+                            <option value="-1.0">-1.0 EV</option>
+                            <option value="-0.7">-0.7 EV</option>
+                            <option value="-0.3">-0.3 EV</option>
+                            <option value="0.0" selected>0.0 EV</option>
+                            <option value="+0.3">+0.3 EV</option>
+                            <option value="+0.7">+0.7 EV</option>
+                            <option value="+1.0">+1.0 EV</option>
+                        </select>
+                    </div>
+
+                    <!-- White Balance (WB) -->
+                    <div style="display:flex; align-items:center; gap:4px;">
+                        <span style="font-size:11px; font-weight:700; color:#94a3b8;">WB:</span>
+                        <select id="cam-setting-wb" class="form-control" onchange="handleLiveCameraSettingChange()"
+                            style="font-size:11px; padding:3px 6px; background:#1e293b; color:#e2e8f0; border:1px solid #475569; border-radius:4px; font-weight:700;">
+                            <option value="auto" selected>AWB (Auto)</option>
+                            <option value="daylight">Daylight (5500K)</option>
+                            <option value="cloudy">Cloudy (6500K)</option>
+                            <option value="tungsten">Tungsten (3200K)</option>
+                            <option value="fluorescent">Fluorescent</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="live-cam-hud-badge" style="font-size:11px; font-weight:800; color:#38bdf8; letter-spacing:0.5px; padding:3px 10px; background:#1e293b; border-radius:4px; border:1px solid #334155;">
+                    [Tv 1/160s | Av f/2.8 | ISO 400 | 0.0 EV]
+                </div>
             </div>
 
             <!-- Shutter Action Bar -->
@@ -2511,6 +2607,7 @@
                 <button type="button" class="btn btn-outline" onclick="closeModal('modal-pwa-install')">Tutup</button>
             </div>
         </div>
+    </div>
 
     <!-- Modal Panduan Sambung Kamera Sony, Canon, & Nikon (Wired & Wireless Hot Folder) -->
     <div class="modal-overlay" id="modal-ipad-dslr-guide">
