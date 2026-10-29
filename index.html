@@ -7,16 +7,17 @@
     <title>Limz Studio Photobooth - Cloud Foto & Galeri Event</title>
 
     <!-- PWA & Mobile Web App Capabilities (Android & iOS Standalone) -->
-    <meta name="theme-color" content="#191410">
+    <meta name="theme-color" content="#d49438">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Limz Studio">
     <meta name="application-name" content="Limz Studio Photobooth">
-    <link rel="manifest"
-        href="data:application/manifest+json,%7B%22name%22%3A%22Limz%20Studio%20Photobooth%22%2C%22short_name%22%3A%22LimzStudio%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23191410%22%2C%22theme_color%22%3A%22%23191410%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22https%3A%2F%2Fimages.unsplash.com%2Fphoto-1519741497674-611481863552%3Fauto%3Dformat%26fit%3Dcrop%26w%3D192%26q%3D80%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fpng%22%7D%2C%7B%22src%22%3A%22https%3A%2F%2Fimages.unsplash.com%2Fphoto-1519741497674-611481863552%3Fauto%3Dformat%26fit%3Dcrop%26w%3D512%26q%3D80%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fpng%22%7D%5D%7D">
-    <link rel="apple-touch-icon"
-        href="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=180&q=80">
+    <meta name="description" content="Aplikasi Photobooth Event Profesional dengan Cloud Sync, Live Slideshow, Template 4R, dan Galeri Tamu.">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2884,6 +2885,19 @@
 
     <div class="toast-box" id="global-toast">Pesan notifikasi</div>
     <canvas id="watermark-canvas" style="display: none;"></canvas>
+
+        <!-- PWA Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('/sw.js').then(function (reg) {
+                    console.log('[PWA] Service Worker registered scope:', reg.scope);
+                }).catch(function (err) {
+                    console.log('[PWA] Service Worker notice:', err);
+                });
+            });
+        }
+    </script>
 
     <script src="/app.js"></script>
 </body>
