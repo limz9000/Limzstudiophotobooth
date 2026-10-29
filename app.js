@@ -1388,6 +1388,13 @@
                 var slug = (appState.activeCollectionData && appState.activeCollectionData.slug) || '';
                 var directUrl = getDirectPhotoOrGalleryUrl(slug, mainKey);
                 setCachedQrCode('mon-qr-large-img', directUrl, 400);
+                setCachedQrCode('mon-qr-img', directUrl, 260);
+                var bEl = document.getElementById('mon-qr-badge-text');
+                if (bEl) bEl.innerText = 'FOTO TAMPIL';
+                var dEl = document.getElementById('mon-qr-heading-desc');
+                if (dEl) dEl.innerHTML = 'Scan & Download<br><span style="color:#e2b86b;">Foto yang Sedang Tampil</span>';
+                var hEl = document.getElementById('mon-qr-target-hint');
+                if (hEl) hEl.innerText = '📸 Pindai untuk membuka foto ini langsung...';
             }
             showMonitorNewPhotoToast('📸 Foto Baru Saja Selesai Diunggah!');
             if (appState.activeCollectionId) {
@@ -4089,7 +4096,7 @@
 
         var slug = urlParams.get('slug') || serverQuery.slug;
         var view = urlParams.get('view') || serverQuery.view;
-        var photoId = urlParams.get('photoId') || serverQuery.photoId;
+        var photoId = urlParams.get('photoId') || urlParams.get('photo') || serverQuery.photoId || serverQuery.photo;
 
         // Parsing Pretty Path jika dibuka di Vercel (misal: /irvan-susan, /irvan-susan/monitor, atau langsung /monitor)
         if (!slug && isRunningOnVercelOrCustomDomain()) {
@@ -4450,6 +4457,41 @@
         }
     }
 
+    function checkAutoOpenDirectPhoto() {
+        if (!appState.targetPhotoId || !appState.photos || appState.photos.length === 0) return;
+
+        var targetId = String(appState.targetPhotoId).trim().toLowerCase();
+        var foundPhoto = null;
+        var foundIndex = -1;
+
+        for (var i = 0; i < appState.photos.length; i++) {
+            var p = appState.photos[i];
+            if ((p.photoId && String(p.photoId).toLowerCase() === targetId) ||
+                (p.driveFileId && String(p.driveFileId).toLowerCase() === targetId) ||
+                (p.fileName && String(p.fileName).toLowerCase() === targetId)) {
+                foundPhoto = p;
+                foundIndex = i;
+                break;
+            }
+        }
+
+        if (foundPhoto) {
+            // Jika foto berada di halaman lain pada pagination, arahkan otomatis ke halaman tersebut
+            if (typeof galleryPaginationState !== 'undefined' && galleryPaginationState.perPage > 0) {
+                var targetPage = Math.floor(foundIndex / galleryPaginationState.perPage) + 1;
+                if (galleryPaginationState.currentPage !== targetPage) {
+                    galleryPaginationState.currentPage = targetPage;
+                    renderGalleryPhotosPage();
+                }
+            }
+
+            // Langsung buka modal Lightbox foto resolusi penuh
+            openLightbox(foundPhoto);
+            showToast('📸 Membuka foto yang Anda pindai di layar monitor!');
+            appState.targetPhotoId = null;
+        }
+    }
+
     function loadGalleryPhotos(collId) {
         var grid = document.getElementById('pub-photo-grid');
 
@@ -4483,6 +4525,12 @@
             .getPhotosByCollection(collId, 1, 0, false);
     }
 
+    var galleryPaginationState = {
+        currentPage: 1,
+        perPage: 20,
+        photos: []
+    };
+
     function renderGalleryPhotos(photos) {
         var grid = document.getElementById('pub-photo-grid');
         var indicator = document.getElementById('pub-photo-total-indicator');
@@ -4491,6 +4539,8 @@
         if (!photos || photos.length === 0) {
             grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; color:var(--text-muted); padding: 30px;">Belum ada foto yang diunggah untuk event ini.</div>';
             if (indicator) indicator.innerText = '0 foto tersedia';
+            var pagExisting = document.getElementById('pub-gallery-pagination');
+            if (pagExisting) pagExisting.style.display = 'none';
             return;
         }
 
@@ -4498,8 +4548,62 @@
             indicator.innerText = photos.length + ' foto momen siap diunduh';
         }
 
+        galleryPaginationState.photos = photos;
+
+        // Jika ada targetPhotoId dari scan QR, sinkronkan halaman aktif ke letak foto tersebut
+        if (appState.targetPhotoId) {
+            var tid = String(appState.targetPhotoId).trim().toLowerCase();
+            for (var k = 0; k < photos.length; k++) {
+                var item = photos[k];
+                if ((item.photoId && String(item.photoId).toLowerCase() === tid) ||
+                    (item.driveFileId && String(item.driveFileId).toLowerCase() === tid)) {
+                    galleryPaginationState.currentPage = Math.floor(k / galleryPaginationState.perPage) + 1;
+                    break;
+                }
+            }
+        } else {
+            var maxPage = Math.ceil(photos.length / galleryPaginationState.perPage) || 1;
+            if (galleryPaginationState.currentPage > maxPage) {
+                galleryPaginationState.currentPage = maxPage;
+            }
+        }
+
+        renderGalleryPhotosPage();
+    }
+
+    function goToGalleryPage(page) {
+        var totalPages = Math.ceil(galleryPaginationState.photos.length / galleryPaginationState.perPage) || 1;
+        if (page < 1) page = 1;
+        if (page > totalPages) page = totalPages;
+        galleryPaginationState.currentPage = page;
+        renderGalleryPhotosPage();
+
+        var grid = document.getElementById('pub-photo-grid');
+        if (grid) {
+            grid.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    function renderGalleryPhotosPage() {
+        var grid = document.getElementById('pub-photo-grid');
+        if (!grid) return;
+        grid.innerHTML = '';
+
+        var photos = galleryPaginationState.photos || [];
+        var total = photos.length;
+        if (total === 0) return;
+
+        var perPage = galleryPaginationState.perPage || 20;
+        var totalPages = Math.ceil(total / perPage) || 1;
+        if (galleryPaginationState.currentPage > totalPages) galleryPaginationState.currentPage = totalPages;
+        if (galleryPaginationState.currentPage < 1) galleryPaginationState.currentPage = 1;
+        var curPage = galleryPaginationState.currentPage;
+
+        var startIdx = (curPage - 1) * perPage;
+        var endIdx = Math.min(startIdx + perPage, total);
+
         var fragment = document.createDocumentFragment();
-        for (var i = 0; i < photos.length; i++) {
+        for (var i = startIdx; i < endIdx; i++) {
             var p = photos[i];
             var div = document.createElement('div');
             div.className = 'photo-card';
@@ -4520,6 +4624,78 @@
             fragment.appendChild(div);
         }
         grid.appendChild(fragment);
+
+        renderGalleryPaginationControls(curPage, totalPages, total, startIdx + 1, endIdx);
+    }
+
+    function renderGalleryPaginationControls(curPage, totalPages, total, fromNum, toNum) {
+        var pagContainer = document.getElementById('pub-gallery-pagination');
+        if (!pagContainer) {
+            pagContainer = document.createElement('div');
+            pagContainer.id = 'pub-gallery-pagination';
+            pagContainer.style.cssText = 'margin-top: 30px; margin-bottom: 20px; display: flex; flex-direction: column; align-items: center; gap: 14px; width: 100%;';
+            var grid = document.getElementById('pub-photo-grid');
+            if (grid && grid.parentNode) {
+                grid.parentNode.insertBefore(pagContainer, grid.nextSibling);
+            }
+        }
+
+        if (totalPages <= 1) {
+            pagContainer.style.display = 'none';
+            return;
+        }
+
+        pagContainer.style.display = 'flex';
+
+        var html = '';
+        html += '<div style="font-size: 13px; color: var(--text-muted); font-weight: 500; text-align: center;">' +
+            'Menampilkan foto <strong style="color: var(--text-main);">' + fromNum + ' - ' + toNum + '</strong> dari <strong style="color: var(--accent-gold);">' + total + '</strong> foto momen' +
+            '</div>';
+
+        html += '<div style="display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center;">';
+
+        var prevDisabled = (curPage <= 1)
+            ? 'disabled style="opacity: 0.4; cursor: not-allowed; padding: 6px 14px; font-size: 13px; border-radius: 6px;"'
+            : 'onclick="goToGalleryPage(' + (curPage - 1) + ')" style="cursor: pointer; padding: 6px 14px; font-size: 13px; border-radius: 6px;"';
+        html += '<button type="button" class="btn btn-outline btn-sm" ' + prevDisabled + '>⬅️ Sebelumnya</button>';
+
+        var maxVisibleButtons = 5;
+        var startPage = Math.max(1, curPage - Math.floor(maxVisibleButtons / 2));
+        var endPage = Math.min(totalPages, startPage + maxVisibleButtons - 1);
+        if (endPage - startPage < maxVisibleButtons - 1) {
+            startPage = Math.max(1, endPage - maxVisibleButtons + 1);
+        }
+
+        if (startPage > 1) {
+            html += '<button type="button" class="btn btn-outline btn-sm" onclick="goToGalleryPage(1)" style="padding: 6px 12px; font-size: 13px; border-radius: 6px;">1</button>';
+            if (startPage > 2) {
+                html += '<span style="color: var(--text-muted); padding: 0 4px;">...</span>';
+            }
+        }
+
+        for (var p = startPage; p <= endPage; p++) {
+            if (p === curPage) {
+                html += '<button type="button" class="btn btn-sm" style="background: var(--accent-gold); color: #000; font-weight: 700; border: 1px solid var(--accent-gold); padding: 6px 13px; font-size: 13px; border-radius: 6px;">' + p + '</button>';
+            } else {
+                html += '<button type="button" class="btn btn-outline btn-sm" onclick="goToGalleryPage(' + p + ')" style="padding: 6px 12px; font-size: 13px; border-radius: 6px;">' + p + '</button>';
+            }
+        }
+
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) {
+                html += '<span style="color: var(--text-muted); padding: 0 4px;">...</span>';
+            }
+            html += '<button type="button" class="btn btn-outline btn-sm" onclick="goToGalleryPage(' + totalPages + ')" style="padding: 6px 12px; font-size: 13px; border-radius: 6px;">' + totalPages + '</button>';
+        }
+
+        var nextDisabled = (curPage >= totalPages)
+            ? 'disabled style="opacity: 0.4; cursor: not-allowed; padding: 6px 14px; font-size: 13px; border-radius: 6px;"'
+            : 'onclick="goToGalleryPage(' + (curPage + 1) + ')" style="cursor: pointer; padding: 6px 14px; font-size: 13px; border-radius: 6px;"';
+        html += '<button type="button" class="btn btn-outline btn-sm" ' + nextDisabled + '>Selanjutnya ➡️</button>';
+
+        html += '</div>';
+
+        pagContainer.innerHTML = html;
     }
 
     function openLightbox(photo) {
@@ -4841,9 +5017,26 @@
         if (!data) return;
         var slug = data.collectionSlug || (appState.activeCollectionData && appState.activeCollectionData.slug) || '';
 
+        var hasPhotos = !!(data.mainPhoto && (data.totalPhotos === undefined || data.totalPhotos > 0));
+        var mainKey = (hasPhotos && data.mainPhoto) ? (data.mainPhoto.photoId || data.mainPhoto.driveFileId) : null;
+        var badgeTextEl = document.getElementById('mon-qr-badge-text');
+        var hintEl = document.getElementById('mon-qr-target-hint');
+        var descEl = document.getElementById('mon-qr-heading-desc');
+
         if (slug) {
-            var galleryPublicUrl = getPublicGalleryUrl(slug);
-            setCachedQrCode('mon-qr-img', galleryPublicUrl, 260);
+            if (hasPhotos && mainKey) {
+                var directMainUrl = getDirectPhotoOrGalleryUrl(slug, mainKey);
+                setCachedQrCode('mon-qr-img', directMainUrl, 260);
+                if (badgeTextEl) badgeTextEl.innerText = 'FOTO TAMPIL';
+                if (descEl) descEl.innerHTML = 'Scan & Download<br><span style="color:#e2b86b;">Foto yang Sedang Tampil</span>';
+                if (hintEl) hintEl.innerText = '📸 Pindai untuk membuka foto ini langsung...';
+            } else {
+                var galleryPublicUrl = getPublicGalleryUrl(slug);
+                setCachedQrCode('mon-qr-img', galleryPublicUrl, 260);
+                if (badgeTextEl) badgeTextEl.innerText = 'GALERI EVENT';
+                if (descEl) descEl.innerHTML = 'Scan & Download<br><span style="color:#e2b86b;">Galeri Foto Event</span>';
+                if (hintEl) hintEl.innerText = '📲 Pindai untuk membuka seluruh galeri...';
+            }
         }
 
         if (data.collectionTitle) {
