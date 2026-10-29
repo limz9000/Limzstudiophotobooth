@@ -1753,6 +1753,8 @@
                     handleIncomingHotFileFromBridge(ev.data.photo || ev.data);
                 } else if (ev.data.type === 'LIMZ_TETHER_STATUS') {
                     handleIncomingTetherStatus(ev.data);
+                } else if (ev.data.type === 'LIMZ_UPLOAD_BATCH_COMPLETE') {
+                    handleIncomingUploadBatchComplete(ev.data);
                 } else {
                     handleIncomingLiveBroadcastPhoto(ev.data);
                 }
@@ -1802,6 +1804,11 @@
             try {
                 var data = JSON.parse(e.newValue);
                 handleIncomingLiveBroadcastPhoto(data);
+            } catch (err) { }
+        } else if (e.key === 'limz_upload_batch_broadcast' && e.newValue) {
+            try {
+                var batchData = JSON.parse(e.newValue);
+                handleIncomingUploadBatchComplete(batchData);
             } catch (err) { }
         } else if (e.key === 'limz_tether_hot_file' && e.newValue) {
             try {
@@ -1904,6 +1911,7 @@
 
     function broadcastNewUploadedPhoto(collId, photoObj) {
         var payload = {
+            type: 'LIMZ_PHOTO_UPLOADED',
             collectionId: collId,
             photo: photoObj,
             timestamp: Date.now()
@@ -1915,15 +1923,19 @@
             localStorage.setItem('limz_instant_photo_broadcast', JSON.stringify(payload));
         } catch (e) { }
 
-        if (appState.currentView === 'view-slideshow' && appState.activeCollectionId === collId) {
+        // Tangani langsung secara instan di tab aktif jika sedang di monitor slideshow atau galeri publik
+        if (appState.activeCollectionId === collId || !appState.activeCollectionId) {
             handleIncomingLiveBroadcastPhoto(payload);
         }
     }
 
     function handleIncomingLiveBroadcastPhoto(payload) {
         if (!payload || !payload.photo) return;
-        if (appState.currentView === 'view-slideshow') {
-            var p = payload.photo;
+        var p = payload.photo;
+        var collId = payload.collectionId;
+
+        // 1. MONITOR PANGGUNG (view-slideshow)
+        if (appState.currentView === 'view-slideshow' && (!collId || !appState.activeCollectionId || appState.activeCollectionId === collId)) {
             var displayUrl = p.dataUrl || p.thumbnailUrl || p.downloadUrl;
             var largeImg = document.getElementById('mon-large-img');
             var emptyEl = document.getElementById('mon-empty-state');
@@ -1945,10 +1957,54 @@
                 var hEl = document.getElementById('mon-qr-target-hint');
                 if (hEl) hEl.innerText = '📸 Pindai untuk membuka foto ini langsung...';
             }
-            showMonitorNewPhotoToast('📸 Foto Baru Saja Selesai Diunggah!');
+            showMonitorNewPhotoToast('📸 Foto / GIF Baru Saja Selesai Diunggah & Langsung Tayang!');
+
+            // Amankan ke memori perputaran monitor agar foto baru tidak tertimpa foto lama
+            if (!appState.monitorPhotos) appState.monitorPhotos = [];
+            var monKey = p.photoId || p.driveFileId;
+            var existsInMon = appState.monitorPhotos.some(function (item) {
+                return (item.photoId && item.photoId === monKey) || (item.driveFileId && item.driveFileId === monKey);
+            });
+            if (!existsInMon) {
+                appState.monitorPhotos.unshift(p);
+            }
+
             if (appState.activeCollectionId) {
                 fetchMonitorContent(appState.activeCollectionId, false);
             }
+        }
+
+        // 2. GALERI PUBLIK TAMU (view-public-gallery)
+        if (appState.currentView === 'view-public-gallery' && (!collId || !appState.activeCollectionId || appState.activeCollectionId === collId)) {
+            if (!appState.photos) appState.photos = [];
+            var photoKey = p.photoId || p.driveFileId;
+            var existsInGallery = appState.photos.some(function (item) {
+                return (photoKey && ((item.photoId && item.photoId === photoKey) || (item.driveFileId && item.driveFileId === photoKey))) ||
+                    (item.name && p.fileName && item.name === p.fileName);
+            });
+            if (!existsInGallery) {
+                appState.photos.unshift(p);
+                try {
+                    var targetCollId = collId || appState.activeCollectionId;
+                    if (targetCollId) {
+                        localStorage.setItem('limz_cached_photos_' + targetCollId, JSON.stringify(appState.photos));
+                    }
+                } catch (e) { }
+                renderGalleryPhotos(appState.photos);
+                showToast('📸 Foto / GIF baru saja dipublikasikan & langsung tayang di galeri!');
+            }
+        }
+    }
+
+    function handleIncomingUploadBatchComplete(payload) {
+        if (!payload) return;
+        var collId = payload.collectionId;
+        if (appState.activeCollectionId && collId && appState.activeCollectionId !== collId) return;
+
+        if (appState.currentView === 'view-public-gallery' && appState.activeCollectionId) {
+            loadGalleryPhotos(appState.activeCollectionId);
+        } else if (appState.currentView === 'view-slideshow' && appState.activeCollectionId) {
+            fetchMonitorContent(appState.activeCollectionId, true);
         }
     }
 
@@ -6636,6 +6692,19 @@
             }
             refreshUploadedPhotosForTabUpload();
 
+            // Siarkan batch upload selesai ke semua tab (Monitor & Galeri) secara realtime
+            var batchPayload = {
+                type: 'LIMZ_UPLOAD_BATCH_COMPLETE',
+                collectionId: collId,
+                timestamp: Date.now()
+            };
+            if (photoSyncChannel) {
+                try { photoSyncChannel.postMessage(batchPayload); } catch (e) { }
+            }
+            try {
+                localStorage.setItem('limz_upload_batch_broadcast', JSON.stringify(batchPayload));
+            } catch (e) { }
+
             if (uploadedFailCount > 0) {
                 showToast('⚠️ ' + uploadedSuccessCount + ' foto terunggah ke Cloud, ' + uploadedFailCount + ' foto tersimpan di antrian offline.');
             } else {
@@ -6909,6 +6978,20 @@
                     fetchMonitorContent(appState.activeCollectionId, true);
                 }
                 refreshUploadedPhotosForTabUpload();
+
+                // Siarkan batch upload selesai ke semua tab (Monitor & Galeri) secara realtime
+                var singleBatchPayload = {
+                    type: 'LIMZ_UPLOAD_BATCH_COMPLETE',
+                    collectionId: collId,
+                    timestamp: Date.now()
+                };
+                if (photoSyncChannel) {
+                    try { photoSyncChannel.postMessage(singleBatchPayload); } catch (e) { }
+                }
+                try {
+                    localStorage.setItem('limz_upload_batch_broadcast', JSON.stringify(singleBatchPayload));
+                } catch (e) { }
+
                 showToast('🎉 Foto #' + (targetIdx + 1) + ' (' + item.name + ') berhasil diunggah ke Cloud!');
             } else {
                 showToast('⚠️ ' + (msg || 'Gagal mengunggah foto.'));
@@ -7276,7 +7359,8 @@
                     var h = img.naturalHeight || img.height;
 
                     if (idx === 0 || !gifState.targetWidth) {
-                        var maxDim = 640;
+                        // Dimensi ditingkatkan dari 640px ke 880px agar hasil animasi GIF tajam, jernih, dan tidak buram di layar retina/HD
+                        var maxDim = 880;
                         var aspectRatio = w / h;
                         if (w >= h) {
                             gifState.targetWidth = Math.min(w, maxDim);
@@ -7293,6 +7377,8 @@
                     canvas.width = targetW;
                     canvas.height = targetH;
                     var ctx = canvas.getContext('2d');
+                    ctx.imageSmoothingEnabled = true;
+                    ctx.imageSmoothingQuality = 'high';
 
                     // Menggambar foto proporsional ke canvas tanpa distorsi / gepeng
                     var frameAspect = w / h;
@@ -7361,7 +7447,7 @@
                         }
                     }
 
-                    processed[idx] = canvas.toDataURL('image/jpeg', 0.85);
+                    processed[idx] = canvas.toDataURL('image/jpeg', 0.92);
                 } catch (err) {
                     console.warn('Gagal render canvas frame GIF ' + idx, err);
                     processed[idx] = rawSrc;
@@ -7452,7 +7538,7 @@
         if (spinner) spinner.style.display = 'flex';
 
         var intervalSec = Math.max(0.08, (gifState.speedMs || 250) / 1000);
-        var finalW = gifState.targetWidth || 480;
+        var finalW = gifState.targetWidth || 640;
         var finalH = gifState.targetHeight || Math.round(finalW * 1.5);
 
         var hasReturned = false;
@@ -7463,7 +7549,7 @@
                 resetGifButtonStates();
                 showToast('⚠️ Pembuatan GIF memakan waktu terlalu lama. Silakan coba kurangi jumlah foto.');
             }
-        }, 12000);
+        }, 18000);
 
         function runGifshotWorker(workerCount) {
             if (typeof gifshot !== 'undefined' && gifshot.createGIF) {
@@ -7473,6 +7559,7 @@
                         interval: intervalSec,
                         gifWidth: finalW,
                         gifHeight: finalH,
+                        sampleInterval: 8,
                         numWorkers: Math.max(1, workerCount)
                     }, function (obj) {
                         if (hasReturned) return;
