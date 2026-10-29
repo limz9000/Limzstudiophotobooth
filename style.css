@@ -1,4 +1,4 @@
-:root {
+﻿:root {
         --bg-dark: #191410;
         --bg-sidebar: #140f0c;
         --bg-body: #f7f4ee;
@@ -1362,7 +1362,7 @@
         justify-content: space-between;
         align-items: center;
         z-index: 99999;
-        transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.5s;
+        transition: opacity 0.2s ease, visibility 0.2s;
         padding: clamp(24px, 5vh, 48px) 20px;
         overflow: hidden;
         box-sizing: border-box;

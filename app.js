@@ -1,4 +1,4 @@
-var appState = {
+﻿var appState = {
         currentUser: null,
         currentView: 'view-landing',
         activeCollectionId: null,
@@ -27,6 +27,7 @@ var appState = {
         studioLogoDataUrl: null,
         tempUploadedLogoBase64: null,
         stagedPhotos: [],
+        splashDismissed: false,
         activeStagedIndex: 0,
         isOnline: navigator.onLine,
         pendingOfflineUploadsCount: 0,
@@ -4101,13 +4102,13 @@ var appState = {
                     ? preloadedColl.coverUrl
                     : (localStorage.getItem('limz_cover_' + slug) || '');
 
-                if (cachedCover) {
+                if (cachedCover && !appState.splashDismissed) {
                     // Jika ada cover tersimpan / preloaded, langsung tampilkan animasi cover pembuka seketika!
                     startThreeSecondSplashScreen({ slug: slug, coverUrl: cachedCover }, cachedCover);
                 }
 
                 if (preloadedColl && preloadedColl.id) {
-                    openPublicGallery(preloadedColl, !cachedCover);
+                    openPublicGallery(preloadedColl, false);
                 } else {
                     loadPublicGalleryBySlug(slug, false);
                 }
@@ -4130,10 +4131,10 @@ var appState = {
                         splashBg.style.backgroundImage = 'url(\'' + res.collection.coverUrl + '\')';
                     }
 
-                    // Jika splash belum berjalan (misal kunjungan pertama sebelum ada cache):
+                    // ANTI-LOOP GUARD: Jika tamu sudah klik OPEN GALLERY atau countdown sudah dismiss, JANGAN PERNAH re-trigger
                     var splash = document.getElementById('gallery-splash-loader');
-                    var isSplashActive = splash && splash.style.display !== 'none' && splash.style.opacity !== '0';
-                    if (!isSplashActive) {
+                    var isSplashVisible = splash && splash.style.display !== 'none' && splash.style.opacity !== '0';
+                    if (!isSplashVisible && !appState.splashDismissed) {
                         openPublicGallery(res.collection, true);
                     } else {
                         openPublicGallery(res.collection, false);
@@ -4233,9 +4234,9 @@ var appState = {
 
         switchView('view-public-gallery');
 
-        if (withSplash) {
+        if (withSplash && !appState.splashDismissed) {
             startThreeSecondSplashScreen(coll, cover);
-        } else {
+        } else if (appState.splashDismissed) {
             dismissSplashScreen();
         }
 
@@ -4244,6 +4245,7 @@ var appState = {
 
         if (appState.galleryPollInterval) clearInterval(appState.galleryPollInterval);
         appState.galleryPollInterval = setInterval(function () {
+            if (document.hidden) return; // Menghemat baterai & kuota saat browser di background
             if (appState.activeCollectionId && appState.currentView === 'view-public-gallery') {
                 google.script.run
                     .withSuccessHandler(function (res) {
@@ -4256,13 +4258,15 @@ var appState = {
                     })
                     .getPhotosByCollection(appState.activeCollectionId, 1, 0, false);
             }
-        }, 3500);
+        }, 18000); // Polling santai 18 detik, ringan dan bebas lag
 
         google.script.run.logActivity(coll.id, 'PageView', '-', navigator.userAgent);
     }
 
     var splashCountdownTimer = null;
     function startThreeSecondSplashScreen(coll, coverUrl) {
+        if (appState.splashDismissed) return;
+
         var splash = document.getElementById('gallery-splash-loader');
         var bg = document.getElementById('splash-bg-overlay');
         var countEl = document.getElementById('splash-countdown-num');
@@ -4274,6 +4278,7 @@ var appState = {
 
         if (!splash) return;
         splash.style.display = 'flex';
+        splash.style.pointerEvents = 'auto';
         splash.style.opacity = '1';
 
         var secondsLeft = 3;
@@ -4282,31 +4287,38 @@ var appState = {
         if (splashCountdownTimer) clearInterval(splashCountdownTimer);
 
         splashCountdownTimer = setInterval(function () {
+            if (appState.splashDismissed) {
+                clearInterval(splashCountdownTimer);
+                splashCountdownTimer = null;
+                return;
+            }
             secondsLeft--;
             if (secondsLeft > 0) {
                 if (countEl) {
                     countEl.innerText = secondsLeft;
                 }
             } else {
-                if (appState.activeCollectionId || secondsLeft <= -2) {
-                    clearInterval(splashCountdownTimer);
-                    dismissSplashScreen();
-                } else {
-                    if (countEl) countEl.innerText = '1';
-                }
+                clearInterval(splashCountdownTimer);
+                splashCountdownTimer = null;
+                dismissSplashScreen();
             }
         }, 1000);
     }
 
     function dismissSplashScreen() {
-        if (splashCountdownTimer) clearInterval(splashCountdownTimer);
+        appState.splashDismissed = true; // KUNCI MUTLAK: Sekali ditutup, tidak akan pernah bisa looping lagi
+        if (splashCountdownTimer) {
+            clearInterval(splashCountdownTimer);
+            splashCountdownTimer = null;
+        }
         var splash = document.getElementById('gallery-splash-loader');
         if (splash) {
             splash.style.opacity = '0';
+            splash.style.pointerEvents = 'none';
             setTimeout(function () {
                 splash.style.display = 'none';
                 checkAutoOpenDirectPhoto();
-            }, 500);
+            }, 120); // Respon instan 120ms
         } else {
             checkAutoOpenDirectPhoto();
         }
@@ -5703,20 +5715,33 @@ var appState = {
                 return;
             }
 
-            // 1. Buka Modal Langsung Seketika (0 milidetik jeda visual!)
+            // 1. Respon Visual Cepat pada Tombol
+            var btn = document.getElementById('btn-create-gif');
+            if (btn) {
+                btn.style.opacity = '0.7';
+                btn.style.pointerEvents = 'none';
+            }
+
+            // 2. Buka Modal Langsung Seketika (0 milidetik jeda visual!)
             openModal('modal-gif-creator');
 
-            // 2. Aktifkan visual spinner pemrosesan
+            // 3. Aktifkan visual spinner pemrosesan
             var spinner = document.getElementById('gif-render-spinner');
             if (spinner) spinner.style.display = 'flex';
 
-            // 3. Tampilkan frame pertama segera agar kanvas tidak tampak kosong
+            // 4. Tampilkan frame pertama segera agar kanvas tidak tampak kosong
             var previewImg = document.getElementById('gif-preview-img');
             if (previewImg && appState.stagedPhotos[0]) {
                 previewImg.src = appState.stagedPhotos[0].dataUrl || appState.stagedPhotos[0].originalDataUrl || '';
             }
 
-            // 4. Inisialisasi daftar pilihan foto antrian
+            // 5. Pulihkan tombol
+            if (btn) {
+                btn.style.opacity = '1';
+                btn.style.pointerEvents = 'auto';
+            }
+
+            // 6. Inisialisasi daftar pilihan foto antrian
             gifState.selectedIndices = appState.stagedPhotos.map(function (_, idx) { return idx; });
             renderGifPhotoPickerUI();
 
@@ -5726,11 +5751,18 @@ var appState = {
             var sliderEl = document.getElementById('slider-gif-speed');
             updateGifSpeed(sliderEl ? sliderEl.value : 250);
 
-            // 5. Render live preview animasi
-            renderLiveGifPreview();
+            // 7. Render live preview animasi di event tick berikutnya agar modal tampil mulus seketika
+            setTimeout(function () {
+                renderLiveGifPreview();
+            }, 30);
         } catch (e) {
             console.error('Error saat membuka modal GIF:', e);
             showToast('⚠️ Gagal membuka pembuat animasi GIF: ' + e.message);
+            var btnErr = document.getElementById('btn-create-gif');
+            if (btnErr) {
+                btnErr.style.opacity = '1';
+                btnErr.style.pointerEvents = 'auto';
+            }
         }
     }
 
@@ -6034,8 +6066,18 @@ var appState = {
         if (spinner) spinner.style.display = 'flex';
 
         var intervalSec = Math.max(0.08, (gifState.speedMs || 250) / 1000);
-        var finalW = Math.min(540, gifState.targetWidth || 540);
-        var finalH = Math.min(540, gifState.targetHeight || 540);
+        var finalW = Math.min(480, gifState.targetWidth || 480);
+        var finalH = Math.min(480, gifState.targetHeight || 480);
+
+        var hasReturned = false;
+        var safetyTimeout = setTimeout(function () {
+            if (!hasReturned) {
+                hasReturned = true;
+                if (spinner) spinner.style.display = 'none';
+                resetGifButtonStates();
+                showToast('⚠️ Pembuatan GIF memakan waktu terlalu lama. Silakan coba kurangi jumlah foto.');
+            }
+        }, 12000);
 
         function runGifshotWorker(workerCount) {
             if (typeof gifshot !== 'undefined' && gifshot.createGIF) {
@@ -6045,18 +6087,22 @@ var appState = {
                         interval: intervalSec,
                         gifWidth: finalW,
                         gifHeight: finalH,
-                        numWorkers: workerCount
+                        numWorkers: Math.max(1, workerCount)
                     }, function (obj) {
+                        if (hasReturned) return;
+                        hasReturned = true;
+                        clearTimeout(safetyTimeout);
+                        if (spinner) spinner.style.display = 'none';
+
                         if (!obj.error) {
-                            if (spinner) spinner.style.display = 'none';
                             gifState.generatedDataUrl = obj.image;
                             if (callback) callback(obj.image);
                         } else {
-                            if (workerCount > 0) {
-                                console.warn('Worker gagal, beralih ke mode sinkron kanvas...');
-                                runGifshotWorker(0);
+                            if (workerCount > 1) {
+                                console.warn('Worker gagal, mencoba mode 1 worker...');
+                                hasReturned = false;
+                                runGifshotWorker(1);
                             } else {
-                                if (spinner) spinner.style.display = 'none';
                                 showToast('⚠️ Gagal membuat animasi GIF: ' + obj.error);
                                 resetGifButtonStates();
                             }
@@ -6064,23 +6110,29 @@ var appState = {
                     });
                 } catch (err) {
                     console.warn('Exception saat createGIF:', err);
-                    if (workerCount > 0) {
-                        runGifshotWorker(0);
-                    } else {
+                    if (workerCount > 1 && !hasReturned) {
+                        runGifshotWorker(1);
+                    } else if (!hasReturned) {
+                        hasReturned = true;
+                        clearTimeout(safetyTimeout);
                         if (spinner) spinner.style.display = 'none';
                         showToast('⚠️ Gagal membuat animasi GIF: ' + err.message);
                         resetGifButtonStates();
                     }
                 }
             } else {
-                if (spinner) spinner.style.display = 'none';
-                showToast('⚠️ Sedang memuat modul GIF, silakan coba sesaat lagi...');
-                resetGifButtonStates();
+                if (!hasReturned) {
+                    hasReturned = true;
+                    clearTimeout(safetyTimeout);
+                    if (spinner) spinner.style.display = 'none';
+                    showToast('⚠️ Modul GIF belum siap, silakan coba sesaat lagi...');
+                    resetGifButtonStates();
+                }
             }
         }
 
-        // Jalankan langsung dengan mode 0 workers (In-Page Canvas Sync) yang 100% aman di GAS iframe & Vercel
-        runGifshotWorker(0);
+        // Jalankan pembuatan GIF dengan worker optimal (2 workers)
+        runGifshotWorker(2);
     }
 
     function downloadCurrentGif() {
