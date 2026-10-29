@@ -660,28 +660,49 @@
 
                                 <div style="display: flex; flex-wrap: wrap; gap: 5px; justify-content: flex-start; align-items: center;">
                                     <button type="button" class="btn btn-outline btn-sm camera-src-btn"
-                                        onclick="triggerMobileCameraCapture(event)"
-                                        style="font-size: 10.5px; font-weight: 700; color: #b45309; border-color: #fde68a; background: #fffbeb; padding: 3px 8px;"
-                                        title="Buka Kamera DSLR / Mirrorless / HP langsung">
-                                        📸 DSLR
+                                        onclick="triggerPickLocalStorageFolder(event)"
+                                        style="font-size: 10.5px; font-weight: 700; color: #0284c7; border-color: #bae6fd; background: #f0f9ff; padding: 3px 8px;"
+                                        id="btn-pick-local-storage"
+                                        title="Pilih folder di PC/Laptop untuk menyimpan posisi hasil jepretan kamera">
+                                        📂 Simpan Lokal (PC)
                                     </button>
                                     <button type="button" class="btn btn-outline btn-sm camera-src-btn"
                                         onclick="triggerDslrHotFolderWatch(event)"
                                         style="font-size: 10.5px; font-weight: 700; color: #047857; border-color: #a7f3d0; background: #ecfdf5; padding: 3px 8px;"
                                         id="btn-tether-hotfolder"
-                                        title="Hubungkan folder lokal di laptop/PC tempat foto kamera disimpan">
+                                        title="Hubungkan folder kamera kabel USB / Hot Folder di laptop/PC">
                                         📁 Hubungkan Folder (PC)
+                                    </button>
+                                    <button type="button" class="btn btn-outline btn-sm camera-src-btn"
+                                        onclick="triggerIpadCameraUsbConnect(event)"
+                                        style="font-size: 10.5px; font-weight: 700; color: #7c3aed; border-color: #ddd6fe; background: #f5f3ff; padding: 3px 8px;"
+                                        id="btn-ipad-camera-usb"
+                                        title="Hubungkan kamera kabel data USB langsung di iPad / Tablet via Files / Roll">
+                                        📱 Kamera USB (iPad)
+                                    </button>
+                                    <button type="button" class="btn btn-outline btn-sm camera-src-btn"
+                                        onclick="triggerUsbCameraProbe(event)"
+                                        style="font-size: 10.5px; font-weight: 700; color: #b45309; border-color: #fde68a; background: #fffbeb; padding: 3px 8px;"
+                                        id="btn-probe-usb-cam"
+                                        title="Deteksi langsung perangkat kamera via kabel data USB (Sony, Canon, Nikon, Fuji, dll.)">
+                                        🔍 Deteksi USB
+                                    </button>
+                                    <button type="button" class="btn btn-outline btn-sm camera-src-btn"
+                                        onclick="triggerMobileCameraCapture(event)"
+                                        style="font-size: 10.5px; font-weight: 700; color: #0f766e; border-color: #99f6e4; background: #f0fdfa; padding: 3px 8px;"
+                                        title="Buka Live View Kamera DSLR / Mirrorless / Webcam langsung">
+                                        📸 Live View
                                     </button>
                                     <button type="button" class="btn btn-outline btn-sm camera-src-btn"
                                         onclick="openModal('modal-external-integrations')"
                                         style="font-size: 10.5px; font-weight: 700; color: #6366f1; border-color: #c7d2fe; background: #eef2ff; padding: 3px 8px;"
-                                        title="Panduan Integrasi Monitor+, Lightroom, dsb.">
-                                        🔌 Integrasi
+                                        title="Panduan Integrasi Kabel Data USB & Software Studio">
+                                        ⚙️ Panduan Kabel
                                     </button>
                                     <button type="button" class="btn btn-outline btn-sm camera-src-btn"
                                         onclick="openModal('modal-ipad-dslr-guide')"
                                         style="font-size: 10.5px; font-weight: 700; color: #475569; border-color: #cbd5e1; background: #f8fafc; padding: 3px 8px;">
-                                        ℹ️ Panduan
+                                        ℹ️ Bantuan
                                     </button>
                                     <input type="file" id="file-input-mobile-cam" accept="image/*" capture="environment"
                                         style="display: none;" onchange="handlePhotoFilesSelected(this.files)">
@@ -694,20 +715,33 @@
                                 <!-- IN-PAGE TETHER CONTROLLER & STATUS PANEL (AUTO DETECT SEMUA FORMAT FOTO & RAW) -->
                                 <div id="inpage-tether-panel" style="margin-top: 10px; padding: 10px 14px; background: rgba(0, 0, 0, 0.03); border: 1px solid var(--border-subtle); border-radius: 8px; display: flex; flex-direction: column; gap: 8px;">
                                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                                        <div style="display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; color: var(--text-main); flex-wrap: wrap;">
+                                            <span>📷 Kamera:</span>
+                                            <span id="hub-camera-badge" style="font-size: 11px; padding: 2px 8px; background: #f8fafc; color: #475569; border: 1px solid #cbd5e1; border-radius: 4px; font-weight: 700;">⚪ Siap Terhubung (Kabel USB)</span>
+                                        </div>
+                                        <div style="display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; color: var(--text-main); flex-wrap: wrap;">
+                                            <span>💾 Penyimpanan:</span>
+                                            <span id="hub-storage-badge" style="font-size: 11px; padding: 2px 8px; background: #f8fafc; color: #475569; border: 1px solid #cbd5e1; border-radius: 4px; font-weight: 700; cursor: pointer;" onclick="triggerPickLocalStorageFolder(event)" title="Klik untuk ubah lokasi penyimpanan jepretan lokal">📂 Belum Diatur (Klik di sini)</span>
+                                        </div>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
                                         <div style="display: flex; align-items: center; gap: 8px; font-size: 11.5px; font-weight: 600; color: var(--text-main);">
-                                            <span>📷 Sumber Terhubung:</span>
-                                            <span style="font-size: 11px; padding: 2px 8px; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; border-radius: 4px; font-weight: 700;">Folder PC &amp; Roll Foto iPad</span>
+                                            <span>⚡ Sumber Input:</span>
+                                            <span id="hub-source-mode-badge" style="font-size: 11px; padding: 2px 8px; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; border-radius: 4px; font-weight: 700;">Kabel Data USB (PC / iPad)</span>
                                         </div>
                                         <div id="tether-indicator-status" style="font-size: 11px; font-weight: 700; color: #64748b; display: inline-flex; align-items: center; gap: 6px;">
                                             <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #94a3b8;"></span>
-                                            <span>Belum Ada Sumber Terhubung</span>
+                                            <span>Menunggu Foto / Folder</span>
                                         </div>
                                     </div>
                                     <div id="tether-active-details" style="display: none; justify-content: space-between; align-items: center; font-size: 11.5px; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px; padding: 6px 10px; color: #047857; flex-wrap: wrap; gap: 8px;">
                                         <span id="tether-active-label" style="font-weight: 600;">🟢 Sumber: [Kamera Tether]</span>
-                                        <div style="display: flex; gap: 6px; align-items: center;">
+                                        <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
                                             <button type="button" class="btn btn-outline btn-sm" onclick="triggerQuickFolderRecheck(event)" style="font-size: 10.5px; padding: 2px 8px; color: #0284c7; border-color: #bae6fd; background: #fff; cursor: pointer;" title="Tarik foto baru yang baru masuk ke folder">
                                                 🔄 Tarik Foto Baru
+                                            </button>
+                                            <button type="button" class="btn btn-outline btn-sm" onclick="triggerPickLocalStorageFolder(event)" style="font-size: 10.5px; padding: 2px 8px; color: #047857; border-color: #a7f3d0; background: #fff; cursor: pointer;" title="Ubah folder simpan hasil jepretan">
+                                                📁 Ganti Folder Simpan
                                             </button>
                                             <button type="button" class="btn btn-outline btn-sm" onclick="stopInpageTetherWatcher(event)" style="font-size: 10.5px; padding: 2px 8px; color: #b91c1c; border-color: #fca5a5; background: #fff; cursor: pointer;">
                                                 ✕ Putus Koneksi

@@ -9,6 +9,9 @@
         activeSub2PhotoId: null,
         collections: [],
         photos: [],
+        localExportDirHandle: null,
+        localStorageFolderName: (typeof localStorage !== 'undefined' ? localStorage.getItem('limz_local_storage_folder_name') : '') || '',
+        detectedCameraModel: (typeof localStorage !== 'undefined' ? localStorage.getItem('limz_last_detected_camera') : '') || '',
         wishes: [],
         sensorWords: [],
         slideshowInterval: null,
@@ -387,6 +390,7 @@
         initCropDragEvents();
         initWatermarkDragEvents();
         initIndexedDB();
+        initCameraAndStorageHub();
         checkUrlRouting();
         initKeyboardShortcuts();
         var btnCreateGif = document.getElementById('btn-create-gif');
@@ -691,6 +695,459 @@
     }
 
     /* =========================================================================
+       MODUL UNIVERSAL CAMERA USB & LOCAL STORAGE HUB (PC, LAPTOP & IPAD/TABLET)
+       AUTO-DETEKSI MODEL KAMERA (SONY, CANON, NIKON, FUJIFILM, DLL.) VIA EXIF & USB
+       CUSTOM FOLDER PENYIMPANAN HASIL JEPRETAN LOKAL (DIRECT FS & INDEXEDDB)
+       ========================================================================= */
+
+    function isTabletOrMobileDevice() {
+        var ua = (typeof navigator !== 'undefined' && navigator.userAgent) ? navigator.userAgent : '';
+        var isTouch = ('ontouchstart' in window || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0));
+        var isIpad = /iPad/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        return isIpad || (isTouch && window.innerWidth <= 1024) || /Android|iPhone|iPod/i.test(ua);
+    }
+
+    function initCameraAndStorageHub() {
+        try {
+            var lastCam = localStorage.getItem('limz_last_detected_camera');
+            if (lastCam) {
+                appState.detectedCameraModel = lastCam;
+                updateCameraBadge(lastCam, 'Tersimpan');
+            } else {
+                updateCameraBadge('', '');
+            }
+
+            var lastFolder = localStorage.getItem('limz_local_storage_folder_name');
+            if (lastFolder) {
+                appState.localStorageFolderName = lastFolder;
+                updateLocalStorageBadge(lastFolder, 'Tersimpan');
+            } else if (isTabletOrMobileDevice()) {
+                updateLocalStorageBadge('Memori iPad (Internal)', 'IndexedDB Aktif');
+            } else {
+                updateLocalStorageBadge('', '');
+            }
+
+            var ipadBtn = document.getElementById('btn-ipad-camera-usb');
+            if (isTabletOrMobileDevice() && ipadBtn) {
+                ipadBtn.style.boxShadow = '0 0 0 2px #c7d2fe, 0 2px 8px rgba(124, 58, 237, 0.25)';
+                ipadBtn.style.fontWeight = '800';
+            }
+        } catch (e) {
+            console.warn('initCameraAndStorageHub err:', e);
+        }
+    }
+
+    function updateCameraBadge(cameraName, connectionType) {
+        var badge = document.getElementById('hub-camera-badge');
+        if (!badge) return;
+        if (cameraName) {
+            var label = cameraName;
+            if (connectionType) label += ' [' + connectionType + ']';
+            badge.innerHTML = '🟢 ' + escapeHtml(label);
+            badge.style.background = '#ecfdf5';
+            badge.style.color = '#047857';
+            badge.style.borderColor = '#a7f3d0';
+            badge.title = 'Kamera terdeteksi: ' + cameraName;
+        } else {
+            badge.innerHTML = '⚪ Siap Terhubung (Kabel USB)';
+            badge.style.background = '#f8fafc';
+            badge.style.color = '#475569';
+            badge.style.borderColor = '#cbd5e1';
+            badge.title = 'Sambungkan kamera via kabel data USB (Sony, Canon, Nikon, dll.)';
+        }
+    }
+
+    function updateLocalStorageBadge(folderName, statusText) {
+        var badge = document.getElementById('hub-storage-badge');
+        var btn = document.getElementById('btn-pick-local-storage');
+        if (!badge) return;
+        if (folderName) {
+            badge.innerHTML = '📂 ' + escapeHtml(folderName) + (statusText ? ' (' + statusText + ')' : '');
+            badge.style.background = '#f0f9ff';
+            badge.style.color = '#0284c7';
+            badge.style.borderColor = '#bae6fd';
+            badge.title = 'Lokasi penyimpanan jepretan lokal aktif: ' + folderName;
+            if (btn) {
+                var shortName = folderName.length > 14 ? (folderName.substr(0, 12) + '..') : folderName;
+                btn.innerHTML = '📂 ' + escapeHtml(shortName);
+                btn.style.background = '#e0f2fe';
+                btn.style.color = '#0369a1';
+            }
+        } else {
+            badge.innerHTML = '📂 Belum Diatur (Klik di sini)';
+            badge.style.background = '#f8fafc';
+            badge.style.color = '#475569';
+            badge.style.borderColor = '#cbd5e1';
+            if (btn) {
+                btn.innerHTML = '📂 Simpan Lokal (PC)';
+                btn.style.background = '#f0f9ff';
+                btn.style.color = '#0284c7';
+            }
+        }
+    }
+
+    function parseExifFromBuffer(buffer) {
+        if (!buffer || buffer.byteLength < 32) return null;
+        var view = new DataView(buffer);
+
+        var isJpeg = (view.getUint16(0, false) === 0xFFD8);
+        var tiffOffset = -1;
+        var littleEndian = false;
+
+        if (isJpeg) {
+            var offset = 2;
+            var len = view.byteLength;
+            while (offset < len - 4) {
+                var marker = view.getUint16(offset, false);
+                var markerLen = view.getUint16(offset + 2, false);
+                if (marker === 0xFFE1) {
+                    if (view.getUint32(offset + 4, false) === 0x45786966 && view.getUint16(offset + 8, false) === 0x0000) {
+                        tiffOffset = offset + 10;
+                        break;
+                    }
+                }
+                if ((marker & 0xFF00) !== 0xFF00) break;
+                offset += 2 + markerLen;
+            }
+        } else {
+            var sig = view.getUint16(0, false);
+            if (sig === 0x4949 || sig === 0x4D4D) {
+                tiffOffset = 0;
+            }
+        }
+
+        if (tiffOffset < 0 || tiffOffset + 8 > view.byteLength) return null;
+
+        var endianMark = view.getUint16(tiffOffset, false);
+        if (endianMark === 0x4949) {
+            littleEndian = true;
+        } else if (endianMark === 0x4D4D) {
+            littleEndian = false;
+        } else {
+            return null;
+        }
+
+        var firstIfdOffset = view.getUint32(tiffOffset + 4, littleEndian);
+        if (tiffOffset + firstIfdOffset + 2 > view.byteLength) return null;
+
+        var numEntries = view.getUint16(tiffOffset + firstIfdOffset, littleEndian);
+        var result = { make: '', model: '' };
+
+        function readString(strOffset, byteCount) {
+            if (strOffset + byteCount > view.byteLength) return '';
+            var s = '';
+            for (var i = 0; i < byteCount; i++) {
+                var b = view.getUint8(strOffset + i);
+                if (b === 0) break;
+                s += String.fromCharCode(b);
+            }
+            return s.trim();
+        }
+
+        var entryPos = tiffOffset + firstIfdOffset + 2;
+        for (var i = 0; i < numEntries; i++) {
+            if (entryPos + 12 > view.byteLength) break;
+            var tag = view.getUint16(entryPos, littleEndian);
+            var type = view.getUint16(entryPos + 2, littleEndian);
+            var count = view.getUint32(entryPos + 4, littleEndian);
+            var valOffset = view.getUint32(entryPos + 8, littleEndian);
+
+            var dataPos = (count <= 4 && type === 2) ? (entryPos + 8) : (tiffOffset + valOffset);
+
+            if (tag === 0x010F) {
+                result.make = readString(dataPos, count);
+            } else if (tag === 0x0110) {
+                result.model = readString(dataPos, count);
+            }
+            entryPos += 12;
+        }
+
+        return result;
+    }
+
+    function parseExifFromDataUrl(dataUrl) {
+        if (!dataUrl || typeof dataUrl !== 'string') return null;
+        var commaIdx = dataUrl.indexOf(',');
+        if (commaIdx === -1) return null;
+        var base64 = dataUrl.substring(commaIdx + 1, commaIdx + 65536);
+        try {
+            var binary = atob(base64);
+            var len = binary.length;
+            var bytes = new Uint8Array(len);
+            for (var i = 0; i < len; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            return parseExifFromBuffer(bytes.buffer);
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function formatCameraModelName(make, model) {
+        if (!make && !model) return 'Kamera Tidak Dikenal';
+        var cleanMake = (make || '').trim();
+        var cleanModel = (model || '').trim();
+
+        var sonyMap = {
+            'ILCE-7M3': 'Sony Alpha A7 III',
+            'ILCE-7M4': 'Sony Alpha A7 IV',
+            'ILCE-7M2': 'Sony Alpha A7 II',
+            'ILCE-7': 'Sony Alpha A7',
+            'ILCE-7RM3': 'Sony Alpha A7R III',
+            'ILCE-7RM4': 'Sony Alpha A7R IV',
+            'ILCE-7RM5': 'Sony Alpha A7R V',
+            'ILCE-7SM3': 'Sony Alpha A7S III',
+            'ILCE-7C': 'Sony Alpha A7C',
+            'ILCE-7CM2': 'Sony Alpha A7C II',
+            'ILCE-6700': 'Sony Alpha A6700',
+            'ILCE-6600': 'Sony Alpha A6600',
+            'ILCE-6500': 'Sony Alpha A6500',
+            'ILCE-6400': 'Sony Alpha A6400',
+            'ILCE-6300': 'Sony Alpha A6300',
+            'ILCE-6100': 'Sony Alpha A6100',
+            'ILCE-6000': 'Sony Alpha A6000',
+            'ZV-E10': 'Sony ZV-E10',
+            'ZV-E10M2': 'Sony ZV-E10 II',
+            'ZV-E1': 'Sony ZV-E1',
+            'ZV-1': 'Sony ZV-1',
+            'ZV-1M2': 'Sony ZV-1 II',
+            'ILME-FX3': 'Sony FX3 Cinema',
+            'ILME-FX30': 'Sony FX30 Cinema'
+        };
+
+        if (sonyMap[cleanModel]) return sonyMap[cleanModel];
+
+        if (/ILCE-/i.test(cleanModel)) {
+            return 'Sony Alpha ' + cleanModel.replace(/ILCE-/i, 'A');
+        }
+
+        if (/Canon/i.test(cleanMake) || /EOS/i.test(cleanModel)) {
+            var cModel = cleanModel;
+            if (!/Canon/i.test(cModel)) cModel = 'Canon ' + cModel;
+            return cModel;
+        }
+
+        if (/Nikon/i.test(cleanMake) || /^NIKON/i.test(cleanModel) || /^Zs*d/i.test(cleanModel)) {
+            var nModel = cleanModel.replace(/NIKONs+/i, '');
+            return 'Nikon ' + nModel;
+        }
+
+        if (/FUJIFILM/i.test(cleanMake) || /X-T|X-S|X-H|X100/i.test(cleanModel)) {
+            var fModel = cleanModel.replace(/FUJIFILMs+/i, '');
+            return 'Fujifilm ' + fModel;
+        }
+
+        if (/Panasonic/i.test(cleanMake) || /DC-|DMC-/i.test(cleanModel)) {
+            return 'Panasonic ' + cleanModel;
+        }
+
+        return (cleanMake ? (cleanMake + ' ') : '') + cleanModel;
+    }
+
+    function detectCameraFromPhotoBufferOrBlob(fileOrBlobOrDataUrl) {
+        if (!fileOrBlobOrDataUrl) return;
+
+        if (typeof fileOrBlobOrDataUrl === 'string' && fileOrBlobOrDataUrl.indexOf('data:') === 0) {
+            var parsed = parseExifFromDataUrl(fileOrBlobOrDataUrl);
+            if (parsed && (parsed.make || parsed.model)) {
+                var camModel = formatCameraModelName(parsed.make, parsed.model);
+                appState.detectedCameraModel = camModel;
+                try { localStorage.setItem('limz_last_detected_camera', camModel); } catch (e) { }
+                updateCameraBadge(camModel, 'Kabel USB');
+            }
+            return;
+        }
+
+        if (fileOrBlobOrDataUrl instanceof Blob || (typeof File !== 'undefined' && fileOrBlobOrDataUrl instanceof File)) {
+            var slice = fileOrBlobOrDataUrl.slice(0, 65536);
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                var buffer = e.target.result;
+                var parsed = parseExifFromBuffer(buffer);
+                if (parsed && (parsed.make || parsed.model)) {
+                    var camModel = formatCameraModelName(parsed.make, parsed.model);
+                    appState.detectedCameraModel = camModel;
+                    try { localStorage.setItem('limz_last_detected_camera', camModel); } catch (e2) { }
+                    updateCameraBadge(camModel, 'Kabel USB');
+                }
+            };
+            reader.readAsArrayBuffer(slice);
+        }
+    }
+
+    function dataUrlToBlob(dataUrl) {
+        var parts = dataUrl.split(',');
+        var mime = (parts[0].match(/:(.*?);/) || [])[1] || 'image/jpeg';
+        var binary = atob(parts[1]);
+        var len = binary.length;
+        var u8arr = new Uint8Array(len);
+        for (var i = 0; i < len; i++) {
+            u8arr[i] = binary.charCodeAt(i);
+        }
+        return new Blob([u8arr], { type: mime });
+    }
+
+    async function triggerPickLocalStorageFolder(e) {
+        if (e && e.stopPropagation) e.stopPropagation();
+
+        var isInIframe = (window.self !== window.top);
+        if (!isInIframe && typeof window.showDirectoryPicker === 'function') {
+            try {
+                var dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                if (dirHandle) {
+                    appState.localExportDirHandle = dirHandle;
+                    appState.localStorageFolderName = dirHandle.name;
+                    try { localStorage.setItem('limz_local_storage_folder_name', dirHandle.name); } catch (e) { }
+                    updateLocalStorageBadge(dirHandle.name, 'Aktif (PC)');
+                    showToast('📁 Folder penyimpanan jepretan lokal aktif: "' + dirHandle.name + '". Setiap foto akan otomatis disimpan ke sini!');
+                    return;
+                }
+            } catch (err) {
+                if (err && err.name === 'AbortError') return;
+                console.warn('showDirectoryPicker err:', err);
+            }
+        }
+
+        if (isTabletOrMobileDevice()) {
+            showToast('📱 Mode iPad / Tablet: Foto tersimpan otomatis di Memori Flash Internal iPad (IndexedDB). Anda dapat mengekspor atau menyalin kapan saja.');
+            updateLocalStorageBadge('Memori iPad (Internal)', 'IndexedDB Aktif');
+            return;
+        }
+
+        openNativeFolderBridgeWindow();
+    }
+
+    async function savePhotoToLocalDirectory(fileName, blobOrDataUrl) {
+        if (appState.localExportDirHandle) {
+            try {
+                var fileHandle = await appState.localExportDirHandle.getFileHandle(fileName, { create: true });
+                var writable = await fileHandle.createWritable();
+                var blob = (typeof blobOrDataUrl === 'string' && blobOrDataUrl.indexOf('data:') === 0)
+                    ? dataUrlToBlob(blobOrDataUrl)
+                    : blobOrDataUrl;
+                await writable.write(blob);
+                await writable.close();
+                console.log('Saved to local PC storage folder:', fileName);
+            } catch (err) {
+                console.warn('Gagal menyimpan file ke local storage:', err);
+            }
+        }
+
+        savePhotoToIpadStorage(fileName, blobOrDataUrl);
+    }
+
+    function savePhotoToIpadStorage(fileName, blobOrDataUrl) {
+        if (!('indexedDB' in window)) return;
+        try {
+            var request = indexedDB.open('LimzStudioLocalStorage', 1);
+            request.onupgradeneeded = function (e) {
+                var db = e.target.result;
+                if (!db.objectStoreNames.contains('photos')) {
+                    db.createObjectStore('photos', { keyPath: 'name' });
+                }
+            };
+            request.onsuccess = function (e) {
+                var db = e.target.result;
+                var dataUrl = (typeof blobOrDataUrl === 'string') ? blobOrDataUrl : null;
+                if (dataUrl) {
+                    try {
+                        var tx = db.transaction(['photos'], 'readwrite');
+                        tx.objectStore('photos').put({ name: fileName, dataUrl: dataUrl, timestamp: Date.now() });
+                    } catch (txErr) { }
+                } else if (blobOrDataUrl instanceof Blob) {
+                    var reader = new FileReader();
+                    reader.onload = function (evt) {
+                        try {
+                            var txx = db.transaction(['photos'], 'readwrite');
+                            txx.objectStore('photos').put({ name: fileName, dataUrl: evt.target.result, timestamp: Date.now() });
+                        } catch (txErr2) { }
+                    };
+                    reader.readAsDataURL(blobOrDataUrl);
+                }
+            };
+        } catch (err) {
+            console.warn('Gagal simpan ke iPad local storage:', err);
+        }
+    }
+
+    function triggerExportIpadLocalStoragePhotos() {
+        if (!('indexedDB' in window)) {
+            showToast('IndexedDB tidak didukung pada browser ini.');
+            return;
+        }
+        var request = indexedDB.open('LimzStudioLocalStorage', 1);
+        request.onsuccess = function (e) {
+            var db = e.target.result;
+            if (!db.objectStoreNames.contains('photos')) {
+                showToast('Belum ada foto yang tersimpan di penyimpanan lokal iPad.');
+                return;
+            }
+            var tx = db.transaction(['photos'], 'readonly');
+            var store = tx.objectStore('photos');
+            var getAll = store.getAll();
+            getAll.onsuccess = function () {
+                var list = getAll.result || [];
+                if (list.length === 0) {
+                    showToast('Belum ada foto yang tersimpan di penyimpanan lokal iPad.');
+                    return;
+                }
+                showToast('📥 Mengunduh ' + list.length + ' foto dari penyimpanan lokal...');
+                list.forEach(function (item, idx) {
+                    setTimeout(function () {
+                        var a = document.createElement('a');
+                        a.href = item.dataUrl;
+                        a.download = item.name;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                    }, idx * 300);
+                });
+            };
+        };
+    }
+
+    function triggerIpadCameraUsbConnect(e) {
+        if (e && e.stopPropagation) e.stopPropagation();
+        var ipadInput = document.getElementById('file-input-ipad-roll');
+        if (ipadInput) {
+            showToast('📱 Hubungkan kabel data USB kamera ke iPad. Di dialog yang muncul: pilih "Choose Files" (buka kamera di sidebar Files) atau "Photo Library".');
+            ipadInput.click();
+        }
+    }
+
+    async function triggerUsbCameraProbe(e) {
+        if (e && e.stopPropagation) e.stopPropagation();
+        if (!navigator.usb || typeof navigator.usb.requestDevice !== 'function') {
+            showToast('ℹ️ Sambungkan kabel data USB kamera Anda. Model kamera (Sony, Canon, Nikon, Fuji, dll.) akan otomatis terdeteksi begitu foto jepretan masuk!');
+            return;
+        }
+        try {
+            var device = await navigator.usb.requestDevice({
+                filters: [
+                    { vendorId: 0x054c }, // Sony
+                    { vendorId: 0x04a9 }, // Canon
+                    { vendorId: 0x04b0 }, // Nikon
+                    { vendorId: 0x04cb }, // Fujifilm
+                    { vendorId: 0x04da }, // Panasonic
+                    { vendorId: 0x07b4 }, // Olympus/OM
+                    { vendorId: 0x0a17 }  // Pentax
+                ]
+            });
+            if (device) {
+                var camName = device.productName || ('Kamera USB (' + device.vendorId.toString(16) + ')');
+                appState.detectedCameraModel = camName;
+                try { localStorage.setItem('limz_last_detected_camera', camName); } catch (e) { }
+                updateCameraBadge(camName, 'Kabel USB');
+                showToast('🟢 Kamera USB Terdeteksi: ' + camName);
+            }
+        } catch (err) {
+            if (err && err.name === 'NotFoundError') return;
+            console.warn('WebUSB probe:', err);
+            showToast('ℹ️ Kamera Anda siap digunakan via kabel data USB!');
+        }
+    }
+
+    /* =========================================================================
        MODUL IN-PAGE TETHER FOLDER WATCHER (NOL POPUP / SINGLE-SCREEN WORKFLOW)
        DENGAN FILTER FORMAT FOTO (HANYA JPEG / HANYA RAW / SEMUA)
        & NATIVE WINDOWS "SELECT FOLDER" DIALOG TRIGGER
@@ -814,8 +1271,11 @@
             '<div class="card">' +
             '<div class="icon">📁</div>' +
             '<h3>Hubungkan Folder Kamera (PC)</h3>' +
-            '<p>Klik tombol di bawah untuk membuka dialog Windows asli bertuliskan <b>"Select Folder"</b>. Pilih folder tempat kamera / Lightroom menyimpan foto.</p>' +
-            '<button id="btn-pick">📂 Pilih Folder (Select Folder)</button>' +
+            '<p>Klik tombol di bawah untuk memilih folder kamera (input) atau folder penyimpanan lokal (output) menggunakan dialog asli Windows bertuliskan <b>"Select Folder"</b>.</p>' +
+            '<div style="display:flex; flex-direction:column; gap:8px; align-items:center;">' +
+            '<button id="btn-pick">📂 Pilih Folder Kamera Tether (Input)</button>' +
+            '<button id="btn-pick-storage" style="background:#0284c7; box-shadow:0 4px 14px rgba(2,132,199,0.35);">💾 Pilih Folder Simpan Lokal (Output)</button>' +
+            '</div>' +
             '<div class="status-box" id="status-box">⚪ Menunggu pemilihan folder...</div>' +
             '<div class="note">💡 Jendela ini memantau foto baru secara real-time. Biarkan jendela ini tetap terbuka selama sesi pemotretan berlangsung.</div>' +
             '</div>' +
@@ -886,6 +1346,29 @@
             '      if (broadcast) { broadcast.postMessage({ type: "LIMZ_TETHER_STATUS", active: true, folderName: dirHandle.name, syncCount: 0 }); }' +
             '      await scan();' +
             '      setInterval(scan, 1500);' +
+            '    }' +
+            '  } catch(err) {' +
+            '    if (err && err.name === "AbortError") return;' +
+            '    sb.innerText = "Gagal: " + err.message;' +
+            '  }' +
+            '});' +
+            'document.getElementById("btn-pick-storage").addEventListener("click", async function() {' +
+            '  var sb = document.getElementById("status-box");' +
+            '  try {' +
+            '    if (typeof window.showDirectoryPicker !== "function") {' +
+            '      sb.innerText = "Browser tidak mendukung showDirectoryPicker. Harap gunakan Chrome atau Edge di PC.";' +
+            '      return;' +
+            '    }' +
+            '    var storageHandle = await window.showDirectoryPicker({ mode: "readwrite" });' +
+            '    if (storageHandle) {' +
+            '      sb.innerHTML = "💾 Folder simpan aktif: <b>" + storageHandle.name + "</b>";' +
+            '      document.getElementById("btn-pick-storage").innerText = "💾 Folder: " + storageHandle.name;' +
+            '      if (window.opener) {' +
+            '        window.opener.postMessage({ type: "LIMZ_LOCAL_STORAGE_HANDLE", handle: storageHandle, folderName: storageHandle.name }, "*");' +
+            '      }' +
+            '      if (broadcast) {' +
+            '        broadcast.postMessage({ type: "LIMZ_LOCAL_STORAGE_HANDLE", folderName: storageHandle.name });' +
+            '      }' +
             '    }' +
             '  } catch(err) {' +
             '    if (err && err.name === "AbortError") return;' +
@@ -1239,7 +1722,13 @@
 
     window.addEventListener('message', function (ev) {
         if (!ev.data) return;
-        if (ev.data.type === 'LIMZ_TETHER_HANDLE' && ev.data.handle) {
+        if (ev.data.type === 'LIMZ_LOCAL_STORAGE_HANDLE' && ev.data.handle) {
+            appState.localExportDirHandle = ev.data.handle;
+            appState.localStorageFolderName = ev.data.folderName || ev.data.handle.name;
+            try { localStorage.setItem('limz_local_storage_folder_name', appState.localStorageFolderName); } catch (e) { }
+            updateLocalStorageBadge(appState.localStorageFolderName, 'Aktif (PC)');
+            showToast('📂 Folder penyimpanan jepretan lokal aktif: "' + appState.localStorageFolderName + '"');
+        } else if (ev.data.type === 'LIMZ_TETHER_HANDLE' && ev.data.handle) {
             activateInpageTetherWithHandle(ev.data.handle, ev.data.formatFilter);
             if (activeBridgeWindow && !activeBridgeWindow.closed) {
                 try { activeBridgeWindow.close(); } catch (e) { }
@@ -1276,6 +1765,12 @@
         for (var i = 0; i < photos.length; i++) {
             var data = photos[i];
             if (!data || !data.dataUrl) continue;
+
+            detectCameraFromPhotoBufferOrBlob(data.dataUrl);
+            if (appState.localExportDirHandle || isTabletOrMobileDevice()) {
+                savePhotoToLocalDirectory(data.name, data.dataUrl);
+            }
+
             var exists = appState.stagedPhotos.some(function (p) {
                 return p.name === data.name && Math.abs(p.size - (data.size || 0)) < 100;
             });
@@ -5949,6 +6444,11 @@
 
         uniqueFiles.forEach(function (file) {
             function appendLoadedPhoto(processedFile, dataUrl) {
+                detectCameraFromPhotoBufferOrBlob(processedFile);
+                if (appState.localExportDirHandle || isTabletOrMobileDevice()) {
+                    savePhotoToLocalDirectory(processedFile.name, dataUrl);
+                }
+
                 var newStaged = {
                     id: 'staged_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6) + '_' + loadedCount,
                     file: processedFile,
