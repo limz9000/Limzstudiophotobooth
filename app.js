@@ -7275,28 +7275,44 @@
                     var w = img.naturalWidth || img.width;
                     var h = img.naturalHeight || img.height;
 
-                    var maxGifDim = 540;
-                    if (w > maxGifDim || h > maxGifDim) {
+                    if (idx === 0 || !gifState.targetWidth) {
+                        var maxDim = 640;
+                        var aspectRatio = w / h;
                         if (w >= h) {
-                            h = Math.round((h * maxGifDim) / w);
-                            w = maxGifDim;
+                            gifState.targetWidth = Math.min(w, maxDim);
+                            gifState.targetHeight = Math.round(gifState.targetWidth / aspectRatio);
                         } else {
-                            w = Math.round((w * maxGifDim) / h);
-                            h = maxGifDim;
+                            gifState.targetHeight = Math.min(h, maxDim);
+                            gifState.targetWidth = Math.round(gifState.targetHeight * aspectRatio);
                         }
                     }
 
-                    if (idx === 0 || !gifState.targetWidth) {
-                        gifState.targetWidth = w;
-                        gifState.targetHeight = h;
-                    }
+                    var targetW = gifState.targetWidth;
+                    var targetH = gifState.targetHeight;
 
-                    canvas.width = w;
-                    canvas.height = h;
+                    canvas.width = targetW;
+                    canvas.height = targetH;
                     var ctx = canvas.getContext('2d');
 
+                    // Menggambar foto proporsional ke canvas tanpa distorsi / gepeng
+                    var frameAspect = w / h;
+                    var baseAspect = targetW / targetH;
+                    var drawX = 0, drawY = 0, drawW = targetW, drawH = targetH;
+
+                    if (Math.abs(frameAspect - baseAspect) > 0.02) {
+                        if (frameAspect > baseAspect) {
+                            drawH = targetH;
+                            drawW = Math.round(targetH * frameAspect);
+                            drawX = Math.round((targetW - drawW) / 2);
+                        } else {
+                            drawW = targetW;
+                            drawH = Math.round(targetW / frameAspect);
+                            drawY = Math.round((targetH - drawH) / 2);
+                        }
+                    }
+
                     ctx.filter = filterStr;
-                    ctx.drawImage(img, 0, 0, w, h);
+                    ctx.drawImage(img, drawX, drawY, drawW, drawH);
                     ctx.filter = 'none';
 
                     if (temp !== 0 || tint !== 0) {
@@ -7316,31 +7332,31 @@
 
                     if (withWm) {
                         if (customPngImg && customPngImg.complete && customPngImg.naturalWidth > 0) {
-                            var wmWidth = Math.round(w * wmScalePercent);
+                            var wmWidth = Math.round(targetW * wmScalePercent);
                             var aspect = customPngImg.naturalHeight / customPngImg.naturalWidth;
                             var wmHeight = Math.round(wmWidth * aspect);
-                            var maxX = Math.max(0, w - wmWidth);
-                            var maxY = Math.max(0, h - wmHeight);
+                            var maxX = Math.max(0, targetW - wmWidth);
+                            var maxY = Math.max(0, targetH - wmHeight);
                             var x = (wmPosXPercent >= 0.45 && wmPosXPercent <= 0.55)
-                            ? Math.round((canvas.width - wmWidth) / 2)
-                            : Math.round(maxX * wmPosXPercent);
-                        var y = (wmPosYPercent >= 0.45 && wmPosYPercent <= 0.55)
-                            ? Math.round((canvas.height - wmHeight) / 2)
-                            : Math.round(maxY * wmPosYPercent);
+                                ? Math.round((targetW - wmWidth) / 2)
+                                : Math.round(maxX * wmPosXPercent);
+                            var y = (wmPosYPercent >= 0.45 && wmPosYPercent <= 0.55)
+                                ? Math.round((targetH - wmHeight) / 2)
+                                : Math.round(maxY * wmPosYPercent);
                             ctx.save();
                             ctx.globalAlpha = wmOpacity;
                             ctx.drawImage(customPngImg, x, y, wmWidth, wmHeight);
                             ctx.restore();
                         } else {
-                            var fontSize = Math.max(14, Math.floor(w * 0.03));
+                            var fontSize = Math.max(14, Math.floor(targetW * 0.03));
                             ctx.font = 'bold ' + fontSize + 'px "Cinzel", Georgia, serif';
                             ctx.fillStyle = 'rgba(255, 255, 255, ' + wmOpacity + ')';
                             ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
                             ctx.shadowOffsetX = 2; ctx.shadowOffsetY = 2; ctx.shadowBlur = 5;
                             ctx.textAlign = (wmPosXPercent > 0.65) ? 'right' : ((wmPosXPercent < 0.35) ? 'left' : 'center');
                             var text = 'LIMZ STUDIO PHOTOBOOTH';
-                            var textX = Math.round(w * wmPosXPercent);
-                            var textY = Math.round(h * wmPosYPercent);
+                            var textX = Math.round(targetW * wmPosXPercent);
+                            var textY = Math.round(targetH * wmPosYPercent);
                             ctx.fillText(text, textX, textY);
                         }
                     }
@@ -7436,8 +7452,8 @@
         if (spinner) spinner.style.display = 'flex';
 
         var intervalSec = Math.max(0.08, (gifState.speedMs || 250) / 1000);
-        var finalW = Math.min(480, gifState.targetWidth || 480);
-        var finalH = Math.min(480, gifState.targetHeight || 480);
+        var finalW = gifState.targetWidth || 480;
+        var finalH = gifState.targetHeight || Math.round(finalW * 1.5);
 
         var hasReturned = false;
         var safetyTimeout = setTimeout(function () {
