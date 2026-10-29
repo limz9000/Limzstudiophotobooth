@@ -1270,7 +1270,7 @@
                                         📁 Unggah Logo PNG Transparan
                                     </button>
                                     <input type="file" id="file-input-watermark-png" accept="image/png,image/*"
-                                        style="display:none;" onchange="handleWatermarkPngSelected(this.files)">
+                                        style="display:none;" onclick="this.value=null;" onchange="handleWatermarkPngSelected(this.files)">
                                 </div>
 
                                 <div class="watermark-slider-grid"
@@ -1327,23 +1327,25 @@
                                         Preset Posisi:</span>
                                     <div style="display: flex; gap: 5px; flex-wrap: wrap;">
                                         <button type="button" class="btn btn-outline btn-sm"
-                                            onclick="applyWatermarkPreset(90, 90, 22)"
+                                            onclick="applyWatermarkPreset(92, 92, 22)"
                                             style="font-size: 10px; padding: 3px 8px;">Kanan Bawah</button>
                                         <button type="button" class="btn btn-outline btn-sm"
-                                            onclick="applyWatermarkPreset(50, 90, 22)"
-                                            style="font-size: 10px; padding: 3px 8px; font-weight: 700; border-color: var(--accent-gold); color: var(--accent-gold);">Tengah
-                                            Bawah</button>
+                                            onclick="applyWatermarkPreset(50, 92, 22)"
+                                            style="font-size: 10px; padding: 3px 8px; font-weight: 700; border-color: var(--accent-gold); color: var(--accent-gold);">Tengah Bawah</button>
                                         <button type="button" class="btn btn-outline btn-sm"
-                                            onclick="applyWatermarkPreset(10, 90, 22)"
+                                            onclick="applyWatermarkPreset(8, 92, 22)"
                                             style="font-size: 10px; padding: 3px 8px;">Kiri Bawah</button>
                                         <button type="button" class="btn btn-outline btn-sm"
-                                            onclick="applyWatermarkPreset(50, 50, 26)"
+                                            onclick="applyWatermarkPreset(50, 50, 24)"
                                             style="font-size: 10px; padding: 3px 8px;">Tengah</button>
                                         <button type="button" class="btn btn-outline btn-sm"
-                                            onclick="applyWatermarkPreset(90, 10, 22)"
+                                            onclick="applyWatermarkPreset(50, 8, 22)"
+                                            style="font-size: 10px; padding: 3px 8px;">Tengah Atas</button>
+                                        <button type="button" class="btn btn-outline btn-sm"
+                                            onclick="applyWatermarkPreset(92, 8, 22)"
                                             style="font-size: 10px; padding: 3px 8px;">Kanan Atas</button>
                                         <button type="button" class="btn btn-outline btn-sm"
-                                            onclick="applyWatermarkPreset(10, 10, 22)"
+                                            onclick="applyWatermarkPreset(8, 8, 22)"
                                             style="font-size: 10px; padding: 3px 8px;">Kiri Atas</button>
                                     </div>
                                 </div>

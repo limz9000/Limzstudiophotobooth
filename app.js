@@ -3252,6 +3252,44 @@
         showToast(isEnabled ? '✅ Watermark aktif pada foto.' : 'ℹ️ Watermark dinonaktifkan (pratinjau & upload polos/bersih).');
     }
 
+    function handleWatermarkPngSelected(files) {
+        if (!files || files.length === 0) return;
+        var file = files[0];
+        if (!file.type.match('image.*')) {
+            showToast('⚠️ Mohon pilih file gambar logo (PNG/JPG/WEBP).');
+            return;
+        }
+
+        var reader = new FileReader();
+        reader.onload = function (e) {
+            var dataUrl = e.target.result;
+            appState.customWatermarkPngData = dataUrl;
+            try {
+                localStorage.setItem('limz_custom_watermark_png', dataUrl);
+            } catch (err) {
+                console.warn('Logo PNG terlalu besar untuk localStorage:', err);
+            }
+
+            var img = new Image();
+            img.onload = function () {
+                appState.customWatermarkImgObj = img;
+                handleWatermarkToggleChange(true);
+                var toggle = document.getElementById('toggle-wm-enabled');
+                if (toggle) toggle.checked = true;
+
+                renderWatermarkPreviewUI(dataUrl);
+                updateWatermarkSimulatorDisplay();
+                showToast('✅ Logo watermark PNG berhasil dipasang di pratinjau & upload!');
+            };
+            img.onerror = function () {
+                showToast('❌ Gagal membaca gambar logo watermark.');
+            };
+            img.src = dataUrl;
+        };
+        reader.readAsDataURL(file);
+    }
+    window.handleWatermarkPngSelected = handleWatermarkPngSelected;
+
     function initWatermarkSettings() {
         var savedEnabled = localStorage.getItem('limz_wm_enabled');
         var isEnabled = (savedEnabled !== 'false');
@@ -3283,6 +3321,21 @@
         var simBox = document.getElementById('wm-simulator-overlay');
         if (simBox) {
             simBox.style.display = isEnabled ? 'block' : 'none';
+        }
+
+        // Muat logo kustom PNG dari localStorage jika ada
+        var savedCustomPng = localStorage.getItem('limz_custom_watermark_png');
+        if (savedCustomPng) {
+            appState.customWatermarkPngData = savedCustomPng;
+            var cImg = new Image();
+            cImg.onload = function () {
+                appState.customWatermarkImgObj = cImg;
+                renderWatermarkPreviewUI(savedCustomPng);
+                updateWatermarkSimulatorDisplay();
+            };
+            cImg.src = savedCustomPng;
+        } else {
+            renderWatermarkPreviewUI(null);
         }
     }
 
@@ -3345,21 +3398,39 @@
         overlay.style.width = scale + '%';
         overlay.style.opacity = opacity;
 
-        var maxLeft = 100 - scale;
-        overlay.style.left = Math.max(0, Math.min(maxLeft, maxLeft * (posX / 100))) + '%';
-
-        var aspect = (appState.customWatermarkImgObj && appState.customWatermarkImgObj.naturalWidth)
-            ? (appState.customWatermarkImgObj.naturalHeight / appState.customWatermarkImgObj.naturalWidth)
-            : 0.35;
-
-        var stageFrame = document.getElementById('wm-stage-frame');
-        var frameAspect = (stageFrame && stageFrame.clientHeight > 0)
-            ? (stageFrame.clientWidth / stageFrame.clientHeight)
-            : 1.0;
-
-        var heightPercent = (scale * aspect) * frameAspect;
-        var maxTop = Math.max(0, 100 - heightPercent);
-        overlay.style.top = Math.max(0, Math.min(maxTop, maxTop * (posY / 100))) + '%';
+        // Penyelarasan Presisi Berdasarkan Anchor Point Center & Presets
+        if (posX >= 45 && posX <= 55) {
+            overlay.style.left = '50%';
+            if (posY >= 45 && posY <= 55) {
+                overlay.style.top = '50%';
+                overlay.style.transform = 'translate(-50%, -50%)';
+            } else if (posY > 80) {
+                overlay.style.top = Math.min(94, posY) + '%';
+                overlay.style.transform = 'translate(-50%, -100%)';
+            } else if (posY < 20) {
+                overlay.style.top = Math.max(4, posY) + '%';
+                overlay.style.transform = 'translateX(-50%)';
+            } else {
+                overlay.style.top = posY + '%';
+                overlay.style.transform = 'translateX(-50%)';
+            }
+        } else {
+            var maxLeft = 100 - scale;
+            overlay.style.left = Math.max(0, Math.min(maxLeft, maxLeft * (posX / 100))) + '%';
+            if (posY >= 45 && posY <= 55) {
+                overlay.style.top = '50%';
+                overlay.style.transform = 'translateY(-50%)';
+            } else if (posY > 80) {
+                overlay.style.top = Math.min(94, posY) + '%';
+                overlay.style.transform = 'translateY(-100%)';
+            } else if (posY < 20) {
+                overlay.style.top = Math.max(4, posY) + '%';
+                overlay.style.transform = 'none';
+            } else {
+                overlay.style.top = posY + '%';
+                overlay.style.transform = 'none';
+            }
+        }
 
         if (appState.customWatermarkPngData) {
             if (logoImg) {
@@ -4019,19 +4090,28 @@
         var view = urlParams.get('view') || serverQuery.view;
         var photoId = urlParams.get('photoId') || serverQuery.photoId;
 
-        // Parsing Pretty Path jika dibuka di Vercel (misal: /irvan-susan atau /irvan-susan/monitor)
+        // Parsing Pretty Path jika dibuka di Vercel (misal: /irvan-susan, /irvan-susan/monitor, atau langsung /monitor)
         if (!slug && isRunningOnVercelOrCustomDomain()) {
             var pathSegments = window.location.pathname.replace(/^\/+|\/+$/g, '').split('/');
             if (pathSegments.length > 0 && pathSegments[0] && pathSegments[0] !== 'index.html') {
-                slug = decodeURIComponent(pathSegments[0]);
-                if (pathSegments.length > 1) {
-                    if (pathSegments[1] === 'monitor' || pathSegments[1] === 'slideshow') {
-                        view = 'slideshow';
-                    } else if (pathSegments[1] === 'p' && pathSegments[2]) {
-                        photoId = decodeURIComponent(pathSegments[2]);
+                if (pathSegments[0] === 'monitor' || pathSegments[0] === 'slideshow') {
+                    // Jika URL adalah /monitor langsung, arahkan otomatis ke project event aktif terakhir!
+                    view = 'slideshow';
+                    slug = localStorage.getItem('limz_last_active_slug') || '';
+                } else {
+                    slug = decodeURIComponent(pathSegments[0]);
+                    if (pathSegments.length > 1) {
+                        if (pathSegments[1] === 'monitor' || pathSegments[1] === 'slideshow') {
+                            view = 'slideshow';
+                        } else if (pathSegments[1] === 'p' && pathSegments[2]) {
+                            photoId = decodeURIComponent(pathSegments[2]);
+                        }
                     }
                 }
             }
+        }
+        if (slug) {
+            try { localStorage.setItem('limz_last_active_slug', slug); } catch (e) { }
         }
 
         if (photoId) {
@@ -4079,19 +4159,43 @@
     }
 
     function loadPublicGalleryBySlug(slug, forceSync) {
+        // Simpan slug event terakhir agar jika monitor dibuka, langsung mengarah ke event ini
+        try { localStorage.setItem('limz_last_active_slug', slug); } catch (e) { }
+
+        // 1. Tampilkan skeleton loading instan di grid foto agar tidak ada layar kosong
+        var grid = document.getElementById('pub-photo-grid');
+        if (grid && (!grid.children || grid.children.length === 0)) {
+            grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:35px 20px; color:var(--text-muted);">' +
+                '<div style="margin: 0 auto 12px; width: 36px; height: 36px; border: 3px solid rgba(212,148,56,0.25); border-top-color: var(--accent-gold); border-radius: 50%; animation: spin 0.8s linear infinite;"></div>' +
+                '<div style="font-size:14px; font-weight:700; color:var(--text-main);">Menyiapkan foto-foto momen indah...</div>' +
+                '<div style="font-size:12px; margin-top:4px; color:var(--text-muted);">Memuat dokumentasi resmi event</div>' +
+                '</div>';
+        }
+
+        // 2. Cek apakah metadata koleksi sudah ada di cache lokal (Instan 0ms)
+        var cachedColl = null;
+        try {
+            var rawColl = localStorage.getItem('limz_cached_coll_' + slug);
+            if (rawColl) cachedColl = JSON.parse(rawColl);
+        } catch (e) { }
+
+        if (cachedColl && cachedColl.id) {
+            openPublicGallery(cachedColl, false);
+        }
+
         google.script.run
             .withSuccessHandler(function (res) {
                 if (res.success && res.collection) {
-                    // Simpan cover ke localStorage untuk kunjungan berikutnya instan
-                    if (res.collection.coverUrl) {
-                        try { localStorage.setItem('limz_cover_' + slug, res.collection.coverUrl); } catch (e) {}
-                    }
+                    try {
+                        localStorage.setItem('limz_cached_coll_' + slug, JSON.stringify(res.collection));
+                        if (res.collection.coverUrl) localStorage.setItem('limz_cover_' + slug, res.collection.coverUrl);
+                    } catch (e) {}
+
                     var splashBg = document.getElementById('splash-bg-overlay');
                     if (splashBg && res.collection.coverUrl) {
                         splashBg.style.backgroundImage = 'url(\'' + res.collection.coverUrl + '\')';
                     }
 
-                    // ANTI-LOOP GUARD MUTLAK: Respon server TIDAK BOLEH PERNAH memicu countdown ulang!
                     try {
                         if (sessionStorage.getItem('limz_splash_dismissed_' + slug) === '1') {
                             appState.splashDismissed = true;
@@ -4122,6 +4226,10 @@
     }
 
     function loadSlideshowBySlug(slug) {
+        if (!slug) {
+            slug = localStorage.getItem('limz_last_active_slug') || '';
+        }
+
         // 1. Cek data preloaded dari server scriptlet index.html agar LANGSUNG menuju ke project tanpa delay
         var preloaded = null;
         try {
@@ -4146,22 +4254,42 @@
         }
 
         // 3. Panggil backend Google Apps Script jika belum di-cache
+        if (slug && slug !== 'monitor') {
+            google.script.run
+                .withSuccessHandler(function (res) {
+                    if (res && res.success && res.collection) {
+                        try { localStorage.setItem('limz_last_active_slug', res.collection.slug); } catch (e) { }
+                        openSlideshowById(res.collection.id, res.collection);
+                    } else {
+                        fetchFirstActiveEventForMonitor();
+                    }
+                })
+                .withFailureHandler(function () {
+                    fetchFirstActiveEventForMonitor();
+                })
+                .getCollectionBySlug(slug, false);
+        } else {
+            fetchFirstActiveEventForMonitor();
+        }
+    }
+
+    function fetchFirstActiveEventForMonitor() {
         google.script.run
             .withSuccessHandler(function (res) {
-                if (res && res.success && res.collection) {
-                    openSlideshowById(res.collection.id, res.collection);
+                if (res && res.collections && res.collections.length > 0) {
+                    var target = res.collections[0];
+                    try { localStorage.setItem('limz_last_active_slug', target.slug); } catch (e) { }
+                    openSlideshowById(target.id, target);
                 } else {
-                    var cleanTitle = slug ? formatSlugToTitle(slug) : 'Layar Monitor Live';
-                    var fallbackEvent = { id: '', title: cleanTitle, slug: slug || '', eventDate: '' };
+                    var fallbackEvent = { id: '', title: 'Layar Monitor Live', slug: '', eventDate: '' };
                     openSlideshowById(fallbackEvent.id, fallbackEvent);
                 }
             })
             .withFailureHandler(function () {
-                var cleanTitle = slug ? formatSlugToTitle(slug) : 'Layar Monitor Live';
-                var fallbackEvent = { id: '', title: cleanTitle, slug: slug || '', eventDate: '' };
+                var fallbackEvent = { id: '', title: 'Layar Monitor Live', slug: '', eventDate: '' };
                 openSlideshowById(fallbackEvent.id, fallbackEvent);
             })
-            .getCollectionBySlug(slug, false);
+            .getCollections();
     }
 
     function openGuestDemo() {
@@ -4286,7 +4414,6 @@
 
     function dismissSplashScreen() {
         appState.splashDismissed = true; // Kunci mutlak di memori
-        // Kunci ganda di sessionStorage agar tidak pernah rollback
         try {
             var pathSegs = window.location.pathname.replace(/^\/+|\/+$/g, '').split('/');
             var curSlug = (pathSegs.length > 0 && pathSegs[0] !== 'index.html') ? pathSegs[0] : (new URLSearchParams(window.location.search).get('slug') || '');
@@ -4307,359 +4434,19 @@
             setTimeout(function () {
                 splash.style.display = 'none';
                 checkAutoOpenDirectPhoto();
+                // Auto-scroll langsung ke isi galeri foto momen
+                var photoGrid = document.getElementById('pub-photo-grid');
+                if (photoGrid) {
+                    photoGrid.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
             }, 120);
         } else {
             checkAutoOpenDirectPhoto();
-        }
-    }
-
-    function checkAutoOpenDirectPhoto() {
-        if (!appState.targetPhotoId || !appState.photos || appState.photos.length === 0) return;
-
-        var targetId = String(appState.targetPhotoId).trim().toLowerCase();
-        var foundPhoto = null;
-
-        for (var i = 0; i < appState.photos.length; i++) {
-            var p = appState.photos[i];
-            if ((p.photoId && String(p.photoId).toLowerCase() === targetId) ||
-                (p.driveFileId && String(p.driveFileId).toLowerCase() === targetId)) {
-                foundPhoto = p;
-                break;
+            var photoGrid = document.getElementById('pub-photo-grid');
+            if (photoGrid) {
+                photoGrid.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
         }
-
-        if (foundPhoto) {
-            openLightbox(foundPhoto);
-            showToast('📸 Membuka foto yang Anda pindai di layar monitor!');
-            appState.targetPhotoId = null;
-        }
-    }
-
-    function loadGalleryPhotos(collId) {
-        var grid = document.getElementById('pub-photo-grid');
-
-        // 1. Coba tampilkan dari Local Storage Cache secara instan (0 milidetik!)
-        var cached = null;
-        try {
-            var raw = localStorage.getItem('limz_cached_photos_' + collId);
-            if (raw) cached = JSON.parse(raw);
-        } catch (e) { }
-
-        if (cached && Array.isArray(cached) && cached.length > 0) {
-            appState.photos = cached;
-            renderGalleryPhotos(appState.photos);
-        } else {
-            grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:30px; color:var(--text-muted);"><div style="font-size:24px; margin-bottom:8px;">⏳</div>Memuat dokumentasi foto event...</div>';
-        }
-
-        // 2. Fetch data foto terbaru di latar belakang
-        google.script.run
-            .withSuccessHandler(function (res) {
-                if (res && res.photos) {
-                    appState.photos = res.photos;
-                    try { localStorage.setItem('limz_cached_photos_' + collId, JSON.stringify(res.photos)); } catch (e) { }
-                    renderGalleryPhotos(appState.photos);
-                    checkAutoOpenDirectPhoto();
-                }
-            })
-            .withFailureHandler(function (err) {
-                console.warn('Gagal sinkron foto galeri:', err);
-            })
-            .getPhotosByCollection(collId, 1, 0, false);
-    }
-
-    function renderGalleryPhotos(photos) {
-        var grid = document.getElementById('pub-photo-grid');
-        var indicator = document.getElementById('pub-photo-total-indicator');
-        grid.innerHTML = '';
-
-        if (!photos || photos.length === 0) {
-            grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; color:var(--text-muted); padding: 30px;">Belum ada foto yang diunggah untuk event ini.</div>';
-            if (indicator) indicator.innerText = '0 foto tersedia';
-            return;
-        }
-
-        if (indicator) {
-            indicator.innerText = photos.length + ' foto momen siap diunduh';
-        }
-
-        var fragment = document.createDocumentFragment();
-        for (var i = 0; i < photos.length; i++) {
-            var p = photos[i];
-            var div = document.createElement('div');
-            div.className = 'photo-card';
-            div.onclick = (function (item) {
-                return function () { openLightbox(item); };
-            })(p);
-
-            // Thumbnail ringan sz=w500 untuk kisi galeri super cepat & irit kuota
-            var thumbSrc = p.thumbnailUrl || '';
-            if (thumbSrc && thumbSrc.indexOf('sz=') > -1) {
-                thumbSrc = thumbSrc.replace(/sz=w\d+/, 'sz=w500');
-            } else if (p.driveFileId) {
-                thumbSrc = 'https://drive.google.com/thumbnail?id=' + p.driveFileId + '&sz=w500';
-            }
-
-            var safeDownloadUrl = p.downloadUrl || (p.driveFileId ? ('https://drive.google.com/uc?export=download&id=' + p.driveFileId) : thumbSrc);
-
-            div.innerHTML = '<img src="' + thumbSrc + '" loading="lazy" alt="Guest Photo">' +
-                '<span class="photo-card-download-btn" onclick="event.stopPropagation(); triggerDownloadOri(\'' + safeDownloadUrl + '\', \'' + (p.photoId || '-') + '\')">⬇️ Download Ori</span>' +
-                '<span class="photo-card-wa-btn" onclick="event.stopPropagation(); sharePhotoToWhatsApp(\'' + (p.photoId || '') + '\')" title="Kirim Foto ke WhatsApp">💬 WA</span>';
-            fragment.appendChild(div);
-        }
-        grid.appendChild(fragment);
-    }
-
-    function openLightbox(photo) {
-        appState.currentLightboxPhoto = photo;
-        document.getElementById('lightbox-file-name').innerText = photo.fileName || 'Foto Momen Indah';
-
-        var fileId = photo.driveFileId;
-        if (!fileId && photo.downloadUrl) {
-            var match = photo.downloadUrl.match(/id=([a-zA-Z0-9-_]+)/);
-            if (match && match[1]) fileId = match[1];
-        }
-
-        var previewHighResUrl = fileId
-            ? ('https://lh3.googleusercontent.com/d/' + fileId)
-            : (photo.thumbnailUrl ? photo.thumbnailUrl.replace(/sz=w\d+/, 'sz=w1600') : photo.downloadUrl);
-
-        var imgEl = document.getElementById('lightbox-img');
-        imgEl.onerror = function () {
-            if (photo.thumbnailUrl && imgEl.src !== photo.thumbnailUrl) {
-                imgEl.src = photo.thumbnailUrl;
-            }
-        };
-        imgEl.src = previewHighResUrl;
-
-        var btn = document.getElementById('lightbox-download-btn');
-        btn.href = photo.downloadUrl;
-        btn.onclick = function () { logDownloadClick(photo.photoId || '-'); };
-        document.getElementById('modal-lightbox').style.display = 'flex';
-    }
-
-    function closeLightbox() {
-        appState.currentLightboxPhoto = null;
-        document.getElementById('modal-lightbox').style.display = 'none';
-        document.getElementById('lightbox-img').src = '';
-    }
-
-    function triggerDownloadOri(url, photoId) {
-        logDownloadClick(photoId);
-        window.open(url, '_blank');
-    }
-
-    function logDownloadClick(photoId) {
-        if (appState.activeCollectionId) {
-            google.script.run.logActivity(appState.activeCollectionId, 'DownloadSingle', photoId, navigator.userAgent);
-        }
-    }
-
-    async function downloadAllPhotosZip() {
-        if (!appState.photos || appState.photos.length === 0) {
-            showToast('Belum ada foto dalam galeri untuk diunduh.');
-            return;
-        }
-
-        if (appState.activeCollectionId) {
-            google.script.run.logActivity(appState.activeCollectionId, 'DownloadAll', 'ALL', navigator.userAgent);
-        }
-
-        var collTitle = (appState.activeCollectionData && appState.activeCollectionData.title)
-            ? appState.activeCollectionData.title.replace(/[^a-zA-Z0-9_-]/g, '_')
-            : 'Galeri_Foto';
-
-        // Jika JSZip tidak tersedia di browser, lakukan fallback unduh langsung file-per-file
-        if (typeof JSZip === 'undefined') {
-            showToast('⬇️ Mengunduh ' + appState.photos.length + ' foto langsung ke perangkat...');
-            for (var k = 0; k < appState.photos.length; k++) {
-                (function (photoItem, delay) {
-                    setTimeout(function () {
-                        var directUrl = photoItem.downloadUrl || ('https://drive.google.com/uc?export=download&id=' + photoItem.driveFileId);
-                        var a = document.createElement('a');
-                        a.href = directUrl;
-                        a.download = photoItem.fileName || ('foto_' + (delay / 350 + 1) + '.jpg');
-                        a.target = '_blank';
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                    }, delay);
-                })(appState.photos[k], k * 400);
-            }
-            return;
-        }
-
-        showToast('📦 Sedang mengemas ' + appState.photos.length + ' foto ke file ZIP...');
-        var zip = new JSZip();
-        var folder = zip.folder(collTitle);
-        var total = appState.photos.length;
-        var completed = 0;
-
-        function fetchBlobWithFallback(photo) {
-            var fileId = photo.driveFileId;
-            if (!fileId && photo.downloadUrl) {
-                var m = photo.downloadUrl.match(/id=([a-zA-Z0-9-_]+)/);
-                if (m && m[1]) fileId = m[1];
-            }
-
-            var highResUrl = fileId
-                ? ('https://lh3.googleusercontent.com/d/' + fileId)
-                : (photo.thumbnailUrl ? photo.thumbnailUrl.replace(/sz=w\d+/, 'sz=w1920') : photo.downloadUrl);
-
-            return new Promise(function (resolve) {
-                var img = new Image();
-                img.crossOrigin = 'Anonymous';
-                img.onload = function () {
-                    try {
-                        var canvas = document.createElement('canvas');
-                        canvas.width = img.naturalWidth || img.width;
-                        canvas.height = img.naturalHeight || img.height;
-                        var ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, 0, 0);
-                        canvas.toBlob(function (blob) {
-                            if (blob) {
-                                resolve(blob);
-                            } else {
-                                resolve(null);
-                            }
-                        }, 'image/jpeg', 0.95);
-                    } catch (e) {
-                        resolve(null);
-                    }
-                };
-                img.onerror = function () {
-                    resolve(null);
-                };
-                setTimeout(function () { resolve(null); }, 10000);
-                img.src = highResUrl;
-            });
-        }
-
-        for (var i = 0; i < total; i++) {
-            var item = appState.photos[i];
-            var fName = item.fileName || ('Foto_' + (i + 1) + '.jpg');
-            if (fName.indexOf('.') === -1) fName += '.jpg';
-
-            try {
-                var blob = await fetchBlobWithFallback(item);
-                if (blob) {
-                    folder.file(fName, blob);
-                    completed++;
-                }
-            } catch (err) { }
-
-            if ((i + 1) % 5 === 0 || i === total - 1) {
-                showToast('📦 Mengemas foto: ' + (i + 1) + ' dari ' + total + '...');
-            }
-        }
-
-        if (completed === 0) {
-            showToast('Mengunduh foto langsung ke folder unduhan...');
-            for (var d = 0; d < Math.min(total, 25); d++) {
-                (function (pItem, waitTime) {
-                    setTimeout(function () {
-                        var dl = pItem.downloadUrl || ('https://drive.google.com/uc?export=download&id=' + pItem.driveFileId);
-                        var aEl = document.createElement('a');
-                        aEl.href = dl;
-                        aEl.download = pItem.fileName || ('foto_' + (waitTime / 350 + 1) + '.jpg');
-                        aEl.target = '_blank';
-                        document.body.appendChild(aEl);
-                        aEl.click();
-                        document.body.removeChild(aEl);
-                    }, waitTime);
-                })(appState.photos[d], d * 400);
-            }
-            return;
-        }
-
-        showToast('✨ Memproses berkas ZIP (' + completed + ' foto)...');
-        try {
-            var zipBlob = await zip.generateAsync({
-                type: 'blob',
-                compression: 'DEFLATE',
-                compressionOptions: { level: 4 }
-            });
-            var zipUrl = URL.createObjectURL(zipBlob);
-            var dlAnchor = document.createElement('a');
-            dlAnchor.href = zipUrl;
-            dlAnchor.download = collTitle + '-Semua-Foto.zip';
-            document.body.appendChild(dlAnchor);
-            dlAnchor.click();
-            document.body.removeChild(dlAnchor);
-            setTimeout(function () { URL.revokeObjectURL(zipUrl); }, 15000);
-            showToast('✅ Berhasil mengunduh semua foto dalam file ZIP!');
-        } catch (zipErr) {
-            console.error('ZIP generation error:', zipErr);
-            showToast('Gagal membuat ZIP, mengalihkan ke unduhan langsung...');
-        }
-    }
-
-    function openSlideshowById(id, optionalData) {
-        var coll = optionalData || findCollectionById(id);
-        if (!coll) return;
-
-        var galleryPublicUrl = getPublicGalleryUrl(coll.slug);
-
-        if (id !== 'EVT-DEMO' && !isRunningOnVercelOrCustomDomain() && (galleryPublicUrl.indexOf('UNDEFINED') > -1 || galleryPublicUrl.indexOf('googleusercontent') > -1)) {
-            if (typeof google !== 'undefined' && google.script && google.script.run) {
-                google.script.run.withSuccessHandler(function (url) {
-                    if (url) {
-                        appState.webAppUrl = cleanExecUrl(url);
-                        var updatedUrl = getPublicGalleryUrl(coll.slug);
-                        setCachedQrCode('mon-qr-img', updatedUrl, 260);
-                    }
-                }).getWebAppUrl();
-            }
-        }
-
-        appState.activeCollectionId = coll.id;
-        appState.activeCollectionData = coll;
-
-        document.getElementById('mon-couple-title').innerText = coll.title;
-        document.getElementById('mon-date-subtitle').innerText = formatDisplayDate(coll.eventDate);
-
-        var hBar = document.getElementById('mon-header-bar');
-        var chosenColor = coll.headerColor || '#1f2530';
-        hBar.style.background = 'linear-gradient(180deg, ' + chosenColor + ' 0%, #0d1117 100%)';
-        hBar.style.borderBottom = '2px solid ' + chosenColor;
-        applyHeaderMotifGraphics(coll.headerMotif || 'floral-gold');
-
-        setCachedQrCode('mon-qr-img', galleryPublicUrl, 260);
-
-        switchView('view-slideshow');
-        startMonitorEngine(coll.id);
-    }
-
-    function startMonitorEngine(collId) {
-        if (appState.slideshowInterval) clearInterval(appState.slideshowInterval);
-        if (appState.slideshowPollInterval) clearInterval(appState.slideshowPollInterval);
-        if (appState.chatStreamInterval) clearInterval(appState.chatStreamInterval);
-
-        appState.knownWishKeys = {};
-        appState.isWishInitialized = false;
-
-        fetchMonitorContent(collId, false);
-
-        appState.slideshowPollInterval = setInterval(function () {
-            if (appState.activeCollectionId && appState.currentView === 'view-slideshow') {
-                fetchMonitorContent(appState.activeCollectionId, true);
-            }
-        }, 1500);
-    }
-
-    function fetchMonitorContent(collId, isPoll) {
-        google.script.run
-            .withSuccessHandler(function (res) {
-                if (res && res.success) {
-                    if (isPoll && res.totalPhotos > appState.lastKnownPhotoCount && appState.lastKnownPhotoCount > 0) {
-                        var diff = res.totalPhotos - appState.lastKnownPhotoCount;
-                        showMonitorNewPhotoToast(diff + ' Foto Baru Saja Diunggah ke Galeri!');
-                    }
-                    appState.lastKnownPhotoCount = res.totalPhotos;
-                    updateMonitorScreenView(res);
-                }
-            })
-            .getMonitorPhotos(collId);
     }
 
     function preloadAndSwapImage(imgId, targetSrc) {
@@ -4703,10 +4490,24 @@
         if (!coll && appState.collections && appState.collections.length > 0) {
             coll = appState.collections[0];
         }
-        if (coll && coll.slug) {
-            openSlideshowNewTab(coll.slug);
+
+        var activeSlug = (coll && coll.slug) || localStorage.getItem('limz_last_active_slug') || '';
+
+        if (activeSlug) {
+            openSlideshowNewTab(activeSlug);
         } else {
-            showToast('⚠️ Silakan buat atau pilih koleksi event terlebih dahulu.');
+            // Ambil koleksi aktif pertama dari server jika belum terpilih
+            google.script.run
+                .withSuccessHandler(function (res) {
+                    if (res && res.collections && res.collections.length > 0) {
+                        var target = res.collections[0];
+                        localStorage.setItem('limz_last_active_slug', target.slug);
+                        openSlideshowNewTab(target.slug);
+                    } else {
+                        showToast('⚠️ Silakan buat atau pilih koleksi event terlebih dahulu.');
+                    }
+                })
+                .getCollections();
         }
     }
 
@@ -5570,8 +5371,12 @@
 
                         var maxX = Math.max(0, canvas.width - wmWidth);
                         var maxY = Math.max(0, canvas.height - wmHeight);
-                        var x = Math.round(maxX * wmPosXPercent);
-                        var y = Math.round(maxY * wmPosYPercent);
+                        var x = (wmPosXPercent >= 0.45 && wmPosXPercent <= 0.55)
+                            ? Math.round((canvas.width - wmWidth) / 2)
+                            : Math.round(maxX * wmPosXPercent);
+                        var y = (wmPosYPercent >= 0.45 && wmPosYPercent <= 0.55)
+                            ? Math.round((canvas.height - wmHeight) / 2)
+                            : Math.round(maxY * wmPosYPercent);
 
                         ctx.save();
                         ctx.globalAlpha = wmOpacity;
@@ -5816,8 +5621,12 @@
                     var wmHeight = Math.round(wmWidth * aspect);
                     var maxX = Math.max(0, canvas.width - wmWidth);
                     var maxY = Math.max(0, canvas.height - wmHeight);
-                    var x = Math.round(maxX * wmPosXPercent);
-                    var y = Math.round(maxY * wmPosYPercent);
+                    var x = (wmPosXPercent >= 0.45 && wmPosXPercent <= 0.55)
+                            ? Math.round((canvas.width - wmWidth) / 2)
+                            : Math.round(maxX * wmPosXPercent);
+                        var y = (wmPosYPercent >= 0.45 && wmPosYPercent <= 0.55)
+                            ? Math.round((canvas.height - wmHeight) / 2)
+                            : Math.round(maxY * wmPosYPercent);
 
                     ctx.save();
                     ctx.globalAlpha = wmOpacity;
@@ -6109,8 +5918,12 @@
                             var wmHeight = Math.round(wmWidth * aspect);
                             var maxX = Math.max(0, w - wmWidth);
                             var maxY = Math.max(0, h - wmHeight);
-                            var x = Math.round(maxX * wmPosXPercent);
-                            var y = Math.round(maxY * wmPosYPercent);
+                            var x = (wmPosXPercent >= 0.45 && wmPosXPercent <= 0.55)
+                            ? Math.round((canvas.width - wmWidth) / 2)
+                            : Math.round(maxX * wmPosXPercent);
+                        var y = (wmPosYPercent >= 0.45 && wmPosYPercent <= 0.55)
+                            ? Math.round((canvas.height - wmHeight) / 2)
+                            : Math.round(maxY * wmPosYPercent);
                             ctx.save();
                             ctx.globalAlpha = wmOpacity;
                             ctx.drawImage(customPngImg, x, y, wmWidth, wmHeight);
