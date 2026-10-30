@@ -1576,25 +1576,74 @@
 
     <div id="view-public-gallery"
         class="view-container">
-        <div id="gallery-splash-loader" class="gallery-splash-loader"
+        <div id="gallery-splash-loader" class="gallery-splash-loader splash-theme-classic-gold"
             style="">
             <div class="splash-bg-overlay" id="splash-bg-overlay"
                 style="">
             </div>
 
-            <!-- Top Pill Timer (Opening in 5 s) -->
-            <div class="splash-top-bar">
-                <div class="splash-timer-pill" id="splash-timer-pill" onclick="dismissSplashScreen()" title="Klik untuk langsung membuka galeri">
-                    <span class="splash-timer-icon">🕒</span>
-                    <span>Opening in <strong id="splash-countdown-num">3</strong> s</span>
+            <!-- Theme 1: Classic Gold (Default) -->
+            <div class="splash-theme-container" id="splash-box-classic-gold">
+                <div class="splash-top-bar">
+                    <div class="splash-timer-pill" id="splash-timer-pill" onclick="dismissSplashScreen()" title="Klik untuk langsung membuka galeri">
+                        <span class="splash-timer-icon">🕒</span>
+                        <span>Opening in <strong class="splash-countdown-num" id="splash-countdown-num">3</strong> s</span>
+                    </div>
+                </div>
+                <div class="splash-center-action">
+                    <button type="button" class="btn-glass-open-gallery" id="btn-splash-open-gallery" onclick="dismissSplashScreen()" title="Buka Galeri Sekarang">
+                        OPEN GALLERY
+                    </button>
                 </div>
             </div>
 
-            <!-- Center Action Button (OPEN GALLERY) -->
-            <div class="splash-center-action">
-                <button type="button" class="btn-glass-open-gallery" id="btn-splash-open-gallery" onclick="dismissSplashScreen()" title="Buka Galeri Sekarang">
-                    OPEN GALLERY
-                </button>
+            <!-- Theme 2: Minimalist Modern Obsidian (Circular Ring) -->
+            <div class="splash-theme-container" id="splash-box-modern-circular" style="display:none;">
+                <div class="splash-top-bar">
+                    <div class="splash-timer-pill splash-pill-modern" onclick="dismissSplashScreen()" title="Klik untuk langsung membuka galeri">
+                        <span class="splash-pulse-dot"></span>
+                        <span>OFFICIAL GALLERY</span>
+                    </div>
+                </div>
+                <div class="splash-center-action splash-modern-action">
+                    <div class="splash-ring-wrapper" onclick="dismissSplashScreen()" title="Klik untuk langsung membuka galeri">
+                        <svg class="splash-ring-svg" viewBox="0 0 100 100">
+                            <circle class="splash-ring-track" cx="50" cy="50" r="42"></circle>
+                            <circle class="splash-ring-indicator" id="splash-ring-progress" cx="50" cy="50" r="42"></circle>
+                        </svg>
+                        <div class="splash-ring-number splash-countdown-num">3</div>
+                    </div>
+                    <button type="button" class="btn-modern-open-gallery" onclick="dismissSplashScreen()" title="Buka Galeri Sekarang">
+                        MASUK KE GALERI <span style="margin-left:6px; font-size:16px;">&rarr;</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Theme 3: Romantic Wedding Invitation Card -->
+            <div class="splash-theme-container" id="splash-box-romantic-floral" style="display:none;">
+                <div class="splash-romantic-card">
+                    <div class="splash-floral-ornament">🌸 ❦ 🌸</div>
+                    <div class="splash-romantic-subtitle">SELAMAT DATANG DI ALBUM FOTO</div>
+                    <h2 class="splash-romantic-title" id="splash-romantic-event-title">Momen Spesial</h2>
+                    <p class="splash-romantic-sub">Kenangan terindah dan momen penuh kebahagiaan</p>
+                    <div class="splash-romantic-timer">
+                        Album terbuka otomatis dalam <strong class="splash-countdown-num" style="color:#eab308; font-size:16px;">3</strong> detik...
+                    </div>
+                    <button type="button" class="btn-romantic-open-gallery" onclick="dismissSplashScreen()" title="Buka Album Galeri Sekarang">
+                        💐 Buka Album Galeri Sekarang
+                    </button>
+                </div>
+            </div>
+
+            <!-- Theme 4: Cinematic Fullscreen Zoom -->
+            <div class="splash-theme-container" id="splash-box-cinematic-zoom" style="display:none;">
+                <div class="splash-cinematic-center">
+                    <div class="splash-cinematic-count splash-countdown-num">3</div>
+                    <div class="splash-cinematic-sub">MEMBUKA MOMEN INDAH...</div>
+                    <button type="button" class="btn-cinematic-open-gallery" onclick="dismissSplashScreen()" title="Buka Kenangan Indah">
+                        🎬 BUKA KENANGAN INDAH
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -2155,6 +2204,16 @@
                     </select>
                 </div>
                 <div class="form-group">
+                    <label>Tampilan Awal / Countdown Buka Galeri (Splash Screen)</label>
+                    <select id="new-coll-splash-theme" class="form-control">
+                        <option value="classic-gold" selected>✨ Classic Luxury Gold (Tombol Glass &amp; Floating Timer)</option>
+                        <option value="modern-circular">⏳ Minimalist Obsidian (Lingkaran Countdown Modern)</option>
+                        <option value="romantic-floral">💌 Romantic Invitation (Kartu Undangan Mewah &amp; Bunga)</option>
+                        <option value="cinematic-zoom">🎬 Cinematic Zoom (Layar Lebar Ken-Burns &amp; Angka Besar)</option>
+                        <option value="direct-instant">⚡ Direct Fast (Langsung Tampil Tanpa Countdown)</option>
+                    </select>
+                </div>
+                <div class="form-group">
                     <label>Tanggal Acara</label>
                     <input type="date" id="new-coll-date" class="form-control" required>
                 </div>
@@ -2226,6 +2285,16 @@
                         <option value="botanical-leaves">🌿 Ranting Daun Botanical (Sage Foliage)</option>
                         <option value="vintage-ornament">👑 Ukiran Vintage Klasik (Royal Baroque)</option>
                         <option value="sparkle-stars">✨ Kilau Bintang Panggung (Sparkle Stars)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Tampilan Awal / Countdown Buka Galeri (Splash Screen)</label>
+                    <select id="edit-coll-splash-theme" class="form-control">
+                        <option value="classic-gold">✨ Classic Luxury Gold (Tombol Glass &amp; Floating Timer)</option>
+                        <option value="modern-circular">⏳ Minimalist Obsidian (Lingkaran Countdown Modern)</option>
+                        <option value="romantic-floral">💌 Romantic Invitation (Kartu Undangan Mewah &amp; Bunga)</option>
+                        <option value="cinematic-zoom">🎬 Cinematic Zoom (Layar Lebar Ken-Burns &amp; Angka Besar)</option>
+                        <option value="direct-instant">⚡ Direct Fast (Langsung Tampil Tanpa Countdown)</option>
                     </select>
                 </div>
                 <div class="form-group">

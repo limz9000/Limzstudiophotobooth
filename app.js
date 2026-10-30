@@ -5069,6 +5069,15 @@
             } catch (e) { }
         }
 
+        // Ambil tema countdown / splash screen dari koleksi (fallback: classic-gold)
+        var theme = (coll && coll.splashTheme) || (appState.activeCollectionData && appState.activeCollectionData.splashTheme) || 'classic-gold';
+
+        // Variasi 5: Direct Fast (Langsung Tampil Tanpa Countdown)
+        if (theme === 'direct-instant') {
+            dismissSplashScreen();
+            return;
+        }
+
         // Jika sudah ditutup oleh tamu, BATALKAN TOTAL!
         if (appState.splashDismissed) {
             var splashEl = document.getElementById('gallery-splash-loader');
@@ -5078,7 +5087,6 @@
 
         var splash = document.getElementById('gallery-splash-loader');
         var bg = document.getElementById('splash-bg-overlay');
-        var countEl = document.getElementById('splash-countdown-num');
 
         var finalCover = coverUrl || (coll && coll.coverUrl) || (coll && coll.slug && localStorage.getItem('limz_cover_' + coll.slug)) || '';
         if (bg && finalCover) {
@@ -5090,8 +5098,50 @@
         splash.style.pointerEvents = 'auto';
         splash.style.opacity = '1';
 
+        // Setup box tampilan tema yang aktif
+        var boxClassic = document.getElementById('splash-box-classic-gold');
+        var boxModern = document.getElementById('splash-box-modern-circular');
+        var boxFloral = document.getElementById('splash-box-romantic-floral');
+        var boxCinematic = document.getElementById('splash-box-cinematic-zoom');
+
+        if (boxClassic) boxClassic.style.display = (theme === 'classic-gold') ? 'flex' : 'none';
+        if (boxModern) boxModern.style.display = (theme === 'modern-circular') ? 'flex' : 'none';
+        if (boxFloral) boxFloral.style.display = (theme === 'romantic-floral') ? 'flex' : 'none';
+        if (boxCinematic) boxCinematic.style.display = (theme === 'cinematic-zoom') ? 'flex' : 'none';
+
+        // Personalisasi konten per tema
+        if (theme === 'romantic-floral') {
+            var floralTitle = document.getElementById('splash-romantic-event-title');
+            if (floralTitle) {
+                var eventName = (coll && coll.title) || (appState.activeCollectionData && appState.activeCollectionData.title) || 'Momen Spesial';
+                floralTitle.innerText = eventName;
+            }
+        } else if (theme === 'cinematic-zoom') {
+            if (bg) bg.classList.add('ken-burns-active');
+        } else {
+            if (bg) bg.classList.remove('ken-burns-active');
+        }
+
         var secondsLeft = 3;
-        if (countEl) countEl.innerText = secondsLeft;
+        var totalSeconds = 3;
+        var ringCircumference = 264; // 2 * PI * 42
+
+        function updateThemeCountdown(sec) {
+            var countEls = document.querySelectorAll('.splash-countdown-num');
+            for (var k = 0; k < countEls.length; k++) {
+                countEls[k].innerText = sec;
+            }
+            if (theme === 'modern-circular') {
+                var ringIndicator = document.getElementById('splash-ring-progress');
+                if (ringIndicator) {
+                    var progressFraction = (sec - 1) / totalSeconds;
+                    var offset = ringCircumference * (1 - Math.max(0, progressFraction));
+                    ringIndicator.style.strokeDashoffset = offset;
+                }
+            }
+        }
+
+        updateThemeCountdown(secondsLeft);
 
         if (splashCountdownTimer) clearInterval(splashCountdownTimer);
 
@@ -5103,9 +5153,7 @@
             }
             secondsLeft--;
             if (secondsLeft > 0) {
-                if (countEl) {
-                    countEl.innerText = secondsLeft;
-                }
+                updateThemeCountdown(secondsLeft);
             } else {
                 clearInterval(splashCountdownTimer);
                 splashCountdownTimer = null;
@@ -5129,6 +5177,10 @@
             clearInterval(splashCountdownTimer);
             splashCountdownTimer = null;
         }
+
+        var bg = document.getElementById('splash-bg-overlay');
+        if (bg) bg.classList.remove('ken-burns-active');
+
         var splash = document.getElementById('gallery-splash-loader');
         if (splash) {
             splash.style.opacity = '0';
@@ -6415,6 +6467,7 @@
         var client = document.getElementById('new-coll-client').value;
         var headerColor = document.getElementById('new-coll-header-color').value || '#1f2530';
         var headerMotif = document.getElementById('new-coll-header-motif').value || 'floral-gold';
+        var splashTheme = document.getElementById('new-coll-splash-theme') ? document.getElementById('new-coll-splash-theme').value : 'classic-gold';
         var coverUrlInput = document.getElementById('new-coll-cover-url').value;
         var coverFileInput = document.getElementById('new-coll-cover-file');
 
@@ -6432,6 +6485,7 @@
                 driveFolderUrl: driveUrl,
                 headerColor: headerColor,
                 headerMotif: headerMotif,
+                splashTheme: splashTheme,
                 coverUrl: coverUrlInput,
                 coverBase64: coverBase64 || ''
             };
@@ -6479,6 +6533,9 @@
         document.getElementById('edit-coll-header-color').value = currentColor;
         document.getElementById('edit-coll-header-hex').value = currentColor;
         document.getElementById('edit-coll-header-motif').value = coll.headerMotif || 'floral-gold';
+        if (document.getElementById('edit-coll-splash-theme')) {
+            document.getElementById('edit-coll-splash-theme').value = coll.splashTheme || 'classic-gold';
+        }
         document.getElementById('edit-coll-cover-file').value = '';
 
         var previewBox = document.getElementById('edit-coll-cover-preview-box');
@@ -6515,6 +6572,7 @@
         var client = document.getElementById('edit-coll-client').value;
         var headerColor = document.getElementById('edit-coll-header-color').value || '#1f2530';
         var headerMotif = document.getElementById('edit-coll-header-motif').value || 'floral-gold';
+        var splashTheme = document.getElementById('edit-coll-splash-theme') ? document.getElementById('edit-coll-splash-theme').value : 'classic-gold';
         var coverFileInput = document.getElementById('edit-coll-cover-file');
         var coverUrlInput = document.getElementById('edit-coll-cover-url').value.trim();
 
@@ -6532,6 +6590,7 @@
                 driveFolderUrl: driveUrl,
                 headerColor: headerColor,
                 headerMotif: headerMotif,
+                splashTheme: splashTheme,
                 coverUrl: coverBase64 ? '' : coverUrlInput,
                 coverBase64: coverBase64 || ''
             };
