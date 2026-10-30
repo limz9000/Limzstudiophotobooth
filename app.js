@@ -4827,17 +4827,43 @@
             } else {
                 document.getElementById('view-public-gallery').style.display = 'block';
 
-                // Cek apakah ada cover tersimpan di localStorage atau preloaded server
+                // Cek apakah ada metadata event & cover tersimpan di localStorage atau preloaded server
+                var cachedColl = null;
+                try {
+                    var rawColl = localStorage.getItem('limz_cached_coll_' + slug);
+                    if (rawColl) cachedColl = JSON.parse(rawColl);
+                } catch (e) { }
+
                 var cachedCover = (preloadedColl && preloadedColl.coverUrl)
                     ? preloadedColl.coverUrl
-                    : (localStorage.getItem('limz_cover_' + slug) || '');
+                    : ((cachedColl && cachedColl.coverUrl) || localStorage.getItem('limz_cover_' + slug) || '');
+
+                var activeTheme = (preloadedColl && preloadedColl.splashTheme)
+                    || (cachedColl && cachedColl.splashTheme)
+                    || 'classic-gold';
+
+                var activeTitle = (preloadedColl && preloadedColl.title)
+                    || (cachedColl && cachedColl.title)
+                    || '';
+
+                var urlParams = new URLSearchParams(window.location.search);
+                var isPreviewSplash = (urlParams.get('previewSplash') === '1');
+                if (isPreviewSplash) {
+                    try { sessionStorage.removeItem('limz_splash_dismissed_' + slug); } catch (e) { }
+                    appState.splashDismissed = false;
+                }
 
                 var isAlreadyDismissed = false;
                 try { isAlreadyDismissed = (sessionStorage.getItem('limz_splash_dismissed_' + slug) === '1'); } catch (e) { }
-                if (isAlreadyDismissed) appState.splashDismissed = true;
+                if (isAlreadyDismissed && !isPreviewSplash) appState.splashDismissed = true;
 
-                if (cachedCover && !appState.splashDismissed) {
-                    startThreeSecondSplashScreen({ slug: slug, coverUrl: cachedCover }, cachedCover);
+                if (!appState.splashDismissed) {
+                    startThreeSecondSplashScreen({
+                        slug: slug,
+                        title: activeTitle,
+                        coverUrl: cachedCover,
+                        splashTheme: activeTheme
+                    }, cachedCover);
                 } else if (appState.splashDismissed) {
                     var splashInitial = document.getElementById('gallery-splash-loader');
                     if (splashInitial) splashInitial.style.display = 'none';
@@ -4890,6 +4916,12 @@
                     var splashBg = document.getElementById('splash-bg-overlay');
                     if (splashBg && res.collection.coverUrl) {
                         splashBg.style.backgroundImage = 'url(\'' + res.collection.coverUrl + '\')';
+                    }
+
+                    // Sinkronkan tema splash screen jika masih aktif berjalan saat data server masuk
+                    var splashEl = document.getElementById('gallery-splash-loader');
+                    if (splashEl && splashEl.style.display !== 'none' && !appState.splashDismissed) {
+                        applySplashThemeLayout(res.collection);
                     }
 
                     try {
@@ -5053,6 +5085,39 @@
     }
 
     var splashCountdownTimer = null;
+
+    function applySplashThemeLayout(coll) {
+        var theme = (coll && coll.splashTheme) || (appState.activeCollectionData && appState.activeCollectionData.splashTheme) || 'classic-gold';
+        var bg = document.getElementById('splash-bg-overlay');
+
+        if (theme === 'direct-instant') {
+            dismissSplashScreen();
+            return;
+        }
+
+        var boxClassic = document.getElementById('splash-box-classic-gold');
+        var boxModern = document.getElementById('splash-box-modern-circular');
+        var boxFloral = document.getElementById('splash-box-romantic-floral');
+        var boxCinematic = document.getElementById('splash-box-cinematic-zoom');
+
+        if (boxClassic) boxClassic.style.display = (theme === 'classic-gold') ? 'flex' : 'none';
+        if (boxModern) boxModern.style.display = (theme === 'modern-circular') ? 'flex' : 'none';
+        if (boxFloral) boxFloral.style.display = (theme === 'romantic-floral') ? 'flex' : 'none';
+        if (boxCinematic) boxCinematic.style.display = (theme === 'cinematic-zoom') ? 'flex' : 'none';
+
+        if (theme === 'romantic-floral') {
+            var floralTitle = document.getElementById('splash-romantic-event-title');
+            if (floralTitle) {
+                var eventName = (coll && coll.title) || (appState.activeCollectionData && appState.activeCollectionData.title) || 'Momen Spesial';
+                floralTitle.innerText = eventName;
+            }
+        } else if (theme === 'cinematic-zoom') {
+            if (bg) bg.classList.add('ken-burns-active');
+        } else {
+            if (bg) bg.classList.remove('ken-burns-active');
+        }
+    }
+
     function startThreeSecondSplashScreen(coll, coverUrl) {
         var sSlug = (coll && coll.slug) || '';
         if (!sSlug) {
@@ -5099,28 +5164,7 @@
         splash.style.opacity = '1';
 
         // Setup box tampilan tema yang aktif
-        var boxClassic = document.getElementById('splash-box-classic-gold');
-        var boxModern = document.getElementById('splash-box-modern-circular');
-        var boxFloral = document.getElementById('splash-box-romantic-floral');
-        var boxCinematic = document.getElementById('splash-box-cinematic-zoom');
-
-        if (boxClassic) boxClassic.style.display = (theme === 'classic-gold') ? 'flex' : 'none';
-        if (boxModern) boxModern.style.display = (theme === 'modern-circular') ? 'flex' : 'none';
-        if (boxFloral) boxFloral.style.display = (theme === 'romantic-floral') ? 'flex' : 'none';
-        if (boxCinematic) boxCinematic.style.display = (theme === 'cinematic-zoom') ? 'flex' : 'none';
-
-        // Personalisasi konten per tema
-        if (theme === 'romantic-floral') {
-            var floralTitle = document.getElementById('splash-romantic-event-title');
-            if (floralTitle) {
-                var eventName = (coll && coll.title) || (appState.activeCollectionData && appState.activeCollectionData.title) || 'Momen Spesial';
-                floralTitle.innerText = eventName;
-            }
-        } else if (theme === 'cinematic-zoom') {
-            if (bg) bg.classList.add('ken-burns-active');
-        } else {
-            if (bg) bg.classList.remove('ken-burns-active');
-        }
+        applySplashThemeLayout(coll);
 
         var secondsLeft = 3;
         var totalSeconds = 3;
@@ -6362,7 +6406,12 @@
             openSetWebAppUrlModal();
             return;
         }
-        window.open(targetUrl, '_blank');
+        try {
+            sessionStorage.removeItem('limz_splash_dismissed_' + slug);
+        } catch (e) { }
+        appState.splashDismissed = false;
+        var separator = targetUrl.indexOf('?') > -1 ? '&' : '?';
+        window.open(targetUrl + separator + 'previewSplash=1', '_blank');
     }
 
     function openSlideshowNewTab(slug) {
@@ -6602,20 +6651,51 @@
                     closeModal('modal-edit-collection');
                     showToast(res.message || 'Koleksi berhasil diperbarui!');
 
-                    // Update koleksi lokal seketika
-                    if (res && res.coverUrl) {
-                        for (var c = 0; c < appState.collections.length; c++) {
-                            if (appState.collections[c].id === id) {
-                                appState.collections[c].coverUrl = res.coverUrl;
-                                break;
-                            }
-                        }
-                        if (appState.activeCollectionData && appState.activeCollectionData.id === id) {
-                            appState.activeCollectionData.coverUrl = res.coverUrl;
-                            var heroBanner = document.getElementById('pub-hero-banner');
-                            if (heroBanner) heroBanner.style.backgroundImage = 'url(\'' + res.coverUrl + '\')';
+                    // Update koleksi lokal seketika (semua properti termasuk splashTheme)
+                    var finalCover = (res && res.coverUrl) ? res.coverUrl : coverUrlInput;
+                    for (var c = 0; c < appState.collections.length; c++) {
+                        if (appState.collections[c].id === id) {
+                            if (finalCover) appState.collections[c].coverUrl = finalCover;
+                            appState.collections[c].title = title;
+                            appState.collections[c].slug = slug;
+                            appState.collections[c].eventDate = date;
+                            appState.collections[c].clientName = client;
+                            appState.collections[c].headerColor = headerColor;
+                            appState.collections[c].headerMotif = headerMotif;
+                            appState.collections[c].splashTheme = splashTheme;
+                            break;
                         }
                     }
+                    if (appState.activeCollectionData && appState.activeCollectionData.id === id) {
+                        if (finalCover) appState.activeCollectionData.coverUrl = finalCover;
+                        appState.activeCollectionData.title = title;
+                        appState.activeCollectionData.slug = slug;
+                        appState.activeCollectionData.headerColor = headerColor;
+                        appState.activeCollectionData.headerMotif = headerMotif;
+                        appState.activeCollectionData.splashTheme = splashTheme;
+                        var heroBanner = document.getElementById('pub-hero-banner');
+                        if (heroBanner && finalCover) heroBanner.style.backgroundImage = 'url(\'' + finalCover + '\')';
+                    }
+
+                    // Sinkronisasi Cache Lokal (localStorage) & Reset Flag Session agar testing langsung menampilkan tema baru
+                    try {
+                        var updatedColl = findCollectionById(id) || {
+                            id: id,
+                            title: title,
+                            slug: slug,
+                            eventDate: date,
+                            clientName: client,
+                            headerColor: headerColor,
+                            headerMotif: headerMotif,
+                            splashTheme: splashTheme,
+                            coverUrl: finalCover || ''
+                        };
+                        localStorage.setItem('limz_cached_coll_' + slug, JSON.stringify(updatedColl));
+                        if (finalCover) localStorage.setItem('limz_cover_' + slug, finalCover);
+                        sessionStorage.removeItem('limz_splash_dismissed_' + slug);
+                        appState.splashDismissed = false;
+                    } catch (e) { }
+
                     fetchCollectionsList();
                 })
                 .withFailureHandler(function (err) {
