@@ -738,10 +738,7 @@
         }
         appState.stagedPhotos.push(newSnap);
 
-        // Auto-save jepretan kamera langsung ke folder lokal PC atau IndexedDB iPad
-        if (appState.localExportDirHandle || isTabletOrMobileDevice()) {
-            savePhotoToLocalDirectory(fileName, dataUrl);
-        }
+        // Menggunakan file original hasil jepretan langsung di memori tanpa menduplikasi file temp ke storage
 
         appState.activeStagedIndex = appState.stagedPhotos.length - 1;
         renderStagedPhotosUI();
@@ -1123,6 +1120,20 @@
             console.warn('Gagal simpan ke iPad local storage:', err);
         }
     }
+
+    
+    // Pembersihan otomatis data file temp IndexedDB lama agar storage disk kembali lega
+    function cleanupOldTempStorage() {
+        if ('indexedDB' in window) {
+            try {
+                var delReq = indexedDB.deleteDatabase('LimzStudioLocalStorage');
+                delReq.onsuccess = function () {
+                    console.log('[Storage] Cache database file temp lama berhasil dibersihkan.');
+                };
+            } catch (e) { }
+        }
+    }
+    setTimeout(cleanupOldTempStorage, 2500);
 
     function triggerExportIpadLocalStoragePhotos() {
         if (!('indexedDB' in window)) {
@@ -1828,9 +1839,7 @@
             if (!data || !data.dataUrl) continue;
 
             detectCameraFromPhotoBufferOrBlob(data.dataUrl);
-            if (appState.localExportDirHandle || isTabletOrMobileDevice()) {
-                savePhotoToLocalDirectory(data.name, data.dataUrl);
-            }
+            // Menggunakan file original dari kamera langsung tanpa menduplikasi file temp ke storage
 
             var exists = appState.stagedPhotos.some(function (p) {
                 return p.name === data.name && Math.abs(p.size - (data.size || 0)) < 100;
@@ -1945,17 +1954,20 @@
                 largeImg.src = displayUrl;
             }
             var mainKey = p.photoId || p.driveFileId;
+            var slug = (appState.activeCollectionData && appState.activeCollectionData.slug) || '';
             if (mainKey) {
-                var slug = (appState.activeCollectionData && appState.activeCollectionData.slug) || '';
                 var directUrl = getDirectPhotoOrGalleryUrl(slug, mainKey);
                 setCachedQrCode('mon-qr-large-img', directUrl, 400);
-                setCachedQrCode('mon-qr-img', directUrl, 260);
+            }
+            if (slug) {
+                var galleryPublicUrl = getPublicGalleryUrl(slug);
+                setCachedQrCode('mon-qr-img', galleryPublicUrl, 260);
                 var bEl = document.getElementById('mon-qr-badge-text');
-                if (bEl) bEl.innerText = 'FOTO TAMPIL';
+                if (bEl) bEl.innerText = 'GALERI EVENT';
                 var dEl = document.getElementById('mon-qr-heading-desc');
-                if (dEl) dEl.innerHTML = 'Scan & Download<br><span style="color:#e2b86b;">Foto yang Sedang Tampil</span>';
+                if (dEl) dEl.innerHTML = 'Scan & Download<br><span style="color:#e2b86b;">Galeri Foto Event</span>';
                 var hEl = document.getElementById('mon-qr-target-hint');
-                if (hEl) hEl.innerText = '📸 Pindai untuk membuka foto ini langsung...';
+                if (hEl) hEl.innerText = '📲 Pindai untuk membuka seluruh galeri...';
             }
             showMonitorNewPhotoToast('📸 Foto / GIF Baru Saja Selesai Diunggah & Langsung Tayang!');
 
@@ -6021,19 +6033,11 @@
         var descEl = document.getElementById('mon-qr-heading-desc');
 
         if (slug) {
-            if (hasPhotos && mainKey) {
-                var directMainUrl = getDirectPhotoOrGalleryUrl(slug, mainKey);
-                setCachedQrCode('mon-qr-img', directMainUrl, 260);
-                if (badgeTextEl) badgeTextEl.innerText = 'FOTO TAMPIL';
-                if (descEl) descEl.innerHTML = 'Scan & Download<br><span style="color:#e2b86b;">Foto yang Sedang Tampil</span>';
-                if (hintEl) hintEl.innerText = '📸 Pindai untuk membuka foto ini langsung...';
-            } else {
-                var galleryPublicUrl = getPublicGalleryUrl(slug);
-                setCachedQrCode('mon-qr-img', galleryPublicUrl, 260);
-                if (badgeTextEl) badgeTextEl.innerText = 'GALERI EVENT';
-                if (descEl) descEl.innerHTML = 'Scan & Download<br><span style="color:#e2b86b;">Galeri Foto Event</span>';
-                if (hintEl) hintEl.innerText = '📲 Pindai untuk membuka seluruh galeri...';
-            }
+            var galleryPublicUrl = getPublicGalleryUrl(slug);
+            setCachedQrCode('mon-qr-img', galleryPublicUrl, 260);
+            if (badgeTextEl) badgeTextEl.innerText = 'GALERI EVENT';
+            if (descEl) descEl.innerHTML = 'Scan & Download<br><span style="color:#e2b86b;">Galeri Foto Event</span>';
+            if (hintEl) hintEl.innerText = '📲 Pindai untuk membuka seluruh galeri...';
         }
 
         if (data.collectionTitle) {
@@ -6612,9 +6616,7 @@
         uniqueFiles.forEach(function (file) {
             function appendLoadedPhoto(processedFile, dataUrl) {
                 detectCameraFromPhotoBufferOrBlob(processedFile);
-                if (appState.localExportDirHandle || isTabletOrMobileDevice()) {
-                    savePhotoToLocalDirectory(processedFile.name, dataUrl);
-                }
+                // Langsung menggunakan file original yang baru masuk tanpa membuat file temp atau menduplikasi ke storage
 
                 var newStaged = {
                     id: 'staged_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6) + '_' + loadedCount,
