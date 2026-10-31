@@ -519,8 +519,9 @@
     function openLiveCameraModal(e) {
         if (e) e.stopPropagation();
         openModal('modal-live-camera');
-        enumerateCameraDevices();
-        startLiveCameraStream();
+        var preferredDevice = null;
+        try { preferredDevice = localStorage.getItem('limz_preferred_camera_device'); } catch (e) { }
+        startLiveCameraStream(preferredDevice);
         handleLiveCameraSettingChange();
         window.addEventListener('keydown', handleCameraKeydown);
     }
@@ -584,7 +585,7 @@
         } catch (err) { }
     }
 
-    function enumerateCameraDevices() {
+    function enumerateCameraDevices(activeDeviceId) {
         var select = document.getElementById('camera-device-select');
         if (!select || !navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
 
@@ -599,12 +600,42 @@
                     select.appendChild(opt);
                     return;
                 }
+
+                var externalCandidateId = null;
+                var preferredId = null;
+                try { preferredId = localStorage.getItem('limz_preferred_camera_device'); } catch (e) { }
+
                 videoDevices.forEach(function (dev, idx) {
                     var opt = document.createElement('option');
                     opt.value = dev.deviceId;
-                    opt.innerText = dev.label || ('Kamera ' + (idx + 1) + ' (USB / Capture Card / iPad)');
+                    var label = dev.label ? dev.label.trim() : '';
+                    if (!label) {
+                        label = 'Kamera ' + (idx + 1) + ' (USB / Capture Card / iPad)';
+                    }
+
+                    var isExternal = /usb|capture|cam link|hdmi|external|uvc|video capture|mirrorless|dslr|sony|canon|nikon|fuji|panasonic/i.test(label);
+                    if (isExternal && !externalCandidateId) {
+                        externalCandidateId = dev.deviceId;
+                        label = '⚡ ' + label + ' [DSLR / USB-C]';
+                    }
+                    opt.innerText = label;
+
+                    if (activeDeviceId && dev.deviceId === activeDeviceId) {
+                        opt.selected = true;
+                    }
                     select.appendChild(opt);
                 });
+
+                // Auto-prioritaskan kamera eksternal USB / Capture Card jika belum ada kamera aktif terpilih
+                if (!activeDeviceId && (preferredId || externalCandidateId)) {
+                    var targetId = preferredId || externalCandidateId;
+                    for (var i = 0; i < select.options.length; i++) {
+                        if (select.options[i].value === targetId) {
+                            select.selectedIndex = i;
+                            break;
+                        }
+                    }
+                }
             })
             .catch(function (err) {
                 console.warn('Gagal enumerate devices:', err);
@@ -621,18 +652,42 @@
             return;
         }
 
-        var videoConstraint = deviceId
-            ? { deviceId: { exact: deviceId } }
-            : {
-                width: { ideal: 1920, min: 640 },
-                height: { ideal: 1080, min: 480 }
-            };
+        var preferredId = deviceId;
+        if (!preferredId) {
+            try { preferredId = localStorage.getItem('limz_preferred_camera_device'); } catch (e) { }
+        }
+
+        // Resolusi Full HD 1080p ideal untuk sensor DSLR di iPad / Desktop
+        var videoConstraint = {
+            width: { ideal: 1920, min: 1280 },
+            height: { ideal: 1080, min: 720 },
+            frameRate: { ideal: 30, min: 24 }
+        };
+
+        if (preferredId) {
+            videoConstraint.deviceId = { ideal: preferredId };
+        }
 
         navigator.mediaDevices.getUserMedia({ video: videoConstraint, audio: false })
             .then(function (stream) {
                 liveCameraStream = stream;
                 video.srcObject = stream;
                 video.play();
+
+                var activeTrack = stream.getVideoTracks()[0];
+                var curDeviceId = activeTrack ? (activeTrack.getSettings().deviceId || preferredId) : preferredId;
+                if (curDeviceId) {
+                    try { localStorage.setItem('limz_preferred_camera_device', curDeviceId); } catch (e) { }
+                }
+
+                // Update nama kamera di HUD Viewfinder
+                var hudModelTag = document.getElementById('hud-camera-model-tag');
+                if (hudModelTag && activeTrack && activeTrack.label) {
+                    hudModelTag.innerText = '📷 ' + activeTrack.label;
+                }
+
+                // Re-enumerate devices sekarang setelah izin granted agar nama perangkat iPad/USB tampil lengkap
+                enumerateCameraDevices(curDeviceId);
             })
             .catch(function (err) {
                 console.error('Kamera error, coba fallback constraint:', err);
@@ -641,6 +696,14 @@
                         liveCameraStream = fallbackStream;
                         video.srcObject = fallbackStream;
                         video.play();
+
+                        var activeTrack = fallbackStream.getVideoTracks()[0];
+                        var curDeviceId = activeTrack ? activeTrack.getSettings().deviceId : null;
+                        var hudModelTag = document.getElementById('hud-camera-model-tag');
+                        if (hudModelTag && activeTrack && activeTrack.label) {
+                            hudModelTag.innerText = '📷 ' + activeTrack.label;
+                        }
+                        enumerateCameraDevices(curDeviceId);
                     })
                     .catch(function (err2) {
                         showToast('Gagal mengakses kamera: ' + (err2.message || 'Izin kamera ditolak.'));
@@ -659,6 +722,7 @@
 
     function switchCameraDevice(deviceId) {
         if (deviceId) {
+            try { localStorage.setItem('limz_preferred_camera_device', deviceId); } catch (e) { }
             startLiveCameraStream(deviceId);
         }
     }
@@ -743,6 +807,11 @@
         appState.activeStagedIndex = appState.stagedPhotos.length - 1;
         renderStagedPhotosUI();
         showToast('📸 Foto berhasil dijepret & masuk antrian preview!');
+
+        // Kirim sinyal ke Desktop Camera Bridge jika aktif (Sony A7II/A7III/A6400 & Canon EOS RP)
+        if (typeof sendDesktopBridgeShutter === 'function') {
+            sendDesktopBridgeShutter();
+        }
     }
 
     /* =========================================================================
@@ -1211,6 +1280,116 @@
             showToast('ℹ️ Kamera Anda siap digunakan via kabel data USB!');
         }
     }
+
+    /* =========================================================================
+       MODUL DESKTOP CAMERA BRIDGE HELPER (PORT 8080)
+       Kamera: Sony A7II, Sony A7III, Sony A6400, Canon EOS RP
+       ========================================================================= */
+    var desktopBridgeState = {
+        online: false,
+        cameraName: '',
+        pollInterval: null,
+        lastKnownPhoto: null
+    };
+
+    function getBridgeHost() {
+        var host = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname)
+            ? 'http://localhost:8080'
+            : ('http://' + window.location.hostname + ':8080');
+        return host;
+    }
+
+    function checkDesktopBridgeStatus() {
+        var bridgeHost = getBridgeHost();
+        fetch(bridgeHost + '/api/status', { mode: 'cors' })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                if (data && data.online) {
+                    var wasOffline = !desktopBridgeState.online;
+                    desktopBridgeState.online = true;
+                    var camInfo = (data.camera && data.camera.connected) ? data.camera.model : 'Bridge Siap';
+                    desktopBridgeState.cameraName = camInfo;
+
+                    updateCameraBadge(camInfo, 'USB Bridge');
+
+                    var hudModelTag = document.getElementById('hud-camera-model-tag');
+                    if (hudModelTag && data.camera && data.camera.connected) {
+                        hudModelTag.innerText = '📷 ' + data.camera.model + ' (Bridge USB)';
+                    }
+
+                    if (wasOffline) {
+                        showToast('🟢 Desktop Camera Bridge Terhubung: ' + camInfo);
+                    }
+
+                    // Cek foto baru yang masuk dari kamera fisik
+                    if (data.stats && data.stats.latestPhoto && data.stats.latestPhoto !== desktopBridgeState.lastKnownPhoto) {
+                        // Jangan ingesting foto awal saat baru pertama kali connect
+                        if (desktopBridgeState.lastKnownPhoto !== null) {
+                            desktopBridgeState.lastKnownPhoto = data.stats.latestPhoto;
+                            handleIncomingBridgePhoto(bridgeHost + data.stats.latestPhoto);
+                        } else {
+                            desktopBridgeState.lastKnownPhoto = data.stats.latestPhoto;
+                        }
+                    }
+                } else {
+                    desktopBridgeState.online = false;
+                }
+            })
+            .catch(function () {
+                desktopBridgeState.online = false;
+            });
+    }
+
+    function sendDesktopBridgeShutter() {
+        if (!desktopBridgeState.online) return;
+        var bridgeHost = getBridgeHost();
+        fetch(bridgeHost + '/api/shutter', { method: 'POST', mode: 'cors' })
+            .then(function (r) { return r.json(); })
+            .then(function (res) {
+                if (res && res.success) {
+                    console.log('[BRIDGE] Shutter fisik kamera berhasil dipicu:', res);
+                }
+            })
+            .catch(function (err) {
+                console.warn('[BRIDGE] Shutter trigger warn:', err);
+            });
+    }
+
+    function handleIncomingBridgePhoto(photoUrl) {
+        fetch(photoUrl)
+            .then(function (r) { return r.blob(); })
+            .then(function (blob) {
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    var dataUrl = e.target.result;
+                    var fileName = 'DSLR_' + Date.now() + '.jpg';
+                    var newSnap = {
+                        id: 'staged_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+                        file: { name: fileName, size: blob.size },
+                        name: fileName,
+                        size: blob.size,
+                        dataUrl: dataUrl,
+                        originalDataUrl: dataUrl,
+                        isCropped: false
+                    };
+                    if (appState.photoFilterState && appState.photoFilterState.isLocked) {
+                        newSnap.appliedGrading = JSON.parse(JSON.stringify(appState.photoFilterState));
+                    }
+                    appState.stagedPhotos.push(newSnap);
+                    appState.activeStagedIndex = appState.stagedPhotos.length - 1;
+                    renderStagedPhotosUI();
+                    showToast('📸 Foto DSLR (' + (desktopBridgeState.cameraName || 'Sony/Canon') + ') berhasil masuk antrian!');
+                };
+                reader.readAsDataURL(blob);
+            })
+            .catch(function (err) {
+                console.warn('[BRIDGE] Gagal memuat foto dari bridge:', err);
+            });
+    }
+
+    // Mulai polling deteksi otomatis bridge setiap 3.5 detik
+    setInterval(checkDesktopBridgeStatus, 3500);
+    setTimeout(checkDesktopBridgeStatus, 1000);
 
     /* =========================================================================
        MODUL IN-PAGE TETHER FOLDER WATCHER (NOL POPUP / SINGLE-SCREEN WORKFLOW)
@@ -8703,9 +8882,18 @@
         var elDetail = document.getElementById('drive-quota-detail');
         var bar = document.getElementById('drive-quota-bar');
 
+        // Elemen baru kartu akun Google Drive (Revisi 57)
+        var sEmail = document.getElementById('storage-account-email');
+        var sUsed = document.getElementById('storage-quota-used');
+        var sTotal = document.getElementById('storage-quota-total');
+        var sPct = document.getElementById('storage-quota-pct');
+        var sBar = document.getElementById('storage-quota-bar');
+
         if (elTotal) elTotal.innerText = 'Memuat...';
         if (elUsed) elUsed.innerText = 'Memuat...';
         if (elRemaining) elRemaining.innerText = 'Memuat...';
+        if (sUsed) sUsed.innerText = 'Memuat...';
+        if (sTotal) sTotal.innerText = 'Memuat...';
 
         google.script.run
             .withSuccessHandler(function (res) {
@@ -8714,7 +8902,13 @@
                     if (elUsed) elUsed.innerText = '-';
                     if (elRemaining) elRemaining.innerText = 'Tidak tersedia';
                     if (elPercent) elPercent.innerText = 'Status kuota Google Drive tidak dapat dimuat.';
+                    if (sUsed) sUsed.innerText = '-';
+                    if (sTotal) sTotal.innerText = '-';
                     return;
+                }
+
+                if (res.email && sEmail) {
+                    sEmail.innerText = res.email;
                 }
 
                 if (res.unlimited) {
@@ -8723,9 +8917,16 @@
                     if (elRemaining) elRemaining.innerText = '∞ Tanpa Batas';
                     if (elPercent) elPercent.innerText = 'Akun Google Workspace / Unlimited Storage';
                     if (elDetail) elDetail.innerText = 'Terpakai: ' + formatByteSize(res.used);
+                    if (sUsed) sUsed.innerText = formatByteSize(res.used);
+                    if (sTotal) sTotal.innerText = 'Unlimited';
+                    if (sPct) sPct.innerText = '0%';
                     if (bar) {
                         bar.style.width = '15%';
                         bar.style.backgroundColor = '#16a34a';
+                    }
+                    if (sBar) {
+                        sBar.style.width = '15%';
+                        sBar.style.backgroundColor = '#16a34a';
                     }
                     return;
                 }
@@ -8741,15 +8942,19 @@
                 if (elPercent) elPercent.innerText = 'Penggunaan Kuota: ' + pct + '%';
                 if (elDetail) elDetail.innerText = formatByteSize(used) + ' terpakai dari ' + formatByteSize(limit);
 
+                // Update tampilan kartu baru
+                if (sUsed) sUsed.innerText = formatByteSize(used);
+                if (sTotal) sTotal.innerText = formatByteSize(limit);
+                if (sPct) sPct.innerText = pct + '%';
+
+                var activeBarColor = (pct >= 90) ? '#ef4444' : (pct >= 75 ? '#f59e0b' : '#d97706');
                 if (bar) {
                     bar.style.width = pct + '%';
-                    if (pct >= 90) {
-                        bar.style.backgroundColor = '#ef4444';
-                    } else if (pct >= 75) {
-                        bar.style.backgroundColor = '#f59e0b';
-                    } else {
-                        bar.style.backgroundColor = '#2563eb';
-                    }
+                    bar.style.backgroundColor = activeBarColor;
+                }
+                if (sBar) {
+                    sBar.style.width = Math.max(2, pct) + '%';
+                    sBar.style.backgroundColor = activeBarColor;
                 }
             })
             .withFailureHandler(function (err) {
@@ -8757,6 +8962,8 @@
                 if (elUsed) elUsed.innerText = '-';
                 if (elRemaining) elRemaining.innerText = 'Error';
                 if (elPercent) elPercent.innerText = 'Gagal memuat kuota Google Drive: ' + err;
+                if (sUsed) sUsed.innerText = '-';
+                if (sTotal) sTotal.innerText = '-';
             })
             .getDriveStorageMetrics();
     }

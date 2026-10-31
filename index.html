@@ -1497,77 +1497,177 @@
 
                 <!-- Storage & Health Tab with Batal Arsip support -->
                 <div id="tab-storage" class="dash-tab" style="display: none;">
-                    <div class="top-bar">
+                    <div class="storage-top-header">
                         <div>
-                            <h2 class="page-heading">Storage Manager & Health</h2>
-                            <p style="font-size: 13px; color: var(--text-muted);">Pantau kapasitas Drive, kelola arsip,
-                                batalkan arsip, dan bersihkan koleksi yang sudah selesai.</p>
+                            <h2 class="storage-main-title">Storage Booth &amp; History Google Drive Pengguna</h2>
+                            <p class="storage-main-subtitle">Kelola tempat penyimpanan foto booth di Google Drive Anda sendiri, pantau kuota, arsipkan folder, dan lacak riwayat aktivitas.</p>
                         </div>
-                        <button class="btn btn-teal btn-sm" onclick="triggerManualHealthAudit()">Jalankan Health
-                            Check</button>
+                        <button type="button" class="btn-storage-health" onclick="triggerManualHealthAudit()">
+                            <span style="font-size: 14px;">🛡️</span>
+                            <span>Jalankan Health Check</span>
+                        </button>
                     </div>
 
-                    <!-- KARTU SISA PENYIMPANAN GOOGLE DRIVE -->
-                    <div class="table-card" style="margin-bottom: 22px; padding: 20px 24px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
-                            <div style="display: flex; align-items: center; gap: 12px;">
-                                <div style="width: 42px; height: 42px; border-radius: 10px; background: rgba(37, 99, 235, 0.1); display: flex; align-items: center; justify-content: center; font-size: 22px; border: 1px solid rgba(37, 99, 235, 0.2);">
-                                    💾
+                    <!-- KARTU AKUN GOOGLE DRIVE PENYIMPANAN BOOTH & KAPASITAS -->
+                    <div class="storage-account-card">
+                        <div class="storage-card-grid">
+                            <!-- Kolom Kiri: Akun & Struktur Folder -->
+                            <div class="storage-account-left">
+                                <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 16px;">
+                                    <div class="storage-drive-icon-box">
+                                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#d97706" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                            <h3 style="font-size: 15.5px; font-weight: 800; color: #1e293b; margin: 0;">Akun Google Drive Penyimpanan Booth</h3>
+                                            <span class="badge-drive-connected">AKTIF TERHUBUNG</span>
+                                        </div>
+                                        <div style="font-size: 12.5px; color: #64748b; margin-top: 3px;">
+                                            Akun: <strong id="storage-account-email" style="color: #334155;">limzstudiophotobooth@gmail.com</strong>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h3 style="font-size: 15px; font-weight: 700; margin: 0; color: var(--text-main);">Kapasitas Penyimpanan Google Drive</h3>
-                                    <p style="font-size: 11.5px; color: var(--text-muted); margin: 2px 0 0;">Informasi ruang penyimpanan akun Google Drive penyimpanan aktif.</p>
+
+                                <!-- 3 Folder Hierarki Pills -->
+                                <div class="storage-folder-pills">
+                                    <div class="storage-folder-pill">
+                                        <div class="folder-pill-label">ROOT BOOTH FOLDER</div>
+                                        <div class="folder-pill-name">📁 LIMZ_STUDIO_PHOTOBOOTH_EVENTS</div>
+                                    </div>
+                                    <div class="storage-folder-pill">
+                                        <div class="folder-pill-label">FOLDER EVENT AKTIF</div>
+                                        <div class="folder-pill-name" style="color: #15803d;">📁 ACTIVE_COLLECTIONS</div>
+                                    </div>
+                                    <div class="storage-folder-pill">
+                                        <div class="folder-pill-label">FOLDER ARSIP SELESAI</div>
+                                        <div class="folder-pill-name" style="color: #6b21a8;">📁 ARCHIVED_COLLECTIONS</div>
+                                    </div>
                                 </div>
                             </div>
-                            <button type="button" class="btn btn-outline btn-sm" onclick="fetchDriveStorageQuota()" style="font-size: 11.5px; padding: 5px 12px;">
-                                🔄 Refresh Kuota Drive
-                            </button>
-                        </div>
 
-                        <!-- 3 STATS PILLS -->
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 16px;">
-                            <div style="background: #f8fafc; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 12px 16px;">
-                                <div style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Total Kuota Akun</div>
-                                <div style="font-size: 20px; font-weight: 800; color: var(--text-main); margin-top: 4px;" id="drive-stat-total">Memuat...</div>
-                            </div>
-                            <div style="background: #f8fafc; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 12px 16px;">
-                                <div style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Ruang Terpakai</div>
-                                <div style="font-size: 20px; font-weight: 800; color: #2563eb; margin-top: 4px;" id="drive-stat-used">Memuat...</div>
-                            </div>
-                            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px 16px;">
-                                <div style="font-size: 11px; font-weight: 700; color: #166534; text-transform: uppercase; letter-spacing: 0.5px;">Sisa Penyimpanan Tersedia</div>
-                                <div style="font-size: 20px; font-weight: 800; color: #16a34a; margin-top: 4px;" id="drive-stat-remaining">Memuat...</div>
-                            </div>
-                        </div>
-
-                        <!-- PROGRESS BAR PENGGUNAAN -->
-                        <div>
-                            <div style="display: flex; justify-content: space-between; font-size: 11.5px; margin-bottom: 6px;">
-                                <span style="color: var(--text-muted); font-weight: 600;" id="drive-percent-text">Penggunaan Kuota: Memuat...</span>
-                                <span style="color: var(--text-muted);" id="drive-quota-detail">-</span>
-                            </div>
-                            <div style="width: 100%; height: 10px; background: #e2e8f0; border-radius: 5px; overflow: hidden;">
-                                <div id="drive-quota-bar" style="width: 0%; height: 100%; background: #2563eb; transition: width 0.4s ease, background-color 0.3s ease;"></div>
+                            <!-- Kolom Kanan: Kapasitas Google Drive -->
+                            <div class="storage-account-right">
+                                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;">
+                                    <span style="font-size: 13px; font-weight: 700; color: #334155;">Kapasitas Google Drive Anda</span>
+                                    <span id="storage-quota-pct" style="font-size: 13px; font-weight: 800; color: #64748b;">0%</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; font-size: 11.5px; color: #64748b; margin-bottom: 8px;">
+                                    <span>Terpakai: <strong id="storage-quota-used">2.93 MB</strong></span>
+                                    <span>Total: <strong id="storage-quota-total">15 GB</strong></span>
+                                </div>
+                                <div class="storage-progress-track">
+                                    <div id="storage-quota-bar" class="storage-progress-fill" style="width: 2%;"></div>
+                                </div>
+                                <div style="display: flex; gap: 8px; margin-top: 14px;">
+                                    <button type="button" class="btn-storage-refresh-drive" onclick="fetchDriveStorageQuota()">
+                                        Ganti / Refresh Akun Drive
+                                    </button>
+                                    <button type="button" class="btn-storage-relink-drive" onclick="openSetWebAppUrlModal()" title="Kaitkan / Atur Ulang Akun Google Drive">
+                                        ➔
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="table-card">
-                        <div class="table-header-box">
-                            <h3 style="font-size: 14px; font-weight: 700;">Daftar Koleksi & Aksi Penyimpanan</h3>
+                    <!-- TAB SELECTOR (PILLS) -->
+                    <div class="storage-tab-nav">
+                        <button type="button" class="storage-tab-pill storage-tab-active" id="tab-btn-storage-events" onclick="switchStorageSubTab('events', this)">
+                            📁 Tempat Penyimpanan Booth per Event (<span id="storage-count-events">0</span>)
+                        </button>
+                        <button type="button" class="storage-tab-pill" id="tab-btn-storage-history" onclick="switchStorageSubTab('history', this)">
+                            🕒 Riwayat / History Penyimpanan Booth (<span id="storage-count-history">0</span>)
+                        </button>
+                    </div>
+
+                    <!-- SUB-VIEW 1: TEMPAT PENYIMPANAN BOOTH PER EVENT -->
+                    <div id="storage-subview-events" class="storage-subview">
+                        <div class="storage-table-container">
+                            <!-- Filter & Search Bar -->
+                            <div class="storage-filter-bar">
+                                <div class="storage-search-box">
+                                    <span style="font-size: 14px; opacity: 0.6;">🔍</span>
+                                    <input type="text" id="storage-search-input" placeholder="Cari folder event..." oninput="handleStorageFilterChange()">
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                                    <select id="storage-filter-location" class="storage-select-location" onchange="handleStorageFilterChange()">
+                                        <option value="all">Semua Lokasi Drive</option>
+                                        <option value="ACTIVE_COLLECTIONS">ACTIVE_COLLECTIONS</option>
+                                        <option value="ARCHIVED_COLLECTIONS">ARCHIVED_COLLECTIONS</option>
+                                    </select>
+                                    <span style="font-size: 12px; color: #94a3b8; font-style: italic;">Menampilkan folder booth di Google Drive pengguna</span>
+                                </div>
+                            </div>
+
+                            <!-- Table Event Folders -->
+                            <table class="storage-data-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 28%;">EVENT &amp; FOLDER ID</th>
+                                        <th style="width: 17%;">TGL ACARA</th>
+                                        <th style="width: 18%;">TOTAL FOTO &amp; UKURAN</th>
+                                        <th style="width: 17%;">LOKASI DRIVE</th>
+                                        <th style="width: 20%; text-align: right;">AKSI PENYIMPANAN BOOTH</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-storage-events">
+                                    <tr>
+                                        <td colspan="5" style="text-align:center; color:#94a3b8; padding:30px;">Memuat folder penyimpanan Google Drive...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+
+                            <!-- Table Pagination Footer -->
+                            <div class="storage-pagination-bar">
+                                <div style="font-size: 12.5px; color: #64748b;">
+                                    Menampilkan <span id="storage-page-start">1</span> - <span id="storage-page-end">3</span> dari <strong id="storage-page-total">3</strong> folder penyimpanan | Baris:
+                                    <select id="storage-page-limit" class="storage-select-limit" onchange="handleStoragePageLimitChange(this.value)">
+                                        <option value="10" selected>10 / hal</option>
+                                        <option value="25">25 / hal</option>
+                                        <option value="50">50 / hal</option>
+                                    </select>
+                                </div>
+                                <div class="storage-pagination-buttons" id="storage-pagination-btns">
+                                    <button class="storage-page-btn" disabled>&laquo;</button>
+                                    <button class="storage-page-btn" disabled>&lt; Prev</button>
+                                    <button class="storage-page-btn storage-page-active">1</button>
+                                    <button class="storage-page-btn" disabled>Next &gt;</button>
+                                    <button class="storage-page-btn" disabled>&raquo;</button>
+                                </div>
+                            </div>
                         </div>
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Event</th>
-                                    <th>Tgl Acara</th>
-                                    <th>Total Foto</th>
-                                    <th>Status</th>
-                                    <th>Aksi Storage</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tbody-expired-collections"></tbody>
-                        </table>
+                    </div>
+
+                    <!-- SUB-VIEW 2: RIWAYAT / HISTORY PENYIMPANAN BOOTH -->
+                    <div id="storage-subview-history" class="storage-subview" style="display: none;">
+                        <div class="storage-table-container">
+                            <div class="storage-filter-bar">
+                                <div style="font-size: 13.5px; font-weight: 700; color: #1e293b;">
+                                    Riwayat Audit &amp; Aktivitas Penyimpanan Google Drive
+                                </div>
+                                <button type="button" class="btn btn-outline btn-sm" onclick="fetchStorageHistoryLogs()" style="font-size: 12px; padding: 4px 10px;">
+                                    🔄 Refresh Log
+                                </button>
+                            </div>
+                            <table class="storage-data-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 15%;">LOG ID</th>
+                                        <th style="width: 20%;">WAKTU &amp; TANGGAL</th>
+                                        <th style="width: 25%;">AKSI / AKTIVITAS</th>
+                                        <th style="width: 20%;">PENGGUNA / TRIGGER</th>
+                                        <th style="width: 20%;">KETERANGAN / STATUS</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-storage-history">
+                                    <tr>
+                                        <td colspan="5" style="text-align:center; color:#94a3b8; padding:30px;">Memuat riwayat aktivitas storage...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2458,9 +2558,9 @@
                 </div>
             </div>
 
-            <!-- Viewfinder Screen Container -->
-            <div
-                style="position:relative; width:100%; aspect-ratio:4/3; background:#000; border-radius:10px; overflow:hidden; display:flex; align-items:center; justify-content:center; box-shadow:inset 0 0 20px rgba(0,0,0,0.8);">
+            <!-- Viewfinder Screen Container (Sentuh / Klik Layar untuk Shutter seperti LumaBooth) -->
+            <div onclick="triggerCameraShutter()" title="Klik atau Sentuh Layar untuk Shutter Foto"
+                style="position:relative; width:100%; aspect-ratio:4/3; background:#000; border-radius:10px; overflow:hidden; display:flex; align-items:center; justify-content:center; box-shadow:inset 0 0 20px rgba(0,0,0,0.8); cursor:pointer;">
                 <video id="live-camera-video" autoplay playsinline muted
                     style="width:100%; height:100%; object-fit:contain;"></video>
 
