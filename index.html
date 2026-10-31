@@ -1564,7 +1564,7 @@
                                     <button type="button" class="btn-storage-refresh-drive" onclick="fetchDriveStorageQuota()">
                                         Ganti / Refresh Akun Drive
                                     </button>
-                                    <button type="button" class="btn-storage-relink-drive" onclick="openSetWebAppUrlModal()" title="Kaitkan / Atur Ulang Akun Google Drive">
+                                    <button type="button" class="btn-storage-relink-drive" onclick="openRelinkDriveAccountModal()" title="Kaitkan / Atur Ulang Akun Google Drive">
                                         ➔
                                     </button>
                                 </div>
@@ -2470,6 +2470,60 @@
                     <button type="button" class="btn btn-outline"
                         onclick="closeModal('modal-set-webapp-url')">Tutup</button>
                     <button type="submit" class="btn btn-gold">Simpan & Perbarui Semua QR</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    
+    <!-- Modal Kelola & Kaitkan Akun Google Drive (Revisi 58) -->
+    <div class="modal-overlay" id="modal-relink-drive-account">
+        <div class="modal-box" style="max-width: 540px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                <h3 style="font-size: 17px; font-weight: 700; margin: 0; color: #1e293b; display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 20px;">☁️</span> Kelola &amp; Kaitkan Akun Google Drive
+                </h3>
+                <button type="button" onclick="closeModal('modal-relink-drive-account')" style="background:none; border:none; font-size:18px; cursor:pointer; color:#94a3b8;">&times;</button>
+            </div>
+            
+            <!-- Info Status Akun Aktif -->
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; margin-bottom: 16px;">
+                <div style="font-size: 11px; text-transform: uppercase; font-weight: 800; color: #64748b; letter-spacing: 0.5px; margin-bottom: 4px;">Akun Google Drive Aktif Saat Ini</div>
+                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                    <span id="modal-drive-active-email" style="font-weight: 700; color: #0f172a; font-size: 13.5px;">limzstudiophotobooth@gmail.com</span>
+                    <span class="storage-account-badge">AKTIF TERHUBUNG</span>
+                </div>
+            </div>
+
+            <!-- Petunjuk Teknis Cara Ganti / Kaitkan Akun Baru -->
+            <div style="font-size: 12.5px; color: #475569; line-height: 1.55; margin-bottom: 16px;">
+                <p style="margin: 0 0 8px 0;">
+                    Foto booth disimpan langsung ke Google Drive dari <strong>Akun Google yang mendeploy Web App</strong> ini.
+                </p>
+                <div style="background: #fffbeb; border-left: 3px solid #d97706; padding: 8px 12px; font-size: 11.5px; color: #92400e; border-radius: 0 6px 6px 0; margin-bottom: 10px;">
+                    <strong>💡 Ingin Ganti ke Akun Google Drive Lain?</strong><br>
+                    <strong>Cara 1 (Rekomendasi Cepat):</strong> Buat folder di Drive akun baru Anda, klik <em>Bagikan (Share)</em> folder tersebut ke email di atas dengan akses <strong>Editor</strong>, lalu masukkan ID Foldernya di bawah.<br>
+                    <strong>Cara 2 (Ganti Total):</strong> Buka Google Apps Script dari akun Google baru Anda, pasang script ini, lalu Deploy Web App baru.
+                </div>
+            </div>
+
+            <form onsubmit="event.preventDefault(); saveCustomDriveRootFolder();">
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label style="font-size: 12px; font-weight: 700; color: #334155;">ID Root Folder Google Drive (Opsional / Kustom):</label>
+                    <input type="text" id="input-drive-root-folder-id" class="form-control"
+                        placeholder="Default: LIMZ_STUDIO_PHOTOBOOTH_EVENTS" style="font-size: 12.5px; font-family: monospace;">
+                    <small style="font-size: 11px; color: #64748b; display: block; margin-top: 4px;">
+                        Kosongkan untuk memakai folder otomatis bawaan (<code>LIMZ_STUDIO_PHOTOBOOTH_EVENTS</code>).
+                    </small>
+                </div>
+                <div style="display: flex; gap: 8px; justify-content: flex-end; align-items: center; margin-top: 20px; flex-wrap: wrap;">
+                    <button type="button" class="btn btn-outline" style="font-size: 12px; padding: 7px 12px;"
+                        onclick="testDriveAccountConnection()">
+                        🔍 Tes Akses &amp; Refresh Kuota
+                    </button>
+                    <button type="button" class="btn btn-outline" style="font-size: 12px; padding: 7px 12px;"
+                        onclick="closeModal('modal-relink-drive-account')">Tutup</button>
+                    <button type="submit" class="btn btn-gold" style="font-size: 12px; padding: 7px 16px;">Simpan Pengaturan</button>
                 </div>
             </form>
         </div>

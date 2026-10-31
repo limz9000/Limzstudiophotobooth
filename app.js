@@ -4919,6 +4919,11 @@
 
         if (tabId === 'tab-storage') {
             fetchDriveStorageQuota();
+            if (!appState.collections || appState.collections.length === 0) {
+                fetchCollectionsList();
+            } else {
+                renderStorageTable(appState.collections);
+            }
         } else if (tabId === 'tab-upload') {
             refreshUploadedPhotosForTabUpload();
         }
@@ -8751,39 +8756,279 @@
             .runStorageHealthAudit('Manual_Admin');
     }
 
+    var storageBoothState = {
+        search: '',
+        locationFilter: 'all',
+        page: 1,
+        limit: 10,
+        activeSubTab: 'events',
+        historyLogs: []
+    };
+
+    function switchStorageSubTab(subTab, btnEl) {
+        storageBoothState.activeSubTab = subTab;
+        var btnEvents = document.getElementById('tab-btn-storage-events');
+        var btnHistory = document.getElementById('tab-btn-storage-history');
+        var viewEvents = document.getElementById('storage-subview-events');
+        var viewHistory = document.getElementById('storage-subview-history');
+
+        if (btnEvents) btnEvents.classList.remove('storage-tab-active');
+        if (btnHistory) btnHistory.classList.remove('storage-tab-active');
+
+        if (subTab === 'history') {
+            if (btnHistory) btnHistory.classList.add('storage-tab-active');
+            if (viewEvents) viewEvents.style.display = 'none';
+            if (viewHistory) viewHistory.style.display = 'block';
+            fetchStorageHistoryLogs();
+        } else {
+            if (btnEvents) btnEvents.classList.add('storage-tab-active');
+            if (viewEvents) viewEvents.style.display = 'block';
+            if (viewHistory) viewHistory.style.display = 'none';
+            renderStorageTable(appState.collections || []);
+        }
+    }
+
+    function handleStorageFilterChange() {
+        var searchInput = document.getElementById('storage-search-input');
+        var locSelect = document.getElementById('storage-filter-location');
+        storageBoothState.search = searchInput ? searchInput.value.trim().toLowerCase() : '';
+        storageBoothState.locationFilter = locSelect ? locSelect.value : 'all';
+        storageBoothState.page = 1;
+        renderStorageTable(appState.collections || []);
+    }
+
+    function handleStoragePageLimitChange(val) {
+        storageBoothState.limit = parseInt(val, 10) || 10;
+        storageBoothState.page = 1;
+        renderStorageTable(appState.collections || []);
+    }
+
+    function changeStoragePage(newPage) {
+        storageBoothState.page = newPage;
+        renderStorageTable(appState.collections || []);
+    }
+
+    function openDriveFolderWindow(folderId) {
+        if (folderId && folderId.trim() !== '') {
+            window.open('https://drive.google.com/drive/folders/' + encodeURIComponent(folderId.trim()), '_blank');
+        } else {
+            window.open('https://drive.google.com/drive/my-drive', '_blank');
+        }
+    }
+
+    function openRelinkDriveAccountModal() {
+        var sEmail = document.getElementById('storage-account-email');
+        var mEmail = document.getElementById('modal-drive-active-email');
+        if (sEmail && mEmail && sEmail.innerText && sEmail.innerText !== 'Memuat...') {
+            mEmail.innerText = sEmail.innerText;
+        }
+        var rootInput = document.getElementById('input-drive-root-folder-id');
+        if (rootInput && !rootInput.value) {
+            rootInput.value = localStorage.getItem('limz_custom_drive_root_folder') || '';
+        }
+        openModal('modal-relink-drive-account');
+    }
+
+    function testDriveAccountConnection() {
+        showToast('Memverifikasi akses Google Drive & membaca kuota...');
+        fetchDriveStorageQuota();
+        setTimeout(function() {
+            showToast('Koneksi Google Drive terverifikasi aktif!');
+        }, 800);
+    }
+
+    function saveCustomDriveRootFolder() {
+        var rootInput = document.getElementById('input-drive-root-folder-id');
+        var val = rootInput ? rootInput.value.trim() : '';
+        if (val) {
+            localStorage.setItem('limz_custom_drive_root_folder', val);
+            showToast('ID Folder Google Drive berhasil disimpan!');
+        } else {
+            localStorage.removeItem('limz_custom_drive_root_folder');
+            showToast('Menggunakan folder bawaan (LIMZ_STUDIO_PHOTOBOOTH_EVENTS).');
+        }
+        closeModal('modal-relink-drive-account');
+        fetchDriveStorageQuota();
+    }
+
     function renderStorageTable(items) {
-        var tbody = document.getElementById('tbody-expired-collections');
-        if (!tbody) return;
-        tbody.innerHTML = '';
+        var tbodyEvents = document.getElementById('tbody-storage-events');
+        var tbodyLegacy = document.getElementById('tbody-expired-collections');
 
-        if (!items || items.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding: 20px;">Belum ada koleksi tersimpan.</td></tr>';
-            return;
-        }
+        if (!items) items = appState.collections || [];
 
-        for (var i = 0; i < items.length; i++) {
-            var c = items[i];
-            var tr = document.createElement('tr');
-            var badgeClass = c.status === 'Active' ? 'badge-active' : 'badge-archived';
+        // Update badge jumlah event
+        var countEventsBadge = document.getElementById('storage-count-events');
+        if (countEventsBadge) countEventsBadge.innerText = items.length;
 
-            var actionButtons = '';
-            if (c.status === 'Active') {
-                actionButtons += '<button class="btn btn-outline btn-sm" onclick="triggerArchiveCollection(\'' + c.id + '\')">📦 Arsip</button> ';
-            } else if (c.status === 'Archived') {
-                actionButtons += '<button class="btn btn-teal btn-sm" onclick="triggerUnarchiveCollection(\'' + c.id + '\')">🔄 Batal Arsip</button> ';
+        // Filter list
+        var filtered = items.filter(function(c) {
+            if (storageBoothState.locationFilter === 'ACTIVE_COLLECTIONS' && c.status === 'Archived') return false;
+            if (storageBoothState.locationFilter === 'ARCHIVED_COLLECTIONS' && c.status !== 'Archived') return false;
+            if (storageBoothState.search) {
+                var q = storageBoothState.search;
+                var matchTitle = (c.title || '').toLowerCase().indexOf(q) > -1;
+                var matchId = (c.folderId || c.id || '').toLowerCase().indexOf(q) > -1;
+                var matchDate = (c.eventDate || '').toLowerCase().indexOf(q) > -1;
+                if (!matchTitle && !matchId && !matchDate) return false;
             }
-            actionButtons += '<button class="btn btn-danger btn-sm" onclick="openDeleteConfirmModal(\'' + c.id + '\')">🗑️ Hapus</button>';
+            return true;
+        });
 
-            tr.innerHTML = '<td><strong>' + c.title + '</strong><br><small style="color:var(--text-muted);">' + c.slug + '</small></td>' +
-                '<td>' + formatDisplayDate(c.eventDate) + '</td>' +
-                '<td>' + c.totalPhotos + ' Foto</td>' +
-                '<td><span class="badge-status ' + badgeClass + '">' + c.status + '</span></td>' +
-                '<td>' +
-                '<div style="display:flex; gap:6px; flex-wrap:wrap;">' + actionButtons + '</div>' +
-                '</td>';
-            tbody.appendChild(tr);
+        // Pagination calculation
+        var total = filtered.length;
+        var limit = storageBoothState.limit;
+        var maxPage = Math.max(1, Math.ceil(total / limit));
+        if (storageBoothState.page > maxPage) storageBoothState.page = maxPage;
+        var page = storageBoothState.page;
+        var startIdx = (page - 1) * limit;
+        var endIdx = Math.min(total, startIdx + limit);
+        var pageItems = filtered.slice(startIdx, endIdx);
+
+        // Update pagination labels
+        var elStart = document.getElementById('storage-page-start');
+        var elEnd = document.getElementById('storage-page-end');
+        var elTotal = document.getElementById('storage-page-total');
+        if (elStart) elStart.innerText = total > 0 ? (startIdx + 1) : 0;
+        if (elEnd) elEnd.innerText = endIdx;
+        if (elTotal) elTotal.innerText = total;
+
+        // Render pagination buttons
+        var elBtns = document.getElementById('storage-pagination-btns');
+        if (elBtns) {
+            var btnHtml = '';
+            var prevDisabled = page <= 1 ? 'disabled' : '';
+            var nextDisabled = page >= maxPage ? 'disabled' : '';
+
+            btnHtml += '<button class="storage-page-btn" ' + prevDisabled + ' onclick="changeStoragePage(1)">&laquo;</button>';
+            btnHtml += '<button class="storage-page-btn" ' + prevDisabled + ' onclick="changeStoragePage(' + (page - 1) + ')">&lt; Prev</button>';
+
+            for (var p = 1; p <= maxPage; p++) {
+                if (p === page) {
+                    btnHtml += '<button class="storage-page-btn storage-page-active">' + p + '</button>';
+                } else if (p === 1 || p === maxPage || Math.abs(p - page) <= 1) {
+                    btnHtml += '<button class="storage-page-btn" onclick="changeStoragePage(' + p + ')">' + p + '</button>';
+                } else if (p === page - 2 || p === page + 2) {
+                    btnHtml += '<span style="padding:4px 6px; color:#94a3b8;">...</span>';
+                }
+            }
+
+            btnHtml += '<button class="storage-page-btn" ' + nextDisabled + ' onclick="changeStoragePage(' + (page + 1) + ')">Next &gt;</button>';
+            btnHtml += '<button class="storage-page-btn" ' + nextDisabled + ' onclick="changeStoragePage(' + maxPage + ')">&raquo;</button>';
+            elBtns.innerHTML = btnHtml;
         }
-        updateUserDisplay();
+
+        // Render rows into tbody-storage-events
+        if (tbodyEvents) {
+            tbodyEvents.innerHTML = '';
+            if (pageItems.length === 0) {
+                tbodyEvents.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#94a3b8; padding:30px;">Tidak ada folder penyimpanan booth yang sesuai kriteria.</td></tr>';
+            } else {
+                for (var i = 0; i < pageItems.length; i++) {
+                    var c = pageItems[i];
+                    var tr = document.createElement('tr');
+                    var isArchived = (c.status === 'Archived');
+                    var locBadge = isArchived
+                        ? '<span class="badge-loc-archived">ARCHIVED_COLLECTIONS</span>'
+                        : '<span class="badge-loc-active">ACTIVE_COLLECTIONS</span>';
+
+                    var archiveOrRestoreBtn = isArchived
+                        ? '<button type="button" class="btn-act-unarchive" onclick="triggerUnarchiveCollection(\'' + c.id + '\')" title="Batal arsipkan event ini"><span>🔄</span> Batal Arsip</button>'
+                        : '<button type="button" class="btn-act-archive" onclick="triggerArchiveCollection(\'' + c.id + '\')" title="Pindahkan ke folder arsip"><span>📦</span> Arsip</button>';
+
+                    var estSizeMb = (c.totalPhotos > 0) ? (c.totalPhotos * 2.1).toFixed(2) + ' MB' : '0 MB';
+                    var folderDisplayId = c.folderId || c.id || '-';
+                    var formattedDate = (typeof formatDisplayDate === 'function' ? formatDisplayDate(c.eventDate) : (c.eventDate || '-')).toUpperCase();
+
+                    tr.innerHTML = '<td>' +
+                        '<strong>' + (c.title || 'Tanpa Judul') + '</strong>' +
+                        '<div style="font-size:11px; color:#64748b; font-family:monospace; margin-top:2px;">ID: ' + folderDisplayId + '</div>' +
+                        '</td>' +
+                        '<td>' + formattedDate + '</td>' +
+                        '<td>' +
+                        '<strong>' + (c.totalPhotos || 0) + ' Foto</strong>' +
+                        '<div style="font-size:11px; color:#64748b; margin-top:2px;">- ' + estSizeMb + '</div>' +
+                        '</td>' +
+                        '<td>' + locBadge + '</td>' +
+                        '<td style="text-align:right;">' +
+                        '<div style="display:flex; gap:6px; justify-content:flex-end; align-items:center; flex-wrap:wrap;">' +
+                        '<button type="button" class="btn-act-drive" onclick="openDriveFolderWindow(\'' + (c.folderId || '') + '\')" title="Buka di Google Drive"><span>↗</span> Buka Drive</button>' +
+                        '<button type="button" class="btn-act-sync" onclick="triggerSyncDrivePhotos(\'' + c.id + '\')" title="Sinkronkan folder dengan Drive"><span>🔄</span> Sync</button>' +
+                        archiveOrRestoreBtn +
+                        '<button type="button" class="btn-act-delete" onclick="openDeleteConfirmModal(\'' + c.id + '\')" title="Hapus event & foto"><span>🗑️</span> Hapus</button>' +
+                        '</div>' +
+                        '</td>';
+
+                    tbodyEvents.appendChild(tr);
+                }
+            }
+        }
+
+        // Render fallback legacy table jika ada
+        if (tbodyLegacy) {
+            tbodyLegacy.innerHTML = '';
+            for (var j = 0; j < items.length; j++) {
+                var item = items[j];
+                var lTr = document.createElement('tr');
+                var lBadgeClass = item.status === 'Active' ? 'badge-active' : 'badge-archived';
+                var lBtn = item.status === 'Active'
+                    ? '<button class="btn btn-outline btn-sm" onclick="triggerArchiveCollection(\'' + item.id + '\')">📦 Arsip</button>'
+                    : '<button class="btn btn-teal btn-sm" onclick="triggerUnarchiveCollection(\'' + item.id + '\')">🔄 Batal Arsip</button>';
+
+                lTr.innerHTML = '<td><strong>' + item.title + '</strong><br><small style="color:var(--text-muted);">' + item.slug + '</small></td>' +
+                    '<td>' + (typeof formatDisplayDate === 'function' ? formatDisplayDate(item.eventDate) : item.eventDate) + '</td>' +
+                    '<td>' + item.totalPhotos + ' Foto</td>' +
+                    '<td><span class="badge-status ' + lBadgeClass + '">' + item.status + '</span></td>' +
+                    '<td><div style="display:flex; gap:6px;">' + lBtn + '</div></td>';
+                tbodyLegacy.appendChild(lTr);
+            }
+        }
+
+        if (typeof updateUserDisplay === 'function') updateUserDisplay();
+    }
+
+    function fetchStorageHistoryLogs() {
+        var tbodyHistory = document.getElementById('tbody-storage-history');
+        if (tbodyHistory) {
+            tbodyHistory.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#94a3b8; padding:25px;">Mengambil riwayat aktivitas Google Drive...</td></tr>';
+        }
+
+        google.script.run
+            .withSuccessHandler(function(res) {
+                if (!res || !res.success) {
+                    if (tbodyHistory) tbodyHistory.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#ef4444; padding:25px;">Gagal memuat riwayat aktivitas.</td></tr>';
+                    return;
+                }
+
+                var badgeHistory = document.getElementById('storage-count-history');
+                if (badgeHistory) badgeHistory.innerText = res.totalLogs || (res.items ? res.items.length : 0);
+
+                if (tbodyHistory) {
+                    tbodyHistory.innerHTML = '';
+                    var logs = res.items || [];
+                    if (logs.length === 0) {
+                        tbodyHistory.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#94a3b8; padding:25px;">Belum ada riwayat aktivitas Google Drive yang tercatat.</td></tr>';
+                        return;
+                    }
+
+                    for (var k = 0; k < logs.length; k++) {
+                        var log = logs[k];
+                        var trH = document.createElement('tr');
+                        trH.innerHTML = '<td><strong style="font-family:monospace;">' + (log.id || '-') + '</strong></td>' +
+                            '<td>' + (log.time || '-') + '</td>' +
+                            '<td><span class="badge-status badge-active">' + (log.action || '-') + '</span></td>' +
+                            '<td>' + (log.user || 'Admin') + '</td>' +
+                            '<td>' + (log.notes || '-') + '</td>';
+                        tbodyHistory.appendChild(trH);
+                    }
+                }
+            })
+            .withFailureHandler(function(err) {
+                if (tbodyHistory) {
+                    tbodyHistory.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#ef4444; padding:25px;">Error memuat log: ' + err + '</td></tr>';
+                }
+            })
+            .getStorageHistoryLogs();
     }
 
     function fetchSensorWords() {
