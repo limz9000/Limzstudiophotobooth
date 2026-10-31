@@ -1242,6 +1242,11 @@
 
     function triggerIpadCameraUsbConnect(e) {
         if (e && e.stopPropagation) e.stopPropagation();
+        if (window.AndroidUsbCamera) {
+            showToast('📂 Mengatur folder penyimpanan kamera di Android...');
+            window.AndroidUsbCamera.openFolderPicker();
+            return;
+        }
         var ipadInput = document.getElementById('file-input-ipad-roll');
         if (ipadInput) {
             showToast('📱 Hubungkan kabel data USB kamera ke iPad. Di dialog yang muncul: pilih "Choose Files" (buka kamera di sidebar Files) atau "Photo Library".');
@@ -1251,6 +1256,32 @@
 
     async function triggerUsbCameraProbe(e) {
         if (e && e.stopPropagation) e.stopPropagation();
+        if (window.AndroidUsbCamera) {
+            try {
+                var rawCameras = window.AndroidUsbCamera.getConnectedCameras();
+                var cameras = JSON.parse(rawCameras || '[]');
+                if (cameras.length > 0) {
+                    var cam = cameras[0];
+                    showToast('📷 Kamera Terdeteksi: ' + cam.brandAndModel);
+                    if (!cam.hasPermission) {
+                        showToast('Meminta izin akses USB untuk ' + cam.brandAndModel + '...');
+                        window.AndroidUsbCamera.requestPermission(cam.deviceName);
+                    } else {
+                        showToast('✅ Kamera ' + cam.brandAndModel + ' terhubung & aktif!');
+                    }
+                    var statusEl = document.getElementById('tether-indicator-status');
+                    if (statusEl) {
+                        statusEl.innerHTML = '<span style="color:#10b981;">🟢</span> <strong>Kamera USB:</strong> ' + cam.brandAndModel;
+                    }
+                    return;
+                } else {
+                    showToast('ℹ️ Sambungkan kabel USB OTG dari kamera (Sony, Canon, Nikon) ke tablet.');
+                    return;
+                }
+            } catch (errCam) {
+                console.error('AndroidUsbCamera error:', errCam);
+            }
+        }
         if (!navigator.usb || typeof navigator.usb.requestDevice !== 'function') {
             showToast('ℹ️ Sambungkan kabel data USB kamera Anda. Model kamera (Sony, Canon, Nikon, Fuji, dll.) akan otomatis terdeteksi begitu foto jepretan masuk!');
             return;
@@ -1421,6 +1452,18 @@
 
     async function triggerDslrHotFolderWatch(e) {
         if (e && e.stopPropagation) e.stopPropagation();
+
+        // 0. Cek jika berjalan di Android APK (Native USB Camera Bridge)
+        if (window.AndroidUsbCamera) {
+            var curFolder = window.AndroidUsbCamera.getStorageFolder();
+            showToast('📁 Menggunakan folder penyimpanan kamera Android: ' + curFolder);
+            window.AndroidUsbCamera.scanFolderNow();
+            var statusEl = document.getElementById('tether-indicator-status');
+            if (statusEl) {
+                statusEl.innerHTML = '<span style="color:#10b981;">🟢</span> <strong>Folder Android:</strong> ' + curFolder;
+            }
+            return;
+        }
 
         // 1. Jika running di luar iframe (misal standalone / Vercel), coba showDirectoryPicker langsung
         var isInIframe = (window.self !== window.top);
@@ -9323,4 +9366,82 @@
                 showToast('Gagal menghapus akun: ' + err);
             })
             .deleteUser(userId, currentAdminEmail);
+    }
+
+    // =========================================================================
+    // ANDROID APK NATIVE USB CAMERA & STORAGE BRIDGE (Revisi 59)
+    // =========================================================================
+    function dataUriToBlobHelper(dataURI) {
+        var byteString;
+        if (dataURI.split(',')[0].indexOf('base64') >= 0) {
+            byteString = atob(dataURI.split(',')[1]);
+        } else {
+            byteString = decodeURI(dataURI.split(',')[1]);
+        }
+        var mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
+        var ia = new Uint8Array(byteString.length);
+        for (var i = 0; i < byteString.length; i++) {
+            ia[i] = byteString.charCodeAt(i);
+        }
+        return new Blob([ia], { type: mimeString });
+    }
+
+    if (window.AndroidUsbCamera) {
+        console.log('[AndroidUsbCamera] Native USB Camera Bridge aktif!');
+
+        // Deteksi kamera yang terhubung saat aplikasi pertama kali terbuka
+        setTimeout(function() {
+            try {
+                var raw = window.AndroidUsbCamera.getConnectedCameras();
+                var list = JSON.parse(raw || '[]');
+                if (list.length > 0) {
+                    var c = list[0];
+                    console.log('[AndroidUsbCamera] Kamera terdeteksi:', c.brandAndModel);
+                    var statusEl = document.getElementById('tether-indicator-status');
+                    if (statusEl) {
+                        statusEl.innerHTML = '<span style="color:#10b981;">🟢</span> <strong>Kamera USB:</strong> ' + c.brandAndModel;
+                    }
+                    if (!c.hasPermission) {
+                        window.AndroidUsbCamera.requestPermission(c.deviceName);
+                    }
+                }
+            } catch(eInit) {
+                console.warn('[AndroidUsbCamera] init scan error:', eInit);
+            }
+        }, 1200);
+
+        // Listener saat kabel kamera USB dicolok / dicabut
+        window.addEventListener('androidCameraStatus', function(ev) {
+            if (ev.detail && ev.detail.connected) {
+                showToast('📷 Kamera USB Terhubung: ' + ev.detail.name);
+                var statusEl = document.getElementById('tether-indicator-status');
+                if (statusEl) {
+                    statusEl.innerHTML = '<span style="color:#10b981;">🟢</span> <strong>Kamera USB:</strong> ' + ev.detail.name;
+                }
+            } else {
+                showToast('📷 Kamera USB Terputus');
+                var statusEl2 = document.getElementById('tether-indicator-status');
+                if (statusEl2) {
+                    statusEl2.innerHTML = '<span style="color:#94a3b8;">⚪</span> Kamera Terputus';
+                }
+            }
+        });
+
+        // Callback utama saat jepretan foto baru masuk dari kamera via USB
+        window.onAndroidCameraPhotoCaptured = function(fileName, dataUrl) {
+            try {
+                var blob = dataUriToBlobHelper(dataUrl);
+                var file = new File([blob], fileName, { type: 'image/jpeg' });
+                handlePhotoFilesSelected([file]);
+                showToast('📸 Foto baru masuk dari kamera USB: ' + fileName);
+            } catch(ePhoto) {
+                console.error('[AndroidUsbCamera] Gagal memproses foto baru:', ePhoto);
+            }
+        };
+
+        window.addEventListener('androidCameraPhoto', function(ev) {
+            if (ev.detail && ev.detail.dataUrl) {
+                window.onAndroidCameraPhotoCaptured(ev.detail.name || 'camera_photo.jpg', ev.detail.dataUrl);
+            }
+        });
     }
