@@ -4943,6 +4943,15 @@
             target.style.display = 'block';
             appState.currentView = viewId;
             window.scrollTo(0, 0);
+
+            // Simpan riwayat tampilan terakhir agar tahan reload saat pindah tab
+            try {
+                if (viewId === 'view-dashboard') {
+                    localStorage.setItem('limz_active_view', 'view-dashboard');
+                } else if (viewId === 'view-landing') {
+                    localStorage.setItem('limz_active_view', 'view-landing');
+                }
+            } catch (e) { }
         }
 
         if (viewId === 'view-login') {
@@ -4959,7 +4968,11 @@
             tabs[i].style.display = 'none';
         }
         var target = document.getElementById(tabId);
-        if (target) target.style.display = 'block';
+        if (target) {
+            target.style.display = 'block';
+            appState.activeDashboardTab = tabId;
+            try { localStorage.setItem('limz_active_dash_tab', tabId); } catch (e) { }
+        }
 
         if (tabId === 'tab-storage') {
             fetchDriveStorageQuota();
@@ -5104,7 +5117,34 @@
                 }
             }
         } else {
-            switchView('view-landing');
+            // TIDAK ADA SLUG (BUKAN LINK GALERI TAMU)
+            // Auto-Resume: Cek apakah user sebelumnya sudah login dan sedang bekerja di Dashboard
+            var savedUser = null;
+            var lastView = null;
+            var lastTab = null;
+            try {
+                savedUser = localStorage.getItem('limz_saved_user_session');
+                lastView = localStorage.getItem('limz_active_view');
+                lastTab = localStorage.getItem('limz_active_dash_tab');
+            } catch (e) { }
+
+            if (savedUser && (lastView === 'view-dashboard' || !lastView || lastView !== 'view-landing')) {
+                if (!appState.currentUser) {
+                    try { appState.currentUser = JSON.parse(savedUser); } catch (e) { }
+                    updateUserDisplay();
+                }
+                switchView('view-dashboard');
+                if (lastTab && document.getElementById(lastTab)) {
+                    switchDashboardTab(lastTab);
+                } else {
+                    switchDashboardTab('tab-collections');
+                }
+                if (!appState.collections || appState.collections.length === 0) {
+                    fetchCollectionsList();
+                }
+            } else {
+                switchView('view-landing');
+            }
         }
     }
 
@@ -8257,12 +8297,25 @@
     function onLoginSuccess() {
         updateUserDisplay();
         switchView('view-dashboard');
+        var lastTab = null;
+        try {
+            lastTab = localStorage.getItem('limz_active_dash_tab');
+        } catch (e) { }
+        if (lastTab && document.getElementById(lastTab)) {
+            switchDashboardTab(lastTab);
+        } else {
+            switchDashboardTab('tab-collections');
+        }
         refreshDashboardData();
     }
 
     function handleLogout() {
         appState.currentUser = null;
         localStorage.removeItem('limz_saved_user_session');
+        try {
+            localStorage.removeItem('limz_active_view');
+            localStorage.removeItem('limz_active_dash_tab');
+        } catch (e) { }
         var em = document.getElementById('login-email');
         var pw = document.getElementById('login-password');
         if (em) em.value = '';
@@ -9779,3 +9832,31 @@
             showToast('✅ Pesan laporan berhasil disalin!');
         }
     }
+
+    /* =========================================================================
+       SEAMLESS TAB RECOVERY: VISIBILITY CHANGE LISTENER
+       Menjaga agar saat berpindah tab browser dan kembali, posisi tetap di dalam panel
+       ========================================================================= */
+    document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') {
+            try {
+                var savedUser = localStorage.getItem('limz_saved_user_session');
+                var lastView = localStorage.getItem('limz_active_view');
+                var lastTab = localStorage.getItem('limz_active_dash_tab');
+
+                // Jika user sedang login dan posisi terakhir di dashboard, tapi tampilan sempat ter-reset:
+                if (savedUser && lastView === 'view-dashboard') {
+                    if (appState.currentView === 'view-landing') {
+                        if (!appState.currentUser) {
+                            try { appState.currentUser = JSON.parse(savedUser); } catch (e) { }
+                            updateUserDisplay();
+                        }
+                        switchView('view-dashboard');
+                        if (lastTab && document.getElementById(lastTab)) {
+                            switchDashboardTab(lastTab);
+                        }
+                    }
+                }
+            } catch (e) { }
+        }
+    });
