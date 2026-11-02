@@ -4904,10 +4904,12 @@
             appState.currentUser = { id: 'USR-DEFAULT', nama: 'Admin User', role: 'Admin' };
         }
         switchView('view-dashboard');
-        switchDashboardTab('tab-collections');
-        if (!appState.collections || appState.collections.length === 0) {
-            fetchCollectionsList();
-        }
+        var lastTab = 'tab-control-center';
+        try {
+            lastTab = localStorage.getItem('limz_active_dash_tab') || 'tab-control-center';
+        } catch (e) { }
+        switchDashboardTab(lastTab);
+    }
     }
 
     function showToast(msg) {
@@ -4974,7 +4976,9 @@
             try { localStorage.setItem('limz_active_dash_tab', tabId); } catch (e) { }
         }
 
-        if (tabId === 'tab-storage') {
+        if (tabId === 'tab-control-center') {
+            refreshDashboardData();
+        } else if (tabId === 'tab-storage') {
             fetchDriveStorageQuota();
             if (!appState.collections || appState.collections.length === 0) {
                 fetchCollectionsList();
@@ -4983,6 +4987,11 @@
             }
         } else if (tabId === 'tab-upload') {
             refreshUploadedPhotosForTabUpload();
+        } else if (tabId === 'tab-moderation') {
+            fetchSensorWords();
+            fetchWishesForModeration();
+        } else if (tabId === 'tab-collections') {
+            fetchCollectionsList();
         }
 
         if (el) {
@@ -5137,11 +5146,9 @@
                 if (lastTab && document.getElementById(lastTab)) {
                     switchDashboardTab(lastTab);
                 } else {
-                    switchDashboardTab('tab-collections');
+                    switchDashboardTab('tab-control-center');
                 }
-                if (!appState.collections || appState.collections.length === 0) {
-                    fetchCollectionsList();
-                }
+                refreshDashboardData();
             } else {
                 switchView('view-landing');
             }
@@ -8304,7 +8311,7 @@
         if (lastTab && document.getElementById(lastTab)) {
             switchDashboardTab(lastTab);
         } else {
-            switchDashboardTab('tab-collections');
+            switchDashboardTab('tab-control-center');
         }
         refreshDashboardData();
     }
@@ -8325,9 +8332,25 @@
     }
 
     function refreshDashboardData() {
+        var tbody = document.getElementById('tbody-latest-collections');
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px; color:#64748b;">' +
+                '<div style="display:inline-block; width:16px; height:16px; border:2px solid #d49438; border-top-color:transparent; border-radius:50%; animation:spin 0.8s linear infinite; vertical-align:middle; margin-right:8px;"></div>' +
+                'Sedang memuat metrik & event terbaru dari Google Sheets...</td></tr>';
+        }
+
         google.script.run
             .withSuccessHandler(function (res) {
-                if (res.success) renderDashboardStats(res.stats);
+                if (res && res.success && res.stats) {
+                    renderDashboardStats(res.stats);
+                } else if (tbody) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:25px; color:#ef4444;">' + (res && res.message ? escapeHtml(res.message) : 'Gagal memuat statistik') + '</td></tr>';
+                }
+            })
+            .withFailureHandler(function (err) {
+                if (tbody) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:25px; color:#ef4444;">Gagal memuat data dari server: ' + escapeHtml(err) + '</td></tr>';
+                }
             })
             .getDashboardStats();
 
@@ -8337,28 +8360,40 @@
     }
 
     function renderDashboardStats(stats) {
-        document.getElementById('stat-total-collections').innerText = stats.totalCollections || 0;
-        document.getElementById('stat-active-collections').innerText = stats.activeCollections || 0;
-        document.getElementById('stat-total-photos').innerText = stats.totalPhotos || 0;
-        document.getElementById('stat-total-views').innerText = stats.totalViews || 0;
-        document.getElementById('stat-total-downloads').innerText = stats.totalDownloads || 0;
+        if (!stats) return;
+        var elTotalCol = document.getElementById('stat-total-collections');
+        if (elTotalCol) elTotalCol.innerText = stats.totalCollections || 0;
+        var elActiveCol = document.getElementById('stat-active-collections');
+        if (elActiveCol) elActiveCol.innerText = stats.activeCollections || 0;
+        var elTotalPhotos = document.getElementById('stat-total-photos');
+        if (elTotalPhotos) elTotalPhotos.innerText = stats.totalPhotos || 0;
+        var elTotalViews = document.getElementById('stat-total-views');
+        if (elTotalViews) elTotalViews.innerText = stats.totalViews || 0;
+        var elTotalDownloads = document.getElementById('stat-total-downloads');
+        if (elTotalDownloads) elTotalDownloads.innerText = stats.totalDownloads || 0;
 
         var tbody = document.getElementById('tbody-latest-collections');
+        if (!tbody) return;
         tbody.innerHTML = '';
         var list = stats.latestCollections || [];
+
+        if (list.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px; color:#64748b;">Belum ada event yang dibuat. Klik tombol <strong>+ Buat Event Baru</strong> di atas untuk memulai.</td></tr>';
+            return;
+        }
 
         for (var i = 0; i < list.length; i++) {
             var row = list[i];
             var tr = document.createElement('tr');
             var badgeClass = row.status === 'Active' ? 'badge-active' : 'badge-archived';
-            tr.innerHTML = '<td><strong>' + row.title + '</strong><br><small style="color:var(--text-muted);">' + row.slug + '</small></td>' +
-                '<td>' + row.clientName + '</td>' +
+            tr.innerHTML = '<td><strong>' + escapeHtml(row.title) + '</strong><br><small style="color:var(--text-muted);">' + escapeHtml(row.slug) + '</small></td>' +
+                '<td>' + escapeHtml(row.clientName) + '</td>' +
                 '<td>' + formatDisplayDate(row.eventDate) + '</td>' +
-                '<td>' + row.totalPhotos + '</td>' +
-                '<td><span class="badge-status ' + badgeClass + '">' + row.status + '</span></td>' +
+                '<td>' + (row.totalPhotos || 0) + '</td>' +
+                '<td><span class="badge-status ' + badgeClass + '">' + escapeHtml(row.status) + '</span></td>' +
                 '<td>' +
-                '<button class="btn btn-outline btn-sm" onclick="openPublicGalleryNewTab(\'' + row.slug + '\')">↗ Galeri</button> ' +
-                '<button class="btn btn-gold btn-sm" onclick="openSlideshowNewTab(\'' + row.slug + '\')">↗ Monitor</button>' +
+                '<button class="btn btn-outline btn-sm" onclick="openPublicGalleryNewTab('' + escapeHtml(row.slug) + '')">↗ Galeri</button> ' +
+                '<button class="btn btn-gold btn-sm" onclick="openSlideshowNewTab('' + escapeHtml(row.slug) + '')">↗ Monitor</button>' +
                 '</td>';
             tbody.appendChild(tr);
         }
@@ -9166,19 +9201,36 @@
     }
 
     function fetchSensorWords() {
-        google.script.run.withSuccessHandler(renderSensorWordsTable).getSensorWords();
+        var tbody = document.getElementById('tbody-sensor-words');
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:25px; color:#64748b;">' +
+                '<div style="display:inline-block; width:16px; height:16px; border:2px solid #d49438; border-top-color:transparent; border-radius:50%; animation:spin 0.8s linear infinite; vertical-align:middle; margin-right:8px;"></div>' +
+                'Sedang memuat blacklist kata terlarang...</td></tr>';
+        }
+        google.script.run
+            .withSuccessHandler(renderSensorWordsTable)
+            .withFailureHandler(function (err) {
+                if (tbody) {
+                    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:25px; color:#ef4444;">Gagal memuat kata sensor: ' + err + '</td></tr>';
+                }
+            })
+            .getSensorWords();
     }
 
     function renderSensorWordsTable(res) {
         var tbody = document.getElementById('tbody-sensor-words');
         if (!tbody) return;
         tbody.innerHTML = '';
-        var words = res.words || [];
+        var words = (res && res.words) ? res.words : [];
+        if (!words || words.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:25px; color:#64748b;">Belum ada kata terlarang. Klik <strong>+ Tambah Kata Terlarang</strong> di atas untuk menambahkan.</td></tr>';
+            return;
+        }
         for (var i = 0; i < words.length; i++) {
             var w = words[i];
             var tr = document.createElement('tr');
-            tr.innerHTML = '<td>' + w.word + '</td><td>' + w.category + '</td>' +
-                '<td><button class="btn btn-outline btn-sm" style="color:#ef4444;" onclick="deleteWordById(\'' + w.id + '\')">🗑️</button></td>';
+            tr.innerHTML = '<td><strong>' + w.word + '</strong></td><td><span style="display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; background:#fee2e2; color:#991b1b; font-weight:700;">' + w.category + '</span></td>' +
+                '<td><button class="btn btn-outline btn-sm" style="color:#ef4444; border-color:#fca5a5; font-size:11px; padding:2px 8px;" onclick="deleteWordById(\'' + w.id + '\')">🗑️ Hapus</button></td>';
             tbody.appendChild(tr);
         }
     }
@@ -9206,9 +9258,20 @@
     }
 
     function fetchWishesForModeration() {
+        var tbody = document.getElementById('tbody-wishes-moderation');
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:25px; color:#64748b;">' +
+                '<div style="display:inline-block; width:16px; height:16px; border:2px solid #d49438; border-top-color:transparent; border-radius:50%; animation:spin 0.8s linear infinite; vertical-align:middle; margin-right:8px;"></div>' +
+                'Sedang memuat daftar doa tamu dari Google Sheets...</td></tr>';
+        }
         google.script.run
             .withSuccessHandler(function (res) {
-                renderWishesModerationTable(res.wishes || []);
+                renderWishesModerationTable(res && res.wishes ? res.wishes : []);
+            })
+            .withFailureHandler(function (err) {
+                if (tbody) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:25px; color:#ef4444;">Gagal memuat doa tamu: ' + err + '</td></tr>';
+                }
             })
             .getAllWishesForModeration('');
     }
@@ -9217,11 +9280,29 @@
         var tbody = document.getElementById('tbody-wishes-moderation');
         if (!tbody) return;
         tbody.innerHTML = '';
+        if (!wishes || wishes.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:25px; color:#64748b;">Belum ada doa atau ucapan masuk dari tamu acara.</td></tr>';
+            return;
+        }
         for (var i = 0; i < wishes.length; i++) {
             var w = wishes[i];
             var tr = document.createElement('tr');
-            tr.innerHTML = '<td><strong>' + w.senderName + '</strong></td><td>' + w.cleanMessage + '</td><td>' + w.status + '</td>' +
-                '<td><button class="btn btn-outline btn-sm" onclick="setWishStatus(\'' + w.wishId + '\', \'Approved\')">Approve</button> <button class="btn btn-danger btn-sm" onclick="setWishStatus(\'' + w.wishId + '\', \'Rejected\')">Reject</button></td>';
+            var statusBadge = '';
+            if (w.status === 'Approved') {
+                statusBadge = '<span style="display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; background:#dcfce7; color:#166534; font-weight:700;">Approved</span>';
+            } else if (w.status === 'Rejected') {
+                statusBadge = '<span style="display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; background:#fee2e2; color:#991b1b; font-weight:700;">Rejected</span>';
+            } else {
+                statusBadge = '<span style="display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; background:#fef3c7; color:#92400e; font-weight:700;">' + (w.status || 'Pending') + '</span>';
+            }
+
+            tr.innerHTML = '<td><strong>' + (w.senderName || 'Tamu') + '</strong><br><small style="color:#64748b;">' + (w.createdAt || '') + '</small></td>' +
+                '<td>' + (w.cleanMessage || w.originalMessage || '') + '</td>' +
+                '<td>' + statusBadge + '</td>' +
+                '<td>' +
+                    '<button type="button" class="btn btn-outline btn-sm" style="font-size:11px; padding:2px 8px; margin-right:4px;" onclick="setWishStatus(\'' + w.wishId + '\', \'Approved\')">Approve</button>' +
+                    '<button type="button" class="btn btn-outline btn-sm" style="font-size:11px; padding:2px 8px; color:#ef4444; border-color:#fca5a5;" onclick="setWishStatus(\'' + w.wishId + '\', \'Rejected\')">Reject</button>' +
+                '</td>';
             tbody.appendChild(tr);
         }
     }
