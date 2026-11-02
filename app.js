@@ -4899,7 +4899,7 @@
         }
     }
 
-    function backToDashboard() {
+        function backToDashboard() {
         if (!appState.currentUser) {
             appState.currentUser = { id: 'USR-DEFAULT', nama: 'Admin User', role: 'Admin' };
         }
@@ -4909,7 +4909,6 @@
             lastTab = localStorage.getItem('limz_active_dash_tab') || 'tab-control-center';
         } catch (e) { }
         switchDashboardTab(lastTab);
-    }
     }
 
     function showToast(msg) {
@@ -8392,8 +8391,8 @@
                 '<td>' + (row.totalPhotos || 0) + '</td>' +
                 '<td><span class="badge-status ' + badgeClass + '">' + escapeHtml(row.status) + '</span></td>' +
                 '<td>' +
-                '<button class="btn btn-outline btn-sm" onclick="openPublicGalleryNewTab('' + escapeHtml(row.slug) + '')">↗ Galeri</button> ' +
-                '<button class="btn btn-gold btn-sm" onclick="openSlideshowNewTab('' + escapeHtml(row.slug) + '')">↗ Monitor</button>' +
+                '<button class="btn btn-outline btn-sm" onclick="openPublicGalleryNewTab(\'' + escapeHtml(row.slug) + '\')">↗ Galeri</button> ' +
+                '<button class="btn btn-gold btn-sm" onclick="openSlideshowNewTab(\'' + escapeHtml(row.slug) + '\')">↗ Monitor</button>' +
                 '</td>';
             tbody.appendChild(tr);
         }
