@@ -9490,11 +9490,26 @@
        Menampilkan event yang sedang aktif / terbaru di halaman awal (bukan dummy)
        ========================================================================= */
     function initLandingActiveEvent() {
+        // 1. Cek apakah ada data preloaded langsung dari server (0ms instan!)
+        var elPre = document.getElementById('gas-landing-coll');
+        if (elPre && elPre.innerText && elPre.innerText.trim() !== '{}' && elPre.innerText.trim().indexOf('{') === 0) {
+            try {
+                var preColl = JSON.parse(elPre.innerText);
+                if (preColl && preColl.id) {
+                    appState.landingActiveEvent = preColl;
+                    updateLandingActiveEventUI(preColl);
+                    return;
+                }
+            } catch (e) {}
+        }
+
+        // 2. Cek apakah data koleksi sudah ada di appState.collections
         if (appState.collections && appState.collections.length > 0) {
             updateLandingActiveEventUI();
             return;
         }
 
+        // 3. Cek cache lokal localStorage
         try {
             var cached = localStorage.getItem('limz_cached_collections_list');
             if (cached) {
@@ -9506,18 +9521,23 @@
             }
         } catch (e) {}
 
+        // 4. Ambil daftar event aktif terbaru dari server backend
         google.script.run
             .withSuccessHandler(function (res) {
-                if (res && res.collections && res.collections.length > 0) {
-                    appState.collections = res.collections;
-                    try { localStorage.setItem('limz_cached_collections_list', JSON.stringify(res.collections)); } catch (e) {}
+                var items = (res && (res.items || res.collections)) ? (res.items || res.collections) : [];
+                if (Array.isArray(items) && items.length > 0) {
+                    appState.collections = items;
+                    try { localStorage.setItem('limz_cached_collections_list', JSON.stringify(items)); } catch (e) {}
                     updateLandingActiveEventUI();
                 }
+            })
+            .withFailureHandler(function (err) {
+                console.warn('Gagal memuat event landing:', err);
             })
             .getCollections();
     }
 
-    function updateLandingActiveEventUI() {
+    function updateLandingActiveEventUI(targetColl) {
         var titleEl = document.getElementById('landing-active-event-title');
         var titleSubEl = document.getElementById('landing-active-event-title-sub');
         var imgMain = document.getElementById('landing-active-img-main');
@@ -9526,23 +9546,23 @@
 
         if (!titleEl && !imgMain) return;
 
-        var items = appState.collections || [];
-        if (items.length === 0) {
-            if (titleEl) titleEl.innerText = 'Belum Ada Event Aktif';
-            return;
-        }
-
-        // Cari event yang berstatus Active terlebih dahulu, jika tidak ada ambil event paling atas (terbaru)
-        var target = null;
-        for (var i = 0; i < items.length; i++) {
-            if (items[i].status === 'Active') {
-                target = items[i];
-                break;
+        var target = targetColl || null;
+        if (!target) {
+            var items = appState.collections || [];
+            if (items.length === 0) {
+                if (titleEl) titleEl.innerText = 'Belum Ada Event';
+                return;
             }
+            for (var i = 0; i < items.length; i++) {
+                if (items[i].status === 'Active') {
+                    target = items[i];
+                    break;
+                }
+            }
+            if (!target) target = items[0];
         }
-        if (!target) target = items[0];
-        if (!target) return;
 
+        if (!target) return;
         appState.landingActiveEvent = target;
 
         if (titleEl) titleEl.innerText = target.title || 'Live Event';
@@ -9553,7 +9573,7 @@
         if (imgSub1) imgSub1.src = cover;
         if (imgSub2) imgSub2.src = cover;
 
-        // Ambil sampel foto riil terbaru dari event ini agar tampilan benar-benar foto asli
+        // Ambil sampel foto riil terbaru dari event ini agar tampilan benar-benar foto asli acara
         if (target.id && target.id !== 'EVT-DEMO') {
             google.script.run
                 .withSuccessHandler(function (res) {
@@ -9576,8 +9596,15 @@
 
     function openLandingActiveGallery() {
         var target = appState.landingActiveEvent;
+        if (!target && appState.collections && appState.collections.length > 0) {
+            for (var i = 0; i < appState.collections.length; i++) {
+                if (appState.collections[i].status === 'Active') { target = appState.collections[i]; break; }
+            }
+            if (!target) target = appState.collections[0];
+        }
+
         if (target && target.slug) {
-            openPublicGalleryNewTab(target.slug);
+            openPublicGallery(target, true);
         } else {
             openGuestDemo();
         }
@@ -9585,18 +9612,27 @@
 
     function openLandingActiveMonitor() {
         var target = appState.landingActiveEvent;
-        if (target && target.slug) {
-            openSlideshowNewTab(target.slug);
+        var targetSlug = (target && target.slug) ? target.slug : '';
+        if (!targetSlug && appState.collections && appState.collections.length > 0) {
+            for (var i = 0; i < appState.collections.length; i++) {
+                if (appState.collections[i].status === 'Active') { targetSlug = appState.collections[i].slug; break; }
+            }
+            if (!targetSlug) targetSlug = appState.collections[0].slug;
+        }
+
+        if (targetSlug) {
+            loadSlideshowBySlug(targetSlug);
         } else {
-            openSlideshowById('EVT-DEMO', { title: 'Layar Monitor Live' });
+            loadSlideshowBySlug('monitor');
         }
     }
 
     /* =========================================================================
-       MODUL KIRIM LAPORAN REKAP KE WHATSAPP KLIEN (ONE-CLICK WA REPORT)
+       MODUL KIRIM LAPORAN REKAP KE WHATSAPP KLIEN (DENGAN KUMPULAN DOA TAMU)
        Menggantikan ekspor PDF statis menjadi pesan rekap resmi langsung ke WA Klien
        ========================================================================= */
     var activeWaReportEvent = null;
+    var activeWaReportWishes = [];
 
     function openSendWaReportModal(collId) {
         var coll = findCollectionById(collId);
@@ -9605,11 +9641,41 @@
             return;
         }
         activeWaReportEvent = coll;
+        activeWaReportWishes = [];
 
         var subEl = document.getElementById('wa-report-event-subtitle');
         if (subEl) subEl.innerText = coll.title + ' • ' + formatDisplayDate(coll.eventDate);
 
-        // Tentukan Tautan Galeri Tamu
+        var phoneEl = document.getElementById('wa-report-phone');
+        if (phoneEl) {
+            phoneEl.value = '';
+            phoneEl.focus();
+        }
+
+        // Tampilkan draft awal selagi mengambil doa tamu
+        rebuildWaReportMessage();
+        openModal('modal-send-wa-report');
+
+        // Ambil doa tamu yang disetujui untuk disertakan di draf pesan
+        google.script.run
+            .withSuccessHandler(function (res) {
+                activeWaReportWishes = (res && res.wishes) ? res.wishes : [];
+                rebuildWaReportMessage();
+            })
+            .withFailureHandler(function () {
+                rebuildWaReportMessage();
+            })
+            .getLiveWishes(coll.id);
+    }
+
+    function toggleWaReportWishes(isEnabled) {
+        rebuildWaReportMessage();
+    }
+
+    function rebuildWaReportMessage() {
+        var coll = activeWaReportEvent;
+        if (!coll) return;
+
         var galleryUrl = '';
         if (isRunningOnVercelOrCustomDomain()) {
             galleryUrl = window.location.origin + '/' + coll.slug;
@@ -9623,6 +9689,28 @@
         var eventTitle = coll.title || 'Wedding & Event';
         var eventDateStr = formatDisplayDate(coll.eventDate);
 
+        var includeWishes = document.getElementById('toggle-include-wishes');
+        var wishesCountSel = document.getElementById('select-wishes-count');
+        var isWishesEnabled = includeWishes ? includeWishes.checked : true;
+        var limitWishes = wishesCountSel ? (wishesCountSel.value === 'all' ? 999 : parseInt(wishesCountSel.value, 10)) : 5;
+
+        var wishesTextSection = '';
+        if (isWishesEnabled && activeWaReportWishes && activeWaReportWishes.length > 0) {
+            var selectedWishes = activeWaReportWishes.slice(0, limitWishes);
+            wishesTextSection = '\n💌 *Kumpulan Doa & Ucapan Hangat Tamu:*\n';
+            for (var w = 0; w < selectedWishes.length; w++) {
+                var sName = selectedWishes[w].senderName || 'Tamu';
+                var sMsg = selectedWishes[w].message || '';
+                wishesTextSection += (w + 1) + '. *' + sName + ':* "' + sMsg + '"\n';
+            }
+            if (activeWaReportWishes.length > limitWishes) {
+                wishesTextSection += '*(...dan ' + (activeWaReportWishes.length - limitWishes) + ' doa indah lainnya di tautan galeri)*\n';
+            }
+        }
+
+        var totalWishesCount = (activeWaReportWishes && activeWaReportWishes.length > 0) ? activeWaReportWishes.length : 0;
+        var wishesSummaryLine = totalWishesCount > 0 ? ('💌 *Total Doa Tamu:* ' + totalWishesCount + ' Doa Masuk\n') : '';
+
         var templateMsg = 'Halo Kak ' + clientName + '! 👋\n' +
             'Terima kasih banyak telah mempercayakan dokumentasi momen spesial kepada *Limz Studio Photobooth*.\n\n' +
             'Berikut adalah *Rekap & Laporan Resmi Acara Anda*:\n' +
@@ -9630,7 +9718,9 @@
             '📸 *Event:* ' + eventTitle + '\n' +
             '📅 *Tanggal:* ' + eventDateStr + '\n' +
             '🖼️ *Total Foto Siap Unduh:* ' + totalPhotos + ' Foto\n' +
-            '✨ *Status Galeri:* Online & Aktif\n\n' +
+            wishesSummaryLine +
+            '✨ *Status Galeri:* Online & Aktif\n' +
+            wishesTextSection + '\n' +
             '🌐 *Tautan Galeri Foto Tamu:*\n' +
             galleryUrl + '\n\n' +
             'Tautan di atas dapat langsung dibagikan kepada keluarga, kerabat, dan seluruh tamu undangan untuk mengunduh foto momen kenangan indah bersama.\n\n' +
@@ -9640,14 +9730,6 @@
 
         var txtEl = document.getElementById('wa-report-message');
         if (txtEl) txtEl.value = templateMsg;
-
-        var phoneEl = document.getElementById('wa-report-phone');
-        if (phoneEl) {
-            phoneEl.value = '';
-            phoneEl.focus();
-        }
-
-        openModal('modal-send-wa-report');
     }
 
     function submitSendWaReport() {

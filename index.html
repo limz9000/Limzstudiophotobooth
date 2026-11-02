@@ -60,6 +60,9 @@
     <div id="gas-preloaded-coll" style="display:none;">
         
     </div>
+    <div id="gas-landing-coll" style="display:none;">
+        
+    </div>
 
     <div id="view-landing" class="view-container view-active">
         <div class="landing-wrapper">
@@ -111,9 +114,8 @@
                             panggung, dan download foto instan.
                         </p>
                         <div class="landing-cta-group">
-                            <button class="btn-landing-gold" onclick="openGuestDemo()">Lihat Galeri</button>
-                            <button class="btn-landing-dark" onclick="loadSlideshowBySlug('irvan-susan')">Lihat
-                                Tampilan</button>
+                            <button type="button" class="btn-landing-gold" onclick="openLandingActiveGallery()">Lihat Galeri</button>
+                            <button type="button" class="btn-landing-dark" onclick="openLandingActiveMonitor()">Lihat Tampilan</button>
                         </div>
                     </div>
 
@@ -3142,6 +3144,21 @@
                     <input type="tel" id="wa-report-phone" class="form-control" placeholder="Contoh: 08123456789 atau 8123456789" style="flex: 1; font-size: 13px;">
                 </div>
                 <small style="font-size: 10.5px; color: var(--text-muted); margin-top: 3px; display: block;">Format otomatis disesuaikan (08xx otomatis menjadi +628xx).</small>
+            </div>
+
+            <div style="background: #faf8f5; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
+                <div>
+                    <label style="font-size: 12px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px; cursor: pointer; margin: 0;">
+                        <input type="checkbox" id="toggle-include-wishes" checked onchange="toggleWaReportWishes(this.checked)" style="width: 16px; height: 16px; accent-color: #16a34a; cursor: pointer;">
+                        <span>💌 Sertakan Kumpulan Doa &amp; Ucapan Tamu</span>
+                    </label>
+                    <div style="font-size: 10.5px; color: var(--text-muted); margin-left: 24px; margin-top: 2px;">Menampilkan ucapan terhangat dari tamu di dalam chat WA</div>
+                </div>
+                <select id="select-wishes-count" class="form-control" style="width: auto; padding: 4px 8px; font-size: 11px; border-radius: 6px;" onchange="toggleWaReportWishes(document.getElementById('toggle-include-wishes').checked)">
+                    <option value="5" selected>5 Ucapan Terpilih</option>
+                    <option value="10">10 Ucapan</option>
+                    <option value="all">Semua Ucapan</option>
+                </select>
             </div>
 
             <div style="margin-bottom: 16px;">
