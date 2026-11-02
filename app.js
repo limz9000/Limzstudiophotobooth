@@ -5145,10 +5145,11 @@
                         splashBg.style.backgroundImage = 'url(\'' + res.collection.coverUrl + '\')';
                     }
 
-                    // Sinkronkan tema splash screen jika masih aktif berjalan saat data server masuk
+                    // Sinkronkan tema splash screen & jalankan countdown begitu cover tiba
                     var splashEl = document.getElementById('gallery-splash-loader');
                     if (splashEl && splashEl.style.display !== 'none' && !appState.splashDismissed) {
                         applySplashThemeLayout(res.collection);
+                        startThreeSecondSplashScreen(res.collection, res.collection.coverUrl);
                     }
 
                     try {
@@ -5392,6 +5393,15 @@
 
         // Setup box tampilan tema yang aktif
         applySplashThemeLayout(coll);
+
+        // Jika cover belum ada (kunjungan perdana tanpa cache), tunggu data masuk sebelum countdown ditutup
+        if (!finalCover) {
+            var prepEls = document.querySelectorAll('.splash-countdown-num');
+            for (var pIdx = 0; pIdx < prepEls.length; pIdx++) {
+                prepEls[pIdx].innerText = '⏳';
+            }
+            return;
+        }
 
         var secondsLeft = 3;
         var totalSeconds = 3;
@@ -8537,7 +8547,7 @@
 
             div.innerHTML = '<img src="' + pThumb + '" loading="lazy" alt="' + escapeHtml(pName) + '" style="width:100%; height:100%; object-fit:cover; display:block;">' +
                 '<!-- Tombol Hapus (Pojok Kanan Atas - Bulat Gelap Persis SS) -->' +
-                '<button type="button" onclick="event.stopPropagation(); confirmDeleteUploadedPhoto(\'' + pPhotoId + '\', \'' + pDriveId + '\', \'' + pCollId + '\')" ' +
+                '<button type="button" onclick="event.stopPropagation(); confirmDeleteUploadedPhoto(\'' + String(pPhotoId).replace(/'/g, "\\'") + '\', \'' + String(pDriveId).replace(/'/g, "\\'") + '\', \'' + String(pCollId).replace(/'/g, "\\'") + '\', \'' + String(pName).replace(/'/g, "\\'") + '\')" ' +
                 'style="position:absolute; top:8px; right:8px; width:28px; height:28px; border-radius:50%; background:rgba(0,0,0,0.55); color:#fff; border:1px solid rgba(255,255,255,0.25); display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:12px; transition:background 0.15s ease;" title="Hapus Foto dari Cloud">🗑️</button>' +
                 '<!-- Nama File (Pojok Kiri Bawah - Badge Hitam Persis SS) -->' +
                 '<span style="position:absolute; bottom:8px; left:8px; max-width:calc(100% - 46px); background:rgba(0,0,0,0.65); color:#fff; font-size:10.5px; font-weight:600; padding:2px 7px; border-radius:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; backdrop-filter:blur(4px); pointer-events:none;" title="' + escapeHtml(pName) + '">' + escapeHtml(pName) + '</span>' +
@@ -8636,18 +8646,36 @@
     /**
      * Konfirmasi dan eksekusi penghapusan foto secara permanen dari Cloud & Drive
      */
-    function confirmDeleteUploadedPhoto(photoId, driveFileId, collectionId) {
-        if (!confirm('Apakah Anda yakin ingin menghapus foto ini secara permanen dari Cloud, Galeri, Monitor, dan Google Drive?')) {
+    function confirmDeleteUploadedPhoto(photoId, driveFileId, collectionId, photoName) {
+        var displayName = photoName || 'foto ini';
+        if (!confirm('Apakah Anda yakin ingin menghapus "' + displayName + '" secara permanen dari Cloud, Galeri, Monitor, dan Google Drive?')) {
             return;
         }
 
         showToast('⏳ Sedang menghapus foto dari Cloud & Google Drive...');
 
+        // 1. Optimistic UI: langsung singkirkan foto dari antarmuka tampilan seketika (0 milidetik!)
+        var backupPhotos = (uploadedPaginationState.photos || []).slice();
+        var cPhotoId = String(photoId || '').trim();
+        var cDriveId = String(driveFileId || '').trim();
+
+        uploadedPaginationState.photos = (uploadedPaginationState.photos || []).filter(function (item) {
+            var mPhotoId = String(item.photoId || '').trim();
+            var mDriveId = String(item.driveFileId || '').trim();
+            if (cPhotoId && mPhotoId === cPhotoId) return false;
+            if (cDriveId && mDriveId === cDriveId) return false;
+            return true;
+        });
+
+        var badge = document.getElementById('badge-uploaded-photos-count');
+        if (badge) badge.innerText = uploadedPaginationState.photos.length + ' Foto';
+        renderUploadedPhotosPage();
+
+        // 2. Eksekusi penghapusan di backend Google Apps Script / Drive
         google.script.run
             .withSuccessHandler(function (res) {
                 if (res && res.success) {
                     showToast('✅ ' + (res.message || 'Foto berhasil dihapus secara permanen.'));
-                    refreshUploadedPhotosForTabUpload();
                     refreshDashboardData();
 
                     if (appState.currentView === 'view-public-gallery' && appState.activeCollectionId) {
@@ -8656,10 +8684,18 @@
                         fetchMonitorContent(appState.activeCollectionId, true);
                     }
                 } else {
+                    // Rollback ke kondisi awal jika server gagal
+                    uploadedPaginationState.photos = backupPhotos;
+                    if (badge) badge.innerText = backupPhotos.length + ' Foto';
+                    renderUploadedPhotosPage();
                     showToast('⚠️ Gagal menghapus foto: ' + (res ? res.message : 'Kesalahan sistem'));
                 }
             })
             .withFailureHandler(function (err) {
+                // Rollback jika terjadi kendala koneksi
+                uploadedPaginationState.photos = backupPhotos;
+                if (badge) badge.innerText = backupPhotos.length + ' Foto';
+                renderUploadedPhotosPage();
                 showToast('❌ Gagal menghapus foto: ' + err);
             })
             .deleteUploadedPhoto(photoId, driveFileId, collectionId);
