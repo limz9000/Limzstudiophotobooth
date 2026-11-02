@@ -393,6 +393,7 @@
         initCameraAndStorageHub();
         checkUrlRouting();
         initKeyboardShortcuts();
+        initLandingActiveEvent();
         var btnCreateGif = document.getElementById('btn-create-gif');
         if (btnCreateGif) {
             btnCreateGif.addEventListener('click', function (e) {
@@ -8364,13 +8365,14 @@
                 '<button class="btn btn-gold btn-sm" onclick="openSlideshowNewTab(\'' + c.slug + '\')">↗ Monitor</button>' +
                 '<button class="btn btn-outline btn-sm" onclick="triggerSyncDrivePhotos(\'' + c.id + '\')">🔄 Sync</button>' +
                 '<button class="btn btn-outline btn-sm" onclick="openFlyerSheetById(\'' + c.id + '\')">Flyer</button>' +
-                '<button class="btn btn-blue btn-sm role-admin-only" onclick="triggerGeneratePdf(\'' + c.id + '\')">PDF</button>' +
+                '<button class="btn btn-sm role-admin-only" style="background:#16a34a; color:#fff; border:none; font-weight:700; padding:4px 9px; border-radius:6px; display:inline-flex; align-items:center; gap:4px;" onclick="openSendWaReportModal(\'' + c.id + '\')" title="Kirim Laporan Resmi ke WhatsApp Klien">📲 Kirim WA</button>' +
                 archiveOrRestoreBtn +
                 '</div>' +
                 '</td>';
             tbody.appendChild(tr);
         }
         updateUserDisplay();
+        updateLandingActiveEventUI();
     }
 
     function populateUploadSelect(items) {
@@ -9480,4 +9482,218 @@
                 window.onAndroidCameraPhotoCaptured(ev.detail.name || 'camera_photo.jpg', ev.detail.dataUrl);
             }
         });
+    }
+
+
+    /* =========================================================================
+       MODUL LANDING PAGE ACTIVE EVENT (REAL-TIME PREVIEW CARD)
+       Menampilkan event yang sedang aktif / terbaru di halaman awal (bukan dummy)
+       ========================================================================= */
+    function initLandingActiveEvent() {
+        if (appState.collections && appState.collections.length > 0) {
+            updateLandingActiveEventUI();
+            return;
+        }
+
+        try {
+            var cached = localStorage.getItem('limz_cached_collections_list');
+            if (cached) {
+                var list = JSON.parse(cached);
+                if (Array.isArray(list) && list.length > 0) {
+                    appState.collections = list;
+                    updateLandingActiveEventUI();
+                }
+            }
+        } catch (e) {}
+
+        google.script.run
+            .withSuccessHandler(function (res) {
+                if (res && res.collections && res.collections.length > 0) {
+                    appState.collections = res.collections;
+                    try { localStorage.setItem('limz_cached_collections_list', JSON.stringify(res.collections)); } catch (e) {}
+                    updateLandingActiveEventUI();
+                }
+            })
+            .getCollections();
+    }
+
+    function updateLandingActiveEventUI() {
+        var titleEl = document.getElementById('landing-active-event-title');
+        var titleSubEl = document.getElementById('landing-active-event-title-sub');
+        var imgMain = document.getElementById('landing-active-img-main');
+        var imgSub1 = document.getElementById('landing-active-img-sub1');
+        var imgSub2 = document.getElementById('landing-active-img-sub2');
+
+        if (!titleEl && !imgMain) return;
+
+        var items = appState.collections || [];
+        if (items.length === 0) {
+            if (titleEl) titleEl.innerText = 'Belum Ada Event Aktif';
+            return;
+        }
+
+        // Cari event yang berstatus Active terlebih dahulu, jika tidak ada ambil event paling atas (terbaru)
+        var target = null;
+        for (var i = 0; i < items.length; i++) {
+            if (items[i].status === 'Active') {
+                target = items[i];
+                break;
+            }
+        }
+        if (!target) target = items[0];
+        if (!target) return;
+
+        appState.landingActiveEvent = target;
+
+        if (titleEl) titleEl.innerText = target.title || 'Live Event';
+        if (titleSubEl) titleSubEl.innerText = target.title || 'Limz Photobooth';
+
+        var cover = target.coverUrl || 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=800&q=80';
+        if (imgMain) imgMain.src = cover;
+        if (imgSub1) imgSub1.src = cover;
+        if (imgSub2) imgSub2.src = cover;
+
+        // Ambil sampel foto riil terbaru dari event ini agar tampilan benar-benar foto asli
+        if (target.id && target.id !== 'EVT-DEMO') {
+            google.script.run
+                .withSuccessHandler(function (res) {
+                    if (res && res.photos && res.photos.length > 0) {
+                        var pList = res.photos;
+                        if (pList[0] && pList[0].thumbnailUrl && imgMain) {
+                            imgMain.src = pList[0].thumbnailUrl;
+                        }
+                        if (pList[1] && pList[1].thumbnailUrl && imgSub1) {
+                            imgSub1.src = pList[1].thumbnailUrl;
+                        }
+                        if (pList[2] && pList[2].thumbnailUrl && imgSub2) {
+                            imgSub2.src = pList[2].thumbnailUrl;
+                        }
+                    }
+                })
+                .getPhotosByCollection(target.id, 1, 3, false);
+        }
+    }
+
+    function openLandingActiveGallery() {
+        var target = appState.landingActiveEvent;
+        if (target && target.slug) {
+            openPublicGalleryNewTab(target.slug);
+        } else {
+            openGuestDemo();
+        }
+    }
+
+    function openLandingActiveMonitor() {
+        var target = appState.landingActiveEvent;
+        if (target && target.slug) {
+            openSlideshowNewTab(target.slug);
+        } else {
+            openSlideshowById('EVT-DEMO', { title: 'Layar Monitor Live' });
+        }
+    }
+
+    /* =========================================================================
+       MODUL KIRIM LAPORAN REKAP KE WHATSAPP KLIEN (ONE-CLICK WA REPORT)
+       Menggantikan ekspor PDF statis menjadi pesan rekap resmi langsung ke WA Klien
+       ========================================================================= */
+    var activeWaReportEvent = null;
+
+    function openSendWaReportModal(collId) {
+        var coll = findCollectionById(collId);
+        if (!coll) {
+            showToast('Data koleksi tidak ditemukan.');
+            return;
+        }
+        activeWaReportEvent = coll;
+
+        var subEl = document.getElementById('wa-report-event-subtitle');
+        if (subEl) subEl.innerText = coll.title + ' • ' + formatDisplayDate(coll.eventDate);
+
+        // Tentukan Tautan Galeri Tamu
+        var galleryUrl = '';
+        if (isRunningOnVercelOrCustomDomain()) {
+            galleryUrl = window.location.origin + '/' + coll.slug;
+        } else {
+            var baseApp = cleanExecUrl(appState.backendApiUrl || DEFAULT_BACKEND_GAS_URL);
+            galleryUrl = baseApp + '?slug=' + coll.slug;
+        }
+
+        var totalPhotos = coll.totalPhotos || 0;
+        var clientName = coll.clientName || 'Klien Terhormat';
+        var eventTitle = coll.title || 'Wedding & Event';
+        var eventDateStr = formatDisplayDate(coll.eventDate);
+
+        var templateMsg = 'Halo Kak ' + clientName + '! 👋\n' +
+            'Terima kasih banyak telah mempercayakan dokumentasi momen spesial kepada *Limz Studio Photobooth*.\n\n' +
+            'Berikut adalah *Rekap & Laporan Resmi Acara Anda*:\n' +
+            '━━━━━━━━━━━━━━━━━━━━━\n' +
+            '📸 *Event:* ' + eventTitle + '\n' +
+            '📅 *Tanggal:* ' + eventDateStr + '\n' +
+            '🖼️ *Total Foto Siap Unduh:* ' + totalPhotos + ' Foto\n' +
+            '✨ *Status Galeri:* Online & Aktif\n\n' +
+            '🌐 *Tautan Galeri Foto Tamu:*\n' +
+            galleryUrl + '\n\n' +
+            'Tautan di atas dapat langsung dibagikan kepada keluarga, kerabat, dan seluruh tamu undangan untuk mengunduh foto momen kenangan indah bersama.\n\n' +
+            'Semoga seluruh dokumentasi ini menjadi kenangan terbaik selamanya! ✨\n\n' +
+            'Salam hangat,\n' +
+            '*Limz Studio Photobooth*';
+
+        var txtEl = document.getElementById('wa-report-message');
+        if (txtEl) txtEl.value = templateMsg;
+
+        var phoneEl = document.getElementById('wa-report-phone');
+        if (phoneEl) {
+            phoneEl.value = '';
+            phoneEl.focus();
+        }
+
+        openModal('modal-send-wa-report');
+    }
+
+    function submitSendWaReport() {
+        var phoneInput = document.getElementById('wa-report-phone');
+        var msgInput = document.getElementById('wa-report-message');
+        var rawPhone = phoneInput ? phoneInput.value.trim() : '';
+        var message = msgInput ? msgInput.value.trim() : '';
+
+        if (!message) {
+            showToast('Pesan laporan tidak boleh kosong.');
+            return;
+        }
+
+        // Sanitasi nomor telepon ke format internasional (62xxxx)
+        var cleanPhone = rawPhone.replace(/[^0-9]/g, '');
+        if (cleanPhone.indexOf('08') === 0) {
+            cleanPhone = '62' + cleanPhone.substring(1);
+        } else if (cleanPhone.indexOf('8') === 0) {
+            cleanPhone = '62' + cleanPhone;
+        }
+
+        var waUrl = '';
+        if (cleanPhone) {
+            waUrl = 'https://wa.me/' + cleanPhone + '?text=' + encodeURIComponent(message);
+        } else {
+            // Jika nomor belum diisi, buka WA Share picker langsung
+            waUrl = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(message);
+        }
+
+        showToast('Membuka WhatsApp...');
+        window.open(waUrl, '_blank');
+    }
+
+    function copyWaReportMessage() {
+        var msgInput = document.getElementById('wa-report-message');
+        if (!msgInput) return;
+        msgInput.select();
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(msgInput.value);
+            } else {
+                document.execCommand('copy');
+            }
+            showToast('✅ Pesan laporan berhasil disalin ke clipboard!');
+        } catch (e) {
+            document.execCommand('copy');
+            showToast('✅ Pesan laporan berhasil disalin!');
+        }
     }

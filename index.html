@@ -118,20 +118,24 @@
                     </div>
 
                     <div>
-                        <div class="landing-preview-card"
+                        <div class="landing-preview-card" id="landing-preview-card-box"
                             style="background: rgba(20, 18, 15, 0.88); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.09); border-radius: 18px; padding: 18px; box-shadow: 0 24px 60px rgba(0,0,0,0.65); max-width: 440px; margin-left: auto;">
                             <div
                                 style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 12px; font-weight: 700;">
-                                <span style="color: #f3efe6;">Live Event</span>
-                                <span style="color: #e2b86b;">Irvan &amp; Susan</span>
+                                <span style="color: #f3efe6; display: flex; align-items: center; gap: 6px;">
+                                    <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #22c55e;"></span>
+                                    <span>Live Event</span>
+                                </span>
+                                <span id="landing-active-event-title" style="color: #e2b86b; font-weight: 800; max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: right;">Memuat Acara...</span>
                             </div>
 
                             <div style="display: grid; grid-template-columns: 1.35fr 1fr; gap: 10px;">
                                 <div
-                                    style="position: relative; border-radius: 10px; overflow: hidden; height: 290px; background: #191410;">
-                                    <img src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=800&q=80"
-                                        alt="Irvan & Susan Main"
-                                        style="width: 100%; height: 100%; object-fit: cover; display: block;">
+                                    style="position: relative; border-radius: 10px; overflow: hidden; height: 290px; background: #191410; cursor: pointer;"
+                                    onclick="openLandingActiveGallery()" title="Buka Galeri Foto Acara">
+                                    <img id="landing-active-img-main" src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=800&q=80"
+                                        alt="Cover Acara"
+                                        style="width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.3s ease;">
                                     <div
                                         style="position: absolute; top: 12px; left: 50%; transform: translateX(-50%); text-align: center; color: #ffffff; font-size: 7px; letter-spacing: 1.5px; font-weight: 700; text-transform: uppercase; text-shadow: 0 2px 6px rgba(0,0,0,0.8); pointer-events: none;">
                                         <div style="font-size:12px; margin-bottom:1px;">❖</div>
@@ -140,27 +144,35 @@
                                 </div>
                                 <div style="display: flex; flex-direction: column; gap: 10px; height: 290px;">
                                     <div
-                                        style="position: relative; flex: 1; border-radius: 10px; overflow: hidden; background: #191410;">
-                                        <img src="https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=600&q=80"
-                                            alt="Irvan & Susan Sub 1"
-                                            style="width: 100%; height: 100%; object-fit: cover; display: block;">
+                                        style="position: relative; flex: 1; border-radius: 10px; overflow: hidden; background: #191410; cursor: pointer;"
+                                        onclick="openLandingActiveGallery()" title="Buka Galeri Foto Acara">
+                                        <img id="landing-active-img-sub1" src="https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=600&q=80"
+                                            alt="Dokumentasi 1"
+                                            style="width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.3s ease;">
                                     </div>
                                     <div
-                                        style="position: relative; flex: 1; border-radius: 10px; overflow: hidden; background: #191410;">
-                                        <img src="https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=600&q=80"
-                                            alt="Irvan & Susan Sub 2"
-                                            style="width: 100%; height: 100%; object-fit: cover; display: block;">
-                                        <div
-                                            style="position: absolute; bottom: 8px; left: 10px; font-family: 'Playfair Display', serif; font-size: 15px; font-weight: 700; color: #ffffff; text-shadow: 0 2px 6px rgba(0,0,0,0.85);">
-                                            Irvan &amp; Susan</div>
+                                        style="position: relative; flex: 1; border-radius: 10px; overflow: hidden; background: #191410; cursor: pointer;"
+                                        onclick="openLandingActiveMonitor()" title="Buka Layar Monitor Panggung">
+                                        <img id="landing-active-img-sub2" src="https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=600&q=80"
+                                            alt="Dokumentasi 2"
+                                            style="width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.3s ease;">
+                                        <div id="landing-active-event-title-sub"
+                                            style="position: absolute; bottom: 8px; left: 10px; right: 10px; font-family: 'Playfair Display', serif; font-size: 14px; font-weight: 700; color: #ffffff; text-shadow: 0 2px 6px rgba(0,0,0,0.85); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                            Limz Photobooth</div>
                                     </div>
                                 </div>
                             </div>
 
                             <div
-                                style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.06); font-size: 11.5px; font-weight: 700; color: #d6d1c7;">
-                                <span>Scan &amp; Download</span>
-                                <span>Live Screen</span>
+                                style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.06); font-size: 11.5px; font-weight: 700;">
+                                <button type="button" class="btn btn-outline btn-sm" id="landing-btn-scan-download" onclick="openLandingActiveGallery()"
+                                    style="border-color: rgba(255,255,255,0.18); color: #f3efe6; font-size: 11px; padding: 4px 10px; cursor: pointer; display: flex; align-items: center; gap: 5px;">
+                                    <span>📸 Scan &amp; Download</span>
+                                </button>
+                                <button type="button" class="btn btn-gold btn-sm" id="landing-btn-live-screen" onclick="openLandingActiveMonitor()"
+                                    style="font-size: 11px; padding: 4px 12px; cursor: pointer; display: flex; align-items: center; gap: 5px;">
+                                    <span>📺 Live Screen</span>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -3100,6 +3112,54 @@
                     <button type="button" class="btn btn-gold btn-sm" id="btn-enqueue-gif"
                         onclick="enqueueGifToUploadList()" style="font-size: 12px; font-weight: 700;">
                         🚀 Masukkan ke Antrian Upload
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL KIRIM LAPORAN EVENT KE WHATSAPP KLIEN -->
+    <div class="modal-overlay" id="modal-send-wa-report" style="display: none;">
+        <div class="modal-box" style="max-width: 520px; width: 95%;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px; margin-bottom: 16px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 36px; height: 36px; border-radius: 8px; background: #16a34a; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                        📲
+                    </div>
+                    <div>
+                        <h3 style="font-size: 16px; font-weight: 700; margin: 0; color: var(--text-main);">Kirim Laporan ke WA Klien</h3>
+                        <p style="font-size: 11.5px; color: var(--text-muted); margin: 2px 0 0;" id="wa-report-event-subtitle">Rekap resmi dokumentasi photobooth</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeModal('modal-send-wa-report')"
+                    style="background:none; border:none; font-size:20px; cursor:pointer; color:var(--text-muted); line-height:1;">✕</button>
+            </div>
+
+            <div style="margin-bottom: 14px;">
+                <label style="font-size: 12px; font-weight: 700; color: var(--text-main); display: block; margin-bottom: 5px;">Nomor WhatsApp Klien</label>
+                <div style="display: flex; gap: 8px;">
+                    <span style="display: inline-flex; align-items: center; padding: 0 10px; background: #f1f5f9; border: 1px solid var(--border-subtle); border-radius: 6px; font-size: 12px; font-weight: 700; color: #475569;">+62</span>
+                    <input type="tel" id="wa-report-phone" class="form-control" placeholder="Contoh: 08123456789 atau 8123456789" style="flex: 1; font-size: 13px;">
+                </div>
+                <small style="font-size: 10.5px; color: var(--text-muted); margin-top: 3px; display: block;">Format otomatis disesuaikan (08xx otomatis menjadi +628xx).</small>
+            </div>
+
+            <div style="margin-bottom: 16px;">
+                <label style="font-size: 12px; font-weight: 700; color: var(--text-main); display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                    <span>Draf Pesan Rekap Laporan</span>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="copyWaReportMessage()" style="font-size: 10.5px; padding: 2px 8px;">📋 Salin Teks</button>
+                </label>
+                <textarea id="wa-report-message" class="form-control" rows="8" style="font-size: 12px; line-height: 1.5; font-family: monospace; resize: vertical;"></textarea>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <button type="button" class="btn btn-outline btn-sm" onclick="closeModal('modal-send-wa-report')">Tutup</button>
+                <div style="display: flex; gap: 8px;">
+                    <button type="button" class="btn btn-sm" onclick="copyWaReportMessage()" style="font-size: 12px; background: #f8fafc; border: 1px solid #cbd5e1; color: #334155;">
+                        📋 Salin Teks
+                    </button>
+                    <button type="button" class="btn btn-sm" onclick="submitSendWaReport()" style="background: #16a34a; color: #fff; border: none; font-size: 12.5px; font-weight: 700; padding: 8px 16px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; box-shadow: 0 3px 10px rgba(22,163,74,0.3);">
+                        🚀 Buka WhatsApp &amp; Kirim
                     </button>
                 </div>
             </div>
