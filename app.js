@@ -9593,6 +9593,29 @@
                     else if (ev.detail.code === 'CONNECT_ERROR' || ev.detail.code === 'IZIN_DITOLAK') dot = '<span style="color:#ef4444;">🔴</span>';
                     statusEl.innerHTML = dot + ' <strong>Status USB:</strong> ' + escapeHtml(ev.detail.message);
                 }
+                var hudDot = document.getElementById('hud-camera-dot');
+                var hudText = document.getElementById('hud-camera-text');
+                if (hudDot && hudText) {
+                    if (ev.detail.code === 'SONY_READY' || ev.detail.code === 'MTP_READY') {
+                        hudDot.style.background = '#10b981';
+                        hudDot.style.boxShadow = '0 0 8px #10b981';
+                        hudText.innerText = '🟢 Sony Alpha: Siaga Foto!';
+                    } else if (ev.detail.code === 'MEMINTA_IZIN' || ev.detail.code === 'SONY_HANDSHAKE') {
+                        hudDot.style.background = '#f59e0b';
+                        hudDot.style.boxShadow = '0 0 8px #f59e0b';
+                        hudText.innerText = '🟡 Sony: Handshake...';
+                    } else if (ev.detail.code === 'CONNECT_ERROR' || ev.detail.code === 'IZIN_DITOLAK' || ev.detail.code === 'DISCONNECTED') {
+                        hudDot.style.background = '#ef4444';
+                        hudDot.style.boxShadow = '0 0 8px #ef4444';
+                        hudText.innerText = '🔴 ' + (ev.detail.message || 'Kamera Terputus');
+                    } else if (ev.detail.code === 'PHOTO_SUCCESS') {
+                        hudDot.style.background = '#10b981';
+                        hudText.innerText = '📸 Foto Diterima!';
+                        setTimeout(function() {
+                            if (hudText && hudText.innerText === '📸 Foto Diterima!') hudText.innerText = '🟢 Sony Alpha: Siaga Foto!';
+                        }, 2500);
+                    }
+                }
                 if (ev.detail.code === 'SONY_READY' || ev.detail.code === 'IZIN_DIBERIKAN' || ev.detail.code === 'PHOTO_SUCCESS') {
                     showToast(ev.detail.message);
                 }
