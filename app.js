@@ -1,4 +1,4 @@
-﻿var appState = {
+﻿﻿var appState = {
         currentUser: null,
         currentView: 'view-landing',
         activeCollectionId: null,
@@ -1268,7 +1268,7 @@
                         showToast('Meminta izin akses USB untuk ' + cam.brandAndModel + '...');
                         window.AndroidUsbCamera.requestPermission(cam.deviceName);
                     } else {
-                        showToast('✅ Kamera ' + cam.brandAndModel + ' terhubung & aktif!');
+                        showToast('✅ Membuka sesi kamera ' + cam.brandAndModel + '...'); if (typeof window.AndroidUsbCamera.connectCamera === 'function') window.AndroidUsbCamera.connectCamera(cam.deviceName);
                     }
                     var statusEl = document.getElementById('tether-indicator-status');
                     if (statusEl) {
@@ -9582,6 +9582,23 @@
         }, 1200);
 
         // Listener saat kabel kamera USB dicolok / dicabut
+        window.addEventListener('androidUsbLog', function(ev) {
+            if (ev.detail && ev.detail.message) {
+                console.log('[AndroidUsbCamera LOG]', ev.detail.code, ev.detail.message);
+                var statusEl = document.getElementById('tether-indicator-status');
+                if (statusEl) {
+                    var dot = '🔌';
+                    if (ev.detail.code === 'SONY_READY' || ev.detail.code === 'MTP_READY' || ev.detail.code === 'PHOTO_SUCCESS') dot = '<span style="color:#10b981;">🟢</span>';
+                    else if (ev.detail.code === 'MEMINTA_IZIN' || ev.detail.code === 'SONY_HANDSHAKE') dot = '<span style="color:#f59e0b;">🟡</span>';
+                    else if (ev.detail.code === 'CONNECT_ERROR' || ev.detail.code === 'IZIN_DITOLAK') dot = '<span style="color:#ef4444;">🔴</span>';
+                    statusEl.innerHTML = dot + ' <strong>Status USB:</strong> ' + escapeHtml(ev.detail.message);
+                }
+                if (ev.detail.code === 'SONY_READY' || ev.detail.code === 'IZIN_DIBERIKAN' || ev.detail.code === 'PHOTO_SUCCESS') {
+                    showToast(ev.detail.message);
+                }
+            }
+        });
+
         window.addEventListener('androidCameraStatus', function(ev) {
             if (ev.detail && ev.detail.connected) {
                 showToast('📷 Kamera USB Terhubung: ' + ev.detail.name);
