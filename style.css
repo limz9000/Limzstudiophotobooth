@@ -3459,3 +3459,50 @@
         color: #ffffff !important;
         border-color: #d97706 !important;
     }
+    /* ==========================================================================
+       CAMERA HUD PILL: KHUSUS DASHBOARD OPERATOR & ISOLASI VIEW MUTLAK (REVISI 74)
+       ========================================================================== */
+    .hud-camera-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 6px 14px;
+        border-radius: 999px;
+        font-size: 11.5px;
+        font-weight: 700;
+        background: rgba(23, 18, 14, 0.94);
+        color: #f8fafc;
+        border: 1px solid rgba(212, 148, 56, 0.35);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        cursor: pointer;
+        transition: all 0.25s ease;
+        user-select: none;
+    }
+
+    .hud-camera-pill:hover {
+        background: rgba(35, 26, 20, 0.98);
+        border-color: var(--accent-gold);
+        box-shadow: 0 4px 12px rgba(212, 148, 56, 0.25);
+    }
+
+    .hud-camera-dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #f59e0b;
+        box-shadow: 0 0 6px #f59e0b;
+        flex-shrink: 0;
+    }
+
+    /* ISOLASI MUTLAK: JANGAN PERNAH TAMPILKAN DI MONITOR PANGGUNG, GALERI PUBLIK, FLYER & LOGIN */
+    #view-slideshow #hud-floating-camera-pill,
+    #view-public-gallery #hud-floating-camera-pill,
+    #view-flyer #hud-floating-camera-pill,
+    #view-login #hud-floating-camera-pill,
+    .monitor-screen #hud-floating-camera-pill,
+    body.route-monitor #hud-floating-camera-pill,
+    body.route-gallery #hud-floating-camera-pill,
+    #hud-floating-camera-pill.hud-hidden {
+        display: none !important;
+    }

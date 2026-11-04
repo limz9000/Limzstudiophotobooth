@@ -4945,6 +4945,16 @@
             appState.currentView = viewId;
             window.scrollTo(0, 0);
 
+            // Sembunyikan pill status kamera jika membuka monitor panggung atau galeri publik (Revisi 74)
+            var hudPill = document.getElementById('hud-floating-camera-pill');
+            if (hudPill) {
+                if (viewId === 'view-slideshow' || viewId === 'view-public-gallery' || viewId === 'view-flyer' || viewId === 'view-login') {
+                    hudPill.style.display = 'none';
+                } else if (viewId === 'view-dashboard') {
+                    hudPill.style.display = 'inline-flex';
+                }
+            }
+
             // Simpan riwayat tampilan terakhir agar tahan reload saat pindah tab
             try {
                 if (viewId === 'view-dashboard') {
@@ -4973,6 +4983,15 @@
             target.style.display = 'block';
             appState.activeDashboardTab = tabId;
             try { localStorage.setItem('limz_active_dash_tab', tabId); } catch (e) { }
+
+            // Docking kamera pill ke top-bar tab yang sedang aktif (Revisi 74)
+            var hudPill = document.getElementById('hud-floating-camera-pill');
+            if (hudPill && target) {
+                var btnGroup = target.querySelector('.top-bar > div:last-child');
+                if (btnGroup && btnGroup !== hudPill.parentElement) {
+                    btnGroup.prepend(hudPill);
+                }
+            }
         }
 
         if (tabId === 'tab-control-center') {
@@ -9600,6 +9619,13 @@
                         hudDot.style.background = '#10b981';
                         hudDot.style.boxShadow = '0 0 8px #10b981';
                         hudText.innerText = '🟢 Sony Alpha: Siaga Foto!';
+                        var btnUsbProbe = document.getElementById('btn-probe-usb-cam');
+                        if (btnUsbProbe) {
+                            btnUsbProbe.innerHTML = '🟢 Sony Alpha: Siaga Foto!';
+                            btnUsbProbe.style.color = '#047857';
+                            btnUsbProbe.style.borderColor = '#a7f3d0';
+                            btnUsbProbe.style.background = '#ecfdf5';
+                        }
                     } else if (ev.detail.code === 'MEMINTA_IZIN' || ev.detail.code === 'SONY_HANDSHAKE') {
                         hudDot.style.background = '#f59e0b';
                         hudDot.style.boxShadow = '0 0 8px #f59e0b';
