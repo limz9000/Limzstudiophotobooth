@@ -9694,6 +9694,10 @@
         // Callback utama saat jepretan foto baru masuk dari kamera via USB
         window.onAndroidCameraPhotoCaptured = function(fileName, dataUrl) {
             try {
+                if (!dataUrl || dataUrl.length < 1000) {
+                    console.warn('[AndroidUsbCamera] Data foto tidak valid atau terlalu kecil, abaikan.');
+                    return;
+                }
                 var blob = dataUriToBlobHelper(dataUrl);
                 var file = new File([blob], fileName, { type: 'image/jpeg' });
                 handlePhotoFilesSelected([file]);
