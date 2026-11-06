@@ -9677,21 +9677,42 @@
 
         window.addEventListener('androidCameraStatus', function(ev) {
             if (ev.detail && ev.detail.connected) {
-                showToast('📷 Kamera USB Terhubung: ' + ev.detail.name);
+                var isWifi = ev.detail.name && ev.detail.name.indexOf('WiFi') !== -1;
+                showToast(isWifi ? ('📶 ' + ev.detail.name) : ('📷 Kamera USB Terhubung: ' + ev.detail.name));
                 var statusEl = document.getElementById('tether-indicator-status');
                 if (statusEl) {
-                    statusEl.innerHTML = '<span style="color:#10b981;">🟢</span> <strong>Kamera USB:</strong> ' + ev.detail.name;
+                    statusEl.innerHTML = '<span style="color:#10b981;">🟢</span> <strong>' + (isWifi ? 'Kamera WiFi:' : 'Kamera USB:') + '</strong> ' + escapeHtml(ev.detail.name);
+                }
+                var hubCam = document.getElementById('hub-camera-badge');
+                var hubSrc = document.getElementById('hub-source-mode-badge');
+                var btnWifi = document.getElementById('btn-sony-wifi-cam');
+                if (isWifi) {
+                    if (hubCam) hubCam.innerHTML = '🟢 ' + escapeHtml(ev.detail.name);
+                    if (hubSrc) hubSrc.innerHTML = 'WiFi Nirkabel (Sony Alpha / A6400 / A7II)';
+                    if (btnWifi) {
+                        btnWifi.innerHTML = '🟢 Sony WiFi: Aktif!';
+                        btnWifi.style.color = '#047857';
+                        btnWifi.style.borderColor = '#a7f3d0';
+                        btnWifi.style.background = '#ecfdf5';
+                    }
                 }
             } else {
-                showToast('📷 Kamera USB Terputus');
+                showToast('📷 Kamera Terputus');
                 var statusEl2 = document.getElementById('tether-indicator-status');
                 if (statusEl2) {
                     statusEl2.innerHTML = '<span style="color:#94a3b8;">⚪</span> Kamera Terputus';
                 }
+                var btnWifi2 = document.getElementById('btn-sony-wifi-cam');
+                if (btnWifi2) {
+                    btnWifi2.innerHTML = '📶 Sony WiFi (Nirkabel)';
+                    btnWifi2.style.color = '#2563eb';
+                    btnWifi2.style.borderColor = '#bfdbfe';
+                    btnWifi2.style.background = '#eff6ff';
+                }
             }
         });
 
-        // Callback utama saat jepretan foto baru masuk dari kamera via USB
+        // Callback utama saat jepretan foto baru masuk dari kamera via USB / WiFi
         window.onAndroidCameraPhotoCaptured = function(fileName, dataUrl) {
             try {
                 if (!dataUrl || dataUrl.length < 1000) {
@@ -9701,7 +9722,8 @@
                 var blob = dataUriToBlobHelper(dataUrl);
                 var file = new File([blob], fileName, { type: 'image/jpeg' });
                 handlePhotoFilesSelected([file]);
-                showToast('📸 Foto baru masuk dari kamera USB: ' + fileName);
+                var isWifi = fileName && (fileName.indexOf('WIFI') !== -1 || fileName.indexOf('wifi') !== -1);
+                showToast(isWifi ? ('📶 Foto baru masuk via Sony WiFi: ' + fileName) : ('📸 Foto baru masuk dari kamera: ' + fileName));
             } catch(ePhoto) {
                 console.error('[AndroidUsbCamera] Gagal memproses foto baru:', ePhoto);
             }
@@ -9727,6 +9749,105 @@
                 window.onAndroidFolderSelected(ev.detail.path, ev.detail.name);
             }
         });
+    }
+
+    // =========================================================================
+    // MODUL SONY ALPHA WIFI TETHERING (A6400 / A7II / A7III / ZV)
+    // =========================================================================
+
+    function triggerSonyWifiModal(event) {
+        if (event && event.preventDefault) event.preventDefault();
+        
+        var ipInput = document.getElementById('sony-wifi-custom-ip');
+        var statusBox = document.getElementById('sony-wifi-status-text');
+        
+        if (window.AndroidUsbCamera && typeof window.AndroidUsbCamera.isSonyWifiActive === 'function') {
+            var isActive = window.AndroidUsbCamera.isSonyWifiActive();
+            var curIp = window.AndroidUsbCamera.getSonyCameraIp ? window.AndroidUsbCamera.getSonyCameraIp() : '192.168.122.1';
+            if (ipInput && curIp) ipInput.value = curIp;
+            if (statusBox) {
+                if (isActive) {
+                    statusBox.innerHTML = '<span style="color:#10b981;">🟢</span> <strong>Sony WiFi Aktif:</strong> Terhubung ke ' + escapeHtml(curIp);
+                } else {
+                    statusBox.innerHTML = '⚪ Status: Siap menghubungkan';
+                }
+            }
+        }
+        openModal('modal-sony-wifi');
+    }
+
+    function selectSonyWifiMode(mode) {
+        var radioDirect = document.getElementById('sony_mode_direct');
+        var radioModem = document.getElementById('sony_mode_modem');
+        var ipInput = document.getElementById('sony-wifi-custom-ip');
+        
+        if (mode === 'direct') {
+            if (radioDirect) radioDirect.checked = true;
+            if (radioModem) radioModem.checked = false;
+            if (ipInput) ipInput.value = '192.168.122.1';
+        } else {
+            if (radioDirect) radioDirect.checked = false;
+            if (radioModem) radioModem.checked = true;
+            if (ipInput) ipInput.value = '';
+        }
+    }
+
+    function connectSonyWifiAction() {
+        var ipInput = document.getElementById('sony-wifi-custom-ip');
+        var targetIp = ipInput ? ipInput.value.trim() : '';
+        var statusBox = document.getElementById('sony-wifi-status-text');
+        
+        if (statusBox) {
+            statusBox.innerHTML = '<span style="color:#f59e0b;">🟡</span> <strong>Menghubungkan...</strong> Mencari kamera di ' + (targetIp || 'WiFi Modem (Auto SSDP)');
+        }
+
+        if (window.AndroidUsbCamera && typeof window.AndroidUsbCamera.connectSonyWifi === 'function') {
+            window.AndroidUsbCamera.connectSonyWifi(targetIp);
+            var hubCam = document.getElementById('hub-camera-badge');
+            var hubSrc = document.getElementById('hub-source-mode-badge');
+            var btnWifi = document.getElementById('btn-sony-wifi-cam');
+            if (hubCam) hubCam.innerHTML = '🟡 Sony WiFi: Menghubungkan...';
+            if (hubSrc) hubSrc.innerHTML = 'WiFi Nirkabel (Sony Alpha)';
+            if (btnWifi) {
+                btnWifi.innerHTML = '🟡 Sony WiFi: Menghubungkan...';
+                btnWifi.style.color = '#d97706';
+                btnWifi.style.borderColor = '#fde68a';
+                btnWifi.style.background = '#fffbeb';
+            }
+            showToast('📶 Memulai koneksi Sony WiFi (' + (targetIp || 'WiFi Modem') + ')...');
+            setTimeout(function() {
+                closeModal('modal-sony-wifi');
+            }, 1200);
+        } else {
+            showToast('ℹ️ Fitur Sony WiFi otomatis aktif pada Tablet Android APK.');
+            closeModal('modal-sony-wifi');
+        }
+    }
+
+    function disconnectSonyWifiAction() {
+        if (window.AndroidUsbCamera && typeof window.AndroidUsbCamera.disconnectSonyWifi === 'function') {
+            window.AndroidUsbCamera.disconnectSonyWifi();
+            var statusBox = document.getElementById('sony-wifi-status-text');
+            if (statusBox) statusBox.innerHTML = '⚪ Status: Sony WiFi telah diputus';
+            
+            var hubCam = document.getElementById('hub-camera-badge');
+            var hubSrc = document.getElementById('hub-source-mode-badge');
+            var btnWifi = document.getElementById('btn-sony-wifi-cam');
+            if (hubCam) hubCam.innerHTML = '⚪ Siap Terhubung (Kabel USB)';
+            if (hubSrc) hubSrc.innerHTML = 'Kabel Data USB (PC / iPad)';
+            if (btnWifi) {
+                btnWifi.innerHTML = '📶 Sony WiFi (Nirkabel)';
+                btnWifi.style.color = '#2563eb';
+                btnWifi.style.borderColor = '#bfdbfe';
+                btnWifi.style.background = '#eff6ff';
+            }
+            showToast('📶 Sony WiFi diputus oleh operator');
+            setTimeout(function() {
+                closeModal('modal-sony-wifi');
+            }, 600);
+        } else {
+            closeModal('modal-sony-wifi');
+        }
     }
 
 
