@@ -839,7 +839,14 @@
             }
 
             var lastFolder = localStorage.getItem('limz_local_storage_folder_name');
-            if (lastFolder) {
+            if (window.AndroidUsbCamera && typeof window.AndroidUsbCamera.getStorageFolder === 'function') {
+                var androidFolder = window.AndroidUsbCamera.getStorageFolder();
+                var androidFolderName = (typeof window.AndroidUsbCamera.getStorageFolderName === 'function')
+                    ? window.AndroidUsbCamera.getStorageFolderName()
+                    : (androidFolder ? androidFolder.split('/').filter(Boolean).pop() : 'LimzStudioPhotobooth');
+                appState.localStorageFolderName = androidFolder || 'LimzStudioPhotobooth';
+                updateLocalStorageBadge(androidFolderName || 'LimzStudioPhotobooth', 'Tablet Android');
+            } else if (lastFolder) {
                 appState.localStorageFolderName = lastFolder;
                 updateLocalStorageBadge(lastFolder, 'Tersimpan');
             } else if (isTabletOrMobileDevice()) {
@@ -1110,6 +1117,13 @@
 
     async function triggerPickLocalStorageFolder(e) {
         if (e && e.stopPropagation) e.stopPropagation();
+
+        // 1. Prioritas Utama: APK Android Native (Capacitor USB Bridge)
+        if (window.AndroidUsbCamera && typeof window.AndroidUsbCamera.openFolderPicker === 'function') {
+            showToast('📂 Membuka jendela pemilih folder penyimpanan Android...');
+            window.AndroidUsbCamera.openFolderPicker();
+            return;
+        }
 
         var isInIframe = (window.self !== window.top);
         if (!isInIframe && typeof window.showDirectoryPicker === 'function') {
@@ -9595,6 +9609,19 @@
                         window.AndroidUsbCamera.requestPermission(c.deviceName);
                     }
                 }
+
+                // Inisialisasi status folder penyimpanan aktif dari native Android
+                try {
+                    if (typeof window.AndroidUsbCamera.getStorageFolder === 'function') {
+                        var curF = window.AndroidUsbCamera.getStorageFolder();
+                        if (curF) {
+                            var fName = (typeof window.AndroidUsbCamera.getStorageFolderName === 'function')
+                                ? window.AndroidUsbCamera.getStorageFolderName()
+                                : (curF.split('/').filter(Boolean).pop() || 'LimzStudioPhotobooth');
+                            updateLocalStorageBadge(fName, 'Tablet Android');
+                        }
+                    }
+                } catch(eF) {}
             } catch(eInit) {
                 console.warn('[AndroidUsbCamera] init scan error:', eInit);
             }
@@ -9679,6 +9706,21 @@
         window.addEventListener('androidCameraPhoto', function(ev) {
             if (ev.detail && ev.detail.dataUrl) {
                 window.onAndroidCameraPhotoCaptured(ev.detail.name || 'camera_photo.jpg', ev.detail.dataUrl);
+            }
+        });
+
+        // Handler saat operator memilih folder penyimpanan baru di tablet Android
+        window.onAndroidFolderSelected = function(folderPath, folderName) {
+            var name = folderName || (folderPath ? folderPath.split('/').filter(Boolean).pop() : 'LimzStudioPhotobooth');
+            appState.localStorageFolderName = folderPath || name;
+            try { localStorage.setItem('limz_local_storage_folder_name', name); } catch(e) {}
+            updateLocalStorageBadge(name, 'Tablet Android');
+            showToast('📁 Folder penyimpanan Android aktif: ' + name);
+        };
+
+        window.addEventListener('androidFolderSelected', function(ev) {
+            if (ev.detail) {
+                window.onAndroidFolderSelected(ev.detail.path, ev.detail.name);
             }
         });
     }
