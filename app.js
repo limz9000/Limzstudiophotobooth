@@ -3459,9 +3459,14 @@
                 }
 
                 var displayName = item.name || ('Foto #' + (idx + 1));
+                var qualityBadge = '';
+                if (item.customMp) {
+                    var isOri = item.customIsOri || (item.customWidth && item.customWidth >= 4000);
+                    qualityBadge = '<span style="position:absolute; bottom:28px; left:6px; background:' + (isOri ? 'rgba(16,185,129,0.92)' : 'rgba(59,130,246,0.92)') + '; color:#fff; font-size:8.5px; padding:2px 6px; border-radius:4px; font-weight:700; z-index:2; backdrop-filter:blur(3px); box-shadow:0 1px 4px rgba(0,0,0,0.5);">' + (isOri ? '⭐ ORI ' : '') + item.customMp + ' MP</span>';
+                }
 
                 thumb.innerHTML = '<img src="' + item.dataUrl + '" style="width:100%; height:100%; object-fit:cover; display:block; transform: rotate(' + (item.rotation || 0) + 'deg); transition: transform 0.2s ease;">' +
-                    cropBadge + rotBadge + statusBadge +
+                    cropBadge + rotBadge + statusBadge + qualityBadge +
                     '<button type="button" onclick="removeStagedPhoto(' + idx + ', event)" style="position:absolute; top:6px; right:6px; width:22px; height:22px; background:rgba(0,0,0,0.65); color:#fff; border:1px solid rgba(255,255,255,0.25); border-radius:50%; font-size:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; z-index:2; transition:background 0.15s ease;" title="Hapus foto ini dari antrian">✕</button>' +
                     retryOverlay +
                     '<div style="position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,0.85); backdrop-filter:blur(4px); padding:6px 8px; font-size:10.5px; font-weight:600; color:#e2e8f0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; border-top:1px solid rgba(255,255,255,0.08); z-index:2;" title="' + escapeHtml(displayName) + '">' + escapeHtml(displayName) + '</div>';
@@ -7083,7 +7088,11 @@
                     originalDataUrl: dataUrl,
                     isCropped: false,
                     wasRaw: isRawFile(file),
-                    rotation: 0
+                    rotation: 0,
+                    customWidth: processedFile.customWidth || file.customWidth,
+                    customHeight: processedFile.customHeight || file.customHeight,
+                    customMp: processedFile.customMp || file.customMp,
+                    customIsOri: processedFile.customIsOri || file.customIsOri
                 };
                 if (appState.photoFilterState && appState.photoFilterState.isLocked) {
                     newStaged.appliedGrading = JSON.parse(JSON.stringify(appState.photoFilterState));
@@ -9713,7 +9722,7 @@
         });
 
         // Callback utama saat jepretan foto baru masuk dari kamera via USB / WiFi
-        window.onAndroidCameraPhotoCaptured = function(fileName, dataUrl) {
+        window.onAndroidCameraPhotoCaptured = function(fileName, dataUrl, width, height, size) {
             try {
                 if (!dataUrl || dataUrl.length < 1000) {
                     console.warn('[AndroidUsbCamera] Data foto tidak valid atau terlalu kecil, abaikan.');
@@ -9721,9 +9730,22 @@
                 }
                 var blob = dataUriToBlobHelper(dataUrl);
                 var file = new File([blob], fileName, { type: 'image/jpeg' });
+                if (width && height) {
+                    file.customWidth = width;
+                    file.customHeight = height;
+                    file.customMp = ((width * height) / 1000000).toFixed(1);
+                    file.customIsOri = width >= 4000;
+                }
                 handlePhotoFilesSelected([file]);
                 var isWifi = fileName && (fileName.indexOf('WIFI') !== -1 || fileName.indexOf('wifi') !== -1);
-                showToast(isWifi ? ('📶 Foto baru masuk via Sony WiFi: ' + fileName) : ('📸 Foto baru masuk dari kamera: ' + fileName));
+                var qualityInfo = '';
+                if (width && height) {
+                    var mp = ((width * height) / 1000000).toFixed(1);
+                    var mb = size ? (size / (1024 * 1024)).toFixed(1) + ' MB' : (file.size / (1024 * 1024)).toFixed(1) + ' MB';
+                    var isOri = width >= 4000;
+                    qualityInfo = ' [' + (isOri ? '⭐ ORI ' : '') + mp + ' MP • ' + mb + ']';
+                }
+                showToast(isWifi ? ('📶 Foto baru masuk via Sony WiFi: ' + fileName + qualityInfo) : ('📸 Foto baru masuk: ' + fileName + qualityInfo));
             } catch(ePhoto) {
                 console.error('[AndroidUsbCamera] Gagal memproses foto baru:', ePhoto);
             }
@@ -9731,7 +9753,7 @@
 
         window.addEventListener('androidCameraPhoto', function(ev) {
             if (ev.detail && ev.detail.dataUrl) {
-                window.onAndroidCameraPhotoCaptured(ev.detail.name || 'camera_photo.jpg', ev.detail.dataUrl);
+                window.onAndroidCameraPhotoCaptured(ev.detail.name || 'camera_photo.jpg', ev.detail.dataUrl, ev.detail.width, ev.detail.height, ev.detail.size);
             }
         });
 
