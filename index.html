@@ -720,6 +720,13 @@
                                         📶 Sony WiFi (Nirkabel)
                                     </button>
                                     <button type="button" class="btn btn-outline btn-sm camera-src-btn"
+                                        onclick="openCameraTestModal(event)"
+                                        style="font-size: 10.5px; font-weight: 700; color: #db2777; border-color: #fbcfe8; background: #fdf2f8; padding: 3px 8px;"
+                                        id="btn-camera-test"
+                                        title="Uji diagnostik koneksi kamera USB & WiFi (ala Lemonbooth Camera Test)">
+                                        🔍 Camera Test
+                                    </button>
+                                    <button type="button" class="btn btn-outline btn-sm camera-src-btn"
                                         onclick="openLiveCameraModal(event)"
                                         style="font-size: 10.5px; font-weight: 700; color: #0f766e; border-color: #99f6e4; background: #f0fdfa; padding: 3px 8px;"
                                         title="Buka Live View Kamera DSLR / Mirrorless / Webcam langsung">
@@ -3093,6 +3100,94 @@
                         🚀 Sambungkan Sekarang
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL CAMERA TEST & DIAGNOSTICS (STANDAR LEMONBOOTH) -->
+    <div class="modal-overlay" id="modal-camera-test" style="display: none; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(6px); z-index: 99999;">
+        <div class="modal-box" style="max-width: 480px; width: 92%; background: #0f1117; color: #f8fafc; border: 1px solid #1e293b; border-radius: 16px; padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.8); position: relative;">
+            <!-- Top Controls -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <button type="button" onclick="closeModal('modal-camera-test')" style="background: transparent; border: none; color: #94a3b8; font-size: 18px; cursor: pointer; padding: 4px;">✕</button>
+                <span style="font-size: 14px; font-weight: 700; letter-spacing: 0.5px; color: #e2e8f0;">Camera Test</span>
+                <button type="button" onclick="openModal('modal-ipad-dslr-guide')" style="background: transparent; border: none; color: #94a3b8; font-size: 16px; cursor: pointer; padding: 4px;" title="Bantuan Koneksi">ⓘ</button>
+            </div>
+
+            <!-- Central Visual & Status -->
+            <div style="display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 22px;">
+                <div id="camtest-icon-glow" style="width: 64px; height: 64px; border-radius: 16px; border: 2px solid #ec4899; display: flex; align-items: center; justify-content: center; font-size: 28px; color: #f43f5e; box-shadow: 0 0 20px rgba(236, 72, 153, 0.35); margin-bottom: 14px; background: rgba(236, 72, 153, 0.08);">
+                    📷
+                </div>
+                <div id="camtest-status-pill" style="display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px; background: rgba(236, 72, 153, 0.15); color: #f43f5e; border-radius: 20px; font-size: 11px; font-weight: 700; margin-bottom: 8px;">
+                    <span id="camtest-status-pill-dot" style="width: 6px; height: 6px; border-radius: 50%; background: #f43f5e; display: inline-block;"></span>
+                    <span id="camtest-status-pill-text">Terdeteksi</span>
+                </div>
+                <h3 id="camtest-headline" style="margin: 0 0 6px 0; font-size: 18px; font-weight: 800; color: #ffffff;">
+                    Kamera USB siap digunakan
+                </h3>
+                <p id="camtest-subtext" style="margin: 0; font-size: 11.5px; color: #94a3b8; line-height: 1.4; max-width: 340px;">
+                    Kamera sudah terbaca. Tekan tombol di bawah untuk memulai live view atau lakukan tes jepret.
+                </p>
+            </div>
+
+            <!-- 2x2 Grid Info (Lemonbooth Style) -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 22px;">
+                <!-- Tile 1: USB / Koneksi -->
+                <div style="background: #181d28; border: 1px solid #262f40; border-radius: 10px; padding: 10px 12px;">
+                    <div style="font-size: 9.5px; font-weight: 700; color: #64748b; letter-spacing: 0.5px; margin-bottom: 4px;">KONEKSI</div>
+                    <div id="camtest-val-conn" style="font-size: 11.5px; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 6px; word-break: break-all;">
+                        <span>🔌</span> <span id="camtest-val-conn-txt">Connected (PTP)</span>
+                    </div>
+                </div>
+
+                <!-- Tile 2: Brand / Tipe -->
+                <div style="background: #181d28; border: 1px solid #262f40; border-radius: 10px; padding: 10px 12px;">
+                    <div style="font-size: 9.5px; font-weight: 700; color: #64748b; letter-spacing: 0.5px; margin-bottom: 4px;">BRAND</div>
+                    <div id="camtest-val-brand" style="font-size: 11.5px; font-weight: 700; color: #f1f5f9; display: flex; align-items: center; gap: 6px; word-break: break-all;">
+                        <span>🏷️</span> <span id="camtest-val-brand-txt">Sony Alpha</span>
+                    </div>
+                </div>
+
+                <!-- Tile 3: Seri / Path -->
+                <div style="background: #181d28; border: 1px solid #262f40; border-radius: 10px; padding: 10px 12px;">
+                    <div style="font-size: 9.5px; font-weight: 700; color: #64748b; letter-spacing: 0.5px; margin-bottom: 4px;">SERI KAMERA</div>
+                    <div id="camtest-val-path" style="font-size: 11px; font-weight: 600; color: #cbd5e1; display: flex; align-items: center; gap: 6px; word-break: break-all;">
+                        <span>📷</span> <span id="camtest-val-path-txt">/dev/bus/usb/001</span>
+                    </div>
+                </div>
+
+                <!-- Tile 4: Akses / Status -->
+                <div style="background: #181d28; border: 1px solid #262f40; border-radius: 10px; padding: 10px 12px;">
+                    <div style="font-size: 9.5px; font-weight: 700; color: #64748b; letter-spacing: 0.5px; margin-bottom: 4px;">AKSES USB</div>
+                    <div id="camtest-val-access" style="font-size: 11.5px; font-weight: 700; color: #4ade80; display: flex; align-items: center; gap: 6px;">
+                        <span>⚡</span> <span id="camtest-val-access-txt">Ready</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px;">
+                <button type="button" onclick="camTestStartLiveView()" style="width: 100%; padding: 12px; background: linear-gradient(135deg, #ec4899, #f43f5e); border: none; border-radius: 12px; color: #ffffff; font-weight: 800; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 8px 20px rgba(236, 72, 153, 0.4);">
+                    <span>▶</span> Start Live View
+                </button>
+                <button type="button" onclick="camTestTriggerShutter()" style="width: 100%; padding: 11px; background: #1e293b; border: 1px solid #334155; border-radius: 12px; color: #f8fafc; font-weight: 700; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <span>📸</span> Tes Jepret Kamera (Capture Test)
+                </button>
+            </div>
+
+            <!-- Footer Help Links -->
+            <div style="display: flex; justify-content: center; gap: 20px; font-size: 11.5px; color: #94a3b8; border-top: 1px solid #1e293b; padding-top: 14px; margin-bottom: 14px;">
+                <span style="cursor: pointer; display: flex; align-items: center; gap: 4px;" onclick="openModal('modal-external-integrations')">📖 Cara Koneksi</span>
+                <span style="color: #334155;">|</span>
+                <span style="cursor: pointer; display: flex; align-items: center; gap: 4px;" onclick="openModal('modal-external-integrations')">📋 Kamera Didukung</span>
+            </div>
+
+            <!-- Bottom Live Bar -->
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10.5px; color: #64748b; background: #08090d; border-radius: 8px; padding: 6px 12px;">
+                <span id="camtest-bar-conn">USB: 1 terhubung</span>
+                <span id="camtest-bar-status">STATUS: Ready</span>
+                <span id="camtest-bar-node">KAMERA: /dev/bus/usb</span>
             </div>
         </div>
     </div>

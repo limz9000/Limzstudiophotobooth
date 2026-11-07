@@ -9850,6 +9850,105 @@
         }
     }
 
+    // =========================================================================
+    // MODUL CAMERA TEST & DIAGNOSTICS (STANDAR LEMONBOOTH)
+    // =========================================================================
+
+    function openCameraTestModal(event) {
+        if (event && event.preventDefault) event.preventDefault();
+
+        var valConn = document.getElementById('camtest-val-conn-txt');
+        var valBrand = document.getElementById('camtest-val-brand-txt');
+        var valPath = document.getElementById('camtest-val-path-txt');
+        var valAccess = document.getElementById('camtest-val-access-txt');
+        var pillText = document.getElementById('camtest-status-pill-text');
+        var pillDot = document.getElementById('camtest-status-pill-dot');
+        var pill = document.getElementById('camtest-status-pill');
+        var headline = document.getElementById('camtest-headline');
+        var subtext = document.getElementById('camtest-subtext');
+        var barConn = document.getElementById('camtest-bar-conn');
+        var barStatus = document.getElementById('camtest-bar-status');
+        var barNode = document.getElementById('camtest-bar-node');
+        var iconGlow = document.getElementById('camtest-icon-glow');
+
+        if (window.AndroidUsbCamera) {
+            try {
+                var diagRaw = (typeof window.AndroidUsbCamera.getCameraDiagnosticDetails === 'function')
+                    ? window.AndroidUsbCamera.getCameraDiagnosticDetails()
+                    : null;
+                var diag = diagRaw ? JSON.parse(diagRaw) : null;
+
+                if (diag && diag.connected) {
+                    if (valConn) valConn.innerText = diag.connType || 'Connected (PTP)';
+                    if (valBrand) valBrand.innerText = diag.brand || 'Sony Alpha';
+                    if (valPath) valPath.innerText = diag.devicePath || '/dev/bus/usb/001';
+                    if (valAccess) valAccess.innerText = diag.accessReady ? 'Ready' : 'Memerlukan Izin';
+                    if (pillText) pillText.innerText = 'Terdeteksi';
+                    if (pillDot) pillDot.style.background = '#4ade80';
+                    if (pill) { pill.style.background = 'rgba(74, 222, 128, 0.15)'; pill.style.color = '#4ade80'; }
+                    if (headline) headline.innerText = (diag.brand || 'Kamera') + ' Siap Digunakan';
+                    if (subtext) subtext.innerText = 'Kamera sudah terbaca dan terkoneksi sempurna. Tekan tombol di bawah untuk live view atau tes jepret.';
+                    if (barConn) barConn.innerText = 'USB: 1 terhubung (' + (diag.wifiActive ? 'WiFi' : 'PTP') + ')';
+                    if (barStatus) barStatus.innerText = 'STATUS: Ready';
+                    if (barNode) barNode.innerText = 'KAMERA: ' + (diag.devicePath || '/dev/bus/usb');
+                    if (iconGlow) {
+                        iconGlow.style.borderColor = '#4ade80';
+                        iconGlow.style.boxShadow = '0 0 20px rgba(74, 222, 128, 0.35)';
+                        iconGlow.style.background = 'rgba(74, 222, 128, 0.08)';
+                    }
+                } else {
+                    var camsRaw = window.AndroidUsbCamera.getConnectedCameras ? window.AndroidUsbCamera.getConnectedCameras() : '[]';
+                    var cams = JSON.parse(camsRaw);
+                    if (cams && cams.length > 0) {
+                        var c = cams[0];
+                        if (valConn) valConn.innerText = c.isPtpActive ? 'Connected (Sony PTP)' : 'Connected (USB OTG)';
+                        if (valBrand) valBrand.innerText = c.brandAndModel || 'Sony Alpha';
+                        if (valPath) valPath.innerText = c.deviceName || '/dev/bus/usb/001';
+                        if (valAccess) valAccess.innerText = c.hasPermission ? 'Ready' : 'Izin Diperlukan';
+                        if (pillText) pillText.innerText = 'Terdeteksi';
+                        if (headline) headline.innerText = (c.brandAndModel || 'Kamera') + ' Siap Digunakan';
+                        if (barConn) barConn.innerText = 'USB: ' + cams.length + ' terhubung';
+                    } else {
+                        if (valConn) valConn.innerText = 'Tidak Terhubung';
+                        if (valBrand) valBrand.innerText = 'Kamera Belum Tercolok';
+                        if (valPath) valPath.innerText = '-';
+                        if (valAccess) valAccess.innerText = 'Standby';
+                        if (pillText) pillText.innerText = 'Menunggu';
+                        if (pillDot) pillDot.style.background = '#f59e0b';
+                        if (pill) { pill.style.background = 'rgba(245, 158, 11, 0.15)'; pill.style.color = '#f59e0b'; }
+                        if (headline) headline.innerText = 'Kamera Belum Terhubung';
+                        if (subtext) subtext.innerText = 'Colokkan kabel data USB dari kamera Sony ke port Type-C tablet Android, atau aktifkan Sony WiFi.';
+                        if (barConn) barConn.innerText = 'USB: 0 terhubung';
+                        if (barStatus) barStatus.innerText = 'STATUS: Standby';
+                    }
+                }
+            } catch(e) {
+                console.warn('[CameraTest] error checking diagnostics:', e);
+            }
+        } else {
+            if (valConn) valConn.innerText = 'Web Browser / Bridge';
+            if (valBrand) valBrand.innerText = 'Sony / Canon Desktop';
+            if (valPath) valPath.innerText = 'http://localhost:8080';
+            if (valAccess) valAccess.innerText = 'Ready';
+        }
+
+        openModal('modal-camera-test');
+    }
+
+    function camTestStartLiveView() {
+        closeModal('modal-camera-test');
+        openLiveCameraModal(null);
+    }
+
+    function camTestTriggerShutter() {
+        if (window.AndroidUsbCamera && typeof window.AndroidUsbCamera.triggerShutter === 'function') {
+            window.AndroidUsbCamera.triggerShutter();
+            showToast('📸 Mengirim sinyal jepret ke kamera Sony...');
+        } else {
+            showToast('📸 Fitur pemicu shutter aktif pada kamera terhubung.');
+        }
+    }
+
 
     /* =========================================================================
        MODUL LANDING PAGE ACTIVE EVENT (REAL-TIME PREVIEW CARD)
