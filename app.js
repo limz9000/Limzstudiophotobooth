@@ -9704,6 +9704,14 @@
                         btnWifi.style.borderColor = '#a7f3d0';
                         btnWifi.style.background = '#ecfdf5';
                     }
+                } else {
+                    if (hubCam) {
+                        hubCam.innerHTML = '🟢 ' + escapeHtml(ev.detail.name);
+                        hubCam.style.background = '#ecfdf5';
+                        hubCam.style.color = '#047857';
+                        hubCam.style.borderColor = '#a7f3d0';
+                    }
+                    if (hubSrc) hubSrc.innerHTML = 'Kabel Data USB (PC / iPad)';
                 }
             } else {
                 showToast('📷 Kamera Terputus');
