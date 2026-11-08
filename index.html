@@ -180,6 +180,315 @@
                         </div>
                     </div>
                 </div>
+
+                
+
+                <!-- ================================================================= -->
+                <!-- TAB STUDIO EDITOR: PROJECK KERJA EVOTO AI SUITE (REVISI 90) -->
+                <!-- ================================================================= -->
+                <div id="tab-studio-editor" class="dash-tab" style="display: none;">
+                    <div class="top-bar" style="margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                            <div>
+                                <h2 class="page-heading" style="display: flex; align-items: center; gap: 8px;">
+                                    <span>🎨 Studio Editor (Projeck Kerja Evoto AI)</span>
+                                    <span style="font-size: 11px; font-weight: 800; background: linear-gradient(135deg, #d49438, #b87a28); color: #fff; padding: 2px 8px; border-radius: 12px; letter-spacing: 0.5px;">PRO SUITE</span>
+                                </h2>
+                                <p style="font-size: 12.5px; color: var(--text-muted); margin: 0;">
+                                    Retouch potret cerdas, pembersihan objek/kabel, dan filter simulasi film sinematik real-time.
+                                </p>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                            <div style="display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.04); border: 1px solid var(--border-subtle); padding: 4px 10px; border-radius: 8px;">
+                                <span style="font-size: 11px; font-weight: 700; color: var(--text-muted);">Event:</span>
+                                <select id="evoto-project-select" class="form-control" style="font-size: 11.5px; padding: 2px 6px; border: none; background: transparent; font-weight: 700; color: var(--text-main);" onchange="handleEvotoProjectChange(this.value)">
+                                </select>
+                            </div>
+                            <button type="button" class="btn btn-outline btn-sm" id="btn-evoto-compare" onclick="toggleEvotoBeforeAfter()" style="font-size: 11.5px; padding: 5px 12px;">
+                                👁️ Before / After
+                            </button>
+                            <button type="button" class="btn btn-outline btn-sm" onclick="resetEvotoAllGrading()" style="font-size: 11.5px; padding: 5px 12px; color: #ef4444; border-color: rgba(239,68,68,0.3);">
+                                ↺ Reset
+                            </button>
+                            <button type="button" class="btn btn-gold btn-sm" onclick="syncEvotoRecipeToAllEventPhotos()" style="font-size: 12px; font-weight: 700; padding: 6px 14px; box-shadow: 0 2px 10px rgba(212,148,56,0.35);">
+                                ⚡ Terapkan ke Antrean
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- WORKSPACE UTAMA: 2 KOLOM (CANVAS + INSPECTOR) & FILMSTRIP BAWAH -->
+                    <div class="evoto-workspace-layout">
+                        <!-- KOLOM KIRI / TENGAH: VIEWPORT UTAMA & FILMSTRIP BAWAH -->
+                        <div class="evoto-viewport-column">
+                            <!-- CANVAS FRAME VIEWPORT -->
+                            <div class="evoto-viewport-card" id="evoto-viewport-card">
+                                <div class="evoto-viewport-header">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span id="evoto-active-filename" style="font-size: 12px; font-weight: 700; color: #ffffff;">Memuat Foto...</span>
+                                        <span id="evoto-active-specs" style="font-size: 10px; color: #d49438; font-weight: 700; background: rgba(212,148,56,0.18); padding: 1px 6px; border-radius: 4px;">24 MP • SONY RAW</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span id="evoto-active-preset-badge" style="font-size: 10.5px; color: #38bdf8; font-weight: 700; background: rgba(56,189,248,0.15); padding: 2px 8px; border-radius: 6px;">Preset: Natural</span>
+                                        <button type="button" class="evoto-btn-icon" onclick="zoomEvotoCanvas('fit')" title="Sesuaikan Ukuran Layar">Fit</button>
+                                        <button type="button" class="evoto-btn-icon" onclick="zoomEvotoCanvas('100')" title="Zoom 100%">1:1</button>
+                                    </div>
+                                </div>
+
+                                <!-- CONTAINER STAGE (FOTO & BEFORE/AFTER SPLIT SLIDER) -->
+                                <div class="evoto-stage-container" id="evoto-stage-container">
+                                    <!-- LAYER SEBELUM (ORIGINAL) -->
+                                    <div class="evoto-before-layer" id="evoto-before-layer">
+                                        <img id="evoto-img-before" src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=80" alt="Original">
+                                        <span class="evoto-layer-badge before">BEFORE</span>
+                                    </div>
+
+                                    <!-- LAYER SESUDAH (RETOUCH & GRADED) -->
+                                    <div class="evoto-after-layer" id="evoto-after-layer">
+                                        <img id="evoto-img-after" src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=80" alt="Retouched">
+                                        <span class="evoto-layer-badge after">AFTER</span>
+                                    </div>
+
+                                    <!-- GARIS PEMISAH BEFORE / AFTER INTERAKTIF -->
+                                    <div class="evoto-split-divider" id="evoto-split-divider">
+                                        <div class="evoto-split-handle">
+                                            <span>◀▶</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- CANVAS MASKING AI OBJECT ERASER (MAGIC BRUSH) -->
+                                    <canvas id="evoto-eraser-canvas" class="evoto-eraser-canvas"></canvas>
+                                </div>
+                            </div>
+
+                            <!-- FILMSTRIP / PHOTO REEL HORIZONTAL BAWAH PERSIS EVOTO -->
+                            <div class="evoto-filmstrip-card">
+                                <div class="evoto-filmstrip-header">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span style="font-size: 11.5px; font-weight: 800; color: #ffffff; letter-spacing: 0.5px;">🎞️ FOTO PROJECK KERJA</span>
+                                        <span id="evoto-filmstrip-count" style="font-size: 10.5px; color: #d49438; font-weight: 700; background: rgba(212,148,56,0.2); padding: 1px 7px; border-radius: 10px;">0 Foto</span>
+                                    </div>
+                                    <div style="display: flex; gap: 6px;">
+                                        <button type="button" class="btn btn-outline btn-sm" onclick="refreshEvotoFilmstripPhotos()" style="font-size: 10px; padding: 2px 8px; color: #cbd5e1; border-color: #475569;">
+                                            🔄 Segarkan
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="evoto-filmstrip-track" id="evoto-filmstrip-track">
+                                    <!-- Thumbnail foto acara akan dirender dinamis di sini via JS -->
+                                    <div style="color: #64748b; font-size: 11px; padding: 20px; text-align: center; width: 100%;">
+                                        Memuat antrean foto acara...
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- KOLOM KANAN: INSPECTOR TOOLS EVOTO AI (PRESETS, RETOUCH, COLOR, ERASER) -->
+                        <div class="evoto-inspector-card">
+                            <!-- NAVIGASI TAB INSPECTOR -->
+                            <div class="evoto-inspector-nav">
+                                <button type="button" class="evoto-tab-btn active" onclick="switchEvotoInspectorTab('presets', this)">
+                                    🎨 Presets
+                                </button>
+                                <button type="button" class="evoto-tab-btn" onclick="switchEvotoInspectorTab('retouch', this)">
+                                    👤 AI Retouch
+                                </button>
+                                <button type="button" class="evoto-tab-btn" onclick="switchEvotoInspectorTab('color', this)">
+                                    🎚️ Color
+                                </button>
+                                <button type="button" class="evoto-tab-btn" onclick="switchEvotoInspectorTab('eraser', this)">
+                                    🧹 AI Eraser
+                                </button>
+                            </div>
+
+                            <!-- PANE 1: PRESETS LENGKAP (PORTRAIT, P01-P09, C01-C10, FILM) -->
+                            <div class="evoto-inspector-pane active" id="evoto-pane-presets">
+                                <!-- SUB-KATEGORI PRESET -->
+                                <div class="evoto-preset-subnav">
+                                    <button type="button" class="evoto-subnav-btn active" onclick="switchEvotoPresetCategory('portrait', this)">Portrait</button>
+                                    <button type="button" class="evoto-subnav-btn" onclick="switchEvotoPresetCategory('tones', this)">Tones (P01-P09)</button>
+                                    <button type="button" class="evoto-subnav-btn" onclick="switchEvotoPresetCategory('cinematic', this)">Cinematic (C01-C10)</button>
+                                    <button type="button" class="evoto-subnav-btn" onclick="switchEvotoPresetCategory('film', this)">Film Simulation</button>
+                                </div>
+
+                                <!-- CONTAINER GRID PRESET KARTU VISUAL -->
+                                <div class="evoto-presets-grid" id="evoto-presets-grid-container">
+                                    <!-- Dirender dinamis oleh JS -->
+                                </div>
+                            </div>
+
+                            <!-- PANE 2: AI PORTRAIT & SKIN RETOUCHING -->
+                            <div class="evoto-inspector-pane" id="evoto-pane-retouch">
+                                <div class="evoto-section-box">
+                                    <div class="evoto-section-title">Target Subjek</div>
+                                    <div class="evoto-subject-pills">
+                                        <button type="button" class="evoto-pill-btn active" onclick="setEvotoRetouchSubject('all', this)">All</button>
+                                        <button type="button" class="evoto-pill-btn" onclick="setEvotoRetouchSubject('female', this)">Female</button>
+                                        <button type="button" class="evoto-pill-btn" onclick="setEvotoRetouchSubject('male', this)">Male</button>
+                                        <button type="button" class="evoto-pill-btn" onclick="setEvotoRetouchSubject('child', this)">Child</button>
+                                    </div>
+                                </div>
+
+                                <div class="evoto-section-box">
+                                    <div class="evoto-section-title">Skin Retouching &amp; Smoothing</div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Kehalusan Kulit (Skin Softening)</span>
+                                            <span id="lbl-evoto-skin-soften" class="evoto-val">35%</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-skin-soften" min="0" max="100" value="35" oninput="updateEvotoRetouchParams()">
+                                    </div>
+
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Tekstur &amp; Pori Wajah (Texture)</span>
+                                            <span id="lbl-evoto-skin-texture" class="evoto-val">50%</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-skin-texture" min="0" max="100" value="50" oninput="updateEvotoRetouchParams()">
+                                    </div>
+
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Blemish &amp; Acne Removal (Noda)</span>
+                                            <span id="lbl-evoto-blemish" class="evoto-val">60%</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-blemish" min="0" max="100" value="60" oninput="updateEvotoRetouchParams()">
+                                    </div>
+                                </div>
+
+                                <div class="evoto-section-box">
+                                    <div class="evoto-section-title">Palet Warna Kulit (Skin Tone)</div>
+                                    <div class="evoto-skin-tones-row">
+                                        <div class="evoto-skin-swatch active" style="background:#fcebe1;" onclick="setEvotoSkinTone('#fcebe1', 'Fair', this)" title="Fair / Cerah"></div>
+                                        <div class="evoto-skin-swatch" style="background:#f7dfd4;" onclick="setEvotoSkinTone('#f7dfd4', 'Ivory', this)" title="Ivory"></div>
+                                        <div class="evoto-skin-swatch" style="background:#f2cbba;" onclick="setEvotoSkinTone('#f2cbba', 'Peach', this)" title="Peach / Segar"></div>
+                                        <div class="evoto-skin-swatch" style="background:#e8bca6;" onclick="setEvotoSkinTone('#e8bca6', 'Natural Tan', this)" title="Natural Tan"></div>
+                                        <div class="evoto-skin-swatch" style="background:#d49b78;" onclick="setEvotoSkinTone('#d49b78', 'Warm Glow', this)" title="Warm Glow"></div>
+                                        <div class="evoto-skin-swatch" style="background:#b87d58;" onclick="setEvotoSkinTone('#b87d58', 'Bronze', this)" title="Bronze"></div>
+                                        <div class="evoto-skin-swatch" style="background:#945f3d;" onclick="setEvotoSkinTone('#945f3d', 'Deep', this)" title="Deep"></div>
+                                    </div>
+                                    <div class="evoto-control-group" style="margin-top:10px;">
+                                        <div class="evoto-label-row">
+                                            <span>Intensitas Tone Kulit</span>
+                                            <span id="lbl-evoto-skin-tone-amount" class="evoto-val">40%</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-skin-tone-amount" min="0" max="100" value="40" oninput="updateEvotoRetouchParams()">
+                                    </div>
+                                </div>
+
+                                <div class="evoto-section-box">
+                                    <div class="evoto-section-title">Facial Features (Gigi &amp; Mata)</div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Pemutih Gigi (Teeth Whitening)</span>
+                                            <span id="lbl-evoto-teeth" class="evoto-val">30%</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-teeth" min="0" max="100" value="30" oninput="updateEvotoRetouchParams()">
+                                    </div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Binar Mata (Eye Brightening)</span>
+                                            <span id="lbl-evoto-eyes" class="evoto-val">35%</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-eyes" min="0" max="100" value="35" oninput="updateEvotoRetouchParams()">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- PANE 3: COLOR ADJUSTMENTS & HISTOGRAM -->
+                            <div class="evoto-inspector-pane" id="evoto-pane-color">
+                                <div class="evoto-section-box">
+                                    <div class="evoto-section-title">Histogram Real-Time</div>
+                                    <canvas id="evoto-histogram-canvas" class="evoto-histogram-canvas"></canvas>
+                                </div>
+
+                                <div class="evoto-section-box">
+                                    <div class="evoto-section-title">Basic Lighting &amp; Contrast</div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Exposure (Pencahayaan)</span>
+                                            <span id="lbl-evoto-exposure" class="evoto-val">0.0 EV</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-exposure" min="-100" max="100" value="0" oninput="updateEvotoColorParams()">
+                                    </div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Contrast (Kontras)</span>
+                                            <span id="lbl-evoto-contrast" class="evoto-val">0</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-contrast" min="-50" max="50" value="0" oninput="updateEvotoColorParams()">
+                                    </div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Highlights (Kilau Terang)</span>
+                                            <span id="lbl-evoto-highlights" class="evoto-val">0</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-highlights" min="-100" max="100" value="0" oninput="updateEvotoColorParams()">
+                                    </div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Shadows (Bayangan Gelap)</span>
+                                            <span id="lbl-evoto-shadows" class="evoto-val">0</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-shadows" min="-100" max="100" value="0" oninput="updateEvotoColorParams()">
+                                    </div>
+                                </div>
+
+                                <div class="evoto-section-box">
+                                    <div class="evoto-section-title">Color Temperature &amp; Tint</div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Temperature (Hangat/Dingin)</span>
+                                            <span id="lbl-evoto-temp" class="evoto-val">0</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-temp" min="-50" max="50" value="0" oninput="updateEvotoColorParams()">
+                                    </div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Tint (Hijau/Magenta)</span>
+                                            <span id="lbl-evoto-tint" class="evoto-val">0</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-tint" min="-50" max="50" value="0" oninput="updateEvotoColorParams()">
+                                    </div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Vibrance (Warna Alami)</span>
+                                            <span id="lbl-evoto-vibrance" class="evoto-val">0%</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-vibrance" min="-50" max="50" value="0" oninput="updateEvotoColorParams()">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- PANE 4: AI OBJECT ERASER (MAGIC BRUSH / INPAINTING) -->
+                            <div class="evoto-inspector-pane" id="evoto-pane-eraser">
+                                <div class="evoto-section-box">
+                                    <div class="evoto-section-title">🧹 AI Magic Eraser (Pembersih Objek)</div>
+                                    <p style="font-size:11.5px; color:#94a3b8; line-height:1.4; margin-top:4px;">
+                                        Usapkan kuas langsung di layar foto untuk menandai kabel studio, sampah lantai, tiang tripod, atau orang lewat di latar belakang.
+                                    </p>
+
+                                    <div class="evoto-control-group" style="margin-top:12px;">
+                                        <div class="evoto-label-row">
+                                            <span>Ukuran Kuas (Brush Size)</span>
+                                            <span id="lbl-evoto-brush-size" class="evoto-val">28px</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-brush-size" min="8" max="90" value="28" oninput="updateEvotoBrushSize(this.value)">
+                                    </div>
+
+                                    <div style="display:flex; gap:8px; margin-top:16px;">
+                                        <button type="button" class="btn btn-gold btn-sm" onclick="executeEvotoObjectInpaint()" style="flex:1; font-weight:700; padding:8px 12px;">
+                                            ✨ Hapus Objek (Inpaint)
+                                        </button>
+                                        <button type="button" class="btn btn-outline btn-sm" onclick="clearEvotoEraserMask()" style="color:#ef4444; border-color:#ef4444; padding:8px 12px;" title="Bersihkan coretan kuas">
+                                            ↺ Batal
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </section>
         </div>
     </div>
@@ -250,6 +559,10 @@
                     <li class="sidebar-item" onclick="switchDashboardTab('tab-upload', this)"
                         title="Upload & Watermark">
                         <span class="sidebar-icon">📸</span> <span class="sidebar-text">Upload & Watermark</span>
+                    </li>
+                    <li class="sidebar-item" onclick="switchDashboardTab('tab-studio-editor', this)"
+                        title="Studio Editor (Projeck Kerja Evoto AI)">
+                        <span class="sidebar-icon">🎨</span> <span class="sidebar-text">Studio Editor</span>
                     </li>
                     <li class="sidebar-item role-admin-only" onclick="switchDashboardTab('tab-moderation', this)"
                         title="Moderasi Ucapan">
@@ -721,7 +1034,7 @@
                                     </button>
                                     <button type="button" class="btn btn-outline btn-sm camera-src-btn"
                                         onclick="openCameraTestModal(event)"
-                                        style="font-size: 10.5px; font-weight: 700; color: #db2777; border-color: #fbcfe8; background: #fdf2f8; padding: 3px 8px;"
+                                        style="display: none; font-size: 10.5px; font-weight: 700; color: #db2777; border-color: #fbcfe8; background: #fdf2f8; padding: 3px 8px;"
                                         id="btn-camera-test"
                                         title="Uji diagnostik koneksi kamera USB & WiFi (ala Lemonbooth Camera Test)">
                                         🔍 Camera Test
@@ -1491,6 +1804,313 @@
                     </div>
                 </div>
 
+                <!-- ================================================================= -->
+                <!-- TAB STUDIO EDITOR: PROJECK KERJA EVOTO AI SUITE (REVISI 90) -->
+                <!-- ================================================================= -->
+                <div id="tab-studio-editor" class="dash-tab" style="display: none;">
+                    <div class="top-bar" style="margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                            <div>
+                                <h2 class="page-heading" style="display: flex; align-items: center; gap: 8px;">
+                                    <span>🎨 Studio Editor (Projeck Kerja Evoto AI)</span>
+                                    <span style="font-size: 11px; font-weight: 800; background: linear-gradient(135deg, #d49438, #b87a28); color: #fff; padding: 2px 8px; border-radius: 12px; letter-spacing: 0.5px;">PRO SUITE</span>
+                                </h2>
+                                <p style="font-size: 12.5px; color: var(--text-muted); margin: 0;">
+                                    Retouch potret cerdas, pembersihan objek/kabel, dan filter simulasi film sinematik real-time.
+                                </p>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                            <div style="display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.04); border: 1px solid var(--border-subtle); padding: 4px 10px; border-radius: 8px;">
+                                <span style="font-size: 11px; font-weight: 700; color: var(--text-muted);">Event:</span>
+                                <select id="evoto-project-select" class="form-control" style="font-size: 11.5px; padding: 2px 6px; border: none; background: transparent; font-weight: 700; color: var(--text-main);" onchange="handleEvotoProjectChange(this.value)">
+                                </select>
+                            </div>
+                            <button type="button" class="btn btn-outline btn-sm" id="btn-evoto-compare" onclick="toggleEvotoBeforeAfter()" style="font-size: 11.5px; padding: 5px 12px;">
+                                👁️ Before / After
+                            </button>
+                            <button type="button" class="btn btn-outline btn-sm" onclick="resetEvotoAllGrading()" style="font-size: 11.5px; padding: 5px 12px; color: #ef4444; border-color: rgba(239,68,68,0.3);">
+                                ↺ Reset
+                            </button>
+                            <button type="button" class="btn btn-gold btn-sm" onclick="syncEvotoRecipeToAllEventPhotos()" style="font-size: 12px; font-weight: 700; padding: 6px 14px; box-shadow: 0 2px 10px rgba(212,148,56,0.35);">
+                                ⚡ Terapkan ke Antrean
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- WORKSPACE UTAMA: 2 KOLOM (CANVAS + INSPECTOR) & FILMSTRIP BAWAH -->
+                    <div class="evoto-workspace-layout">
+                        <!-- KOLOM KIRI / TENGAH: VIEWPORT UTAMA & FILMSTRIP BAWAH -->
+                        <div class="evoto-viewport-column">
+                            <!-- CANVAS FRAME VIEWPORT -->
+                            <div class="evoto-viewport-card" id="evoto-viewport-card">
+                                <div class="evoto-viewport-header">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span id="evoto-active-filename" style="font-size: 12px; font-weight: 700; color: #ffffff;">Memuat Foto...</span>
+                                        <span id="evoto-active-specs" style="font-size: 10px; color: #d49438; font-weight: 700; background: rgba(212,148,56,0.18); padding: 1px 6px; border-radius: 4px;">24 MP • SONY RAW</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span id="evoto-active-preset-badge" style="font-size: 10.5px; color: #38bdf8; font-weight: 700; background: rgba(56,189,248,0.15); padding: 2px 8px; border-radius: 6px;">Preset: Natural</span>
+                                        <button type="button" class="evoto-btn-icon" onclick="zoomEvotoCanvas('fit')" title="Sesuaikan Ukuran Layar">Fit</button>
+                                        <button type="button" class="evoto-btn-icon" onclick="zoomEvotoCanvas('100')" title="Zoom 100%">1:1</button>
+                                    </div>
+                                </div>
+
+                                <!-- CONTAINER STAGE (FOTO & BEFORE/AFTER SPLIT SLIDER) -->
+                                <div class="evoto-stage-container" id="evoto-stage-container">
+                                    <!-- LAYER SEBELUM (ORIGINAL) -->
+                                    <div class="evoto-before-layer" id="evoto-before-layer">
+                                        <img id="evoto-img-before" src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=80" alt="Original">
+                                        <span class="evoto-layer-badge before">BEFORE</span>
+                                    </div>
+
+                                    <!-- LAYER SESUDAH (RETOUCH & GRADED) -->
+                                    <div class="evoto-after-layer" id="evoto-after-layer">
+                                        <img id="evoto-img-after" src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=80" alt="Retouched">
+                                        <span class="evoto-layer-badge after">AFTER</span>
+                                    </div>
+
+                                    <!-- GARIS PEMISAH BEFORE / AFTER INTERAKTIF -->
+                                    <div class="evoto-split-divider" id="evoto-split-divider">
+                                        <div class="evoto-split-handle">
+                                            <span>◀▶</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- CANVAS MASKING AI OBJECT ERASER (MAGIC BRUSH) -->
+                                    <canvas id="evoto-eraser-canvas" class="evoto-eraser-canvas"></canvas>
+                                </div>
+                            </div>
+
+                            <!-- FILMSTRIP / PHOTO REEL HORIZONTAL BAWAH PERSIS EVOTO -->
+                            <div class="evoto-filmstrip-card">
+                                <div class="evoto-filmstrip-header">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span style="font-size: 11.5px; font-weight: 800; color: #ffffff; letter-spacing: 0.5px;">🎞️ FOTO PROJECK KERJA</span>
+                                        <span id="evoto-filmstrip-count" style="font-size: 10.5px; color: #d49438; font-weight: 700; background: rgba(212,148,56,0.2); padding: 1px 7px; border-radius: 10px;">0 Foto</span>
+                                    </div>
+                                    <div style="display: flex; gap: 6px;">
+                                        <button type="button" class="btn btn-outline btn-sm" onclick="refreshEvotoFilmstripPhotos()" style="font-size: 10px; padding: 2px 8px; color: #cbd5e1; border-color: #475569;">
+                                            🔄 Segarkan
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="evoto-filmstrip-track" id="evoto-filmstrip-track">
+                                    <!-- Thumbnail foto acara akan dirender dinamis di sini via JS -->
+                                    <div style="color: #64748b; font-size: 11px; padding: 20px; text-align: center; width: 100%;">
+                                        Memuat antrean foto acara...
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- KOLOM KANAN: INSPECTOR TOOLS EVOTO AI (PRESETS, RETOUCH, COLOR, ERASER) -->
+                        <div class="evoto-inspector-card">
+                            <!-- NAVIGASI TAB INSPECTOR -->
+                            <div class="evoto-inspector-nav">
+                                <button type="button" class="evoto-tab-btn active" onclick="switchEvotoInspectorTab('presets', this)">
+                                    🎨 Presets
+                                </button>
+                                <button type="button" class="evoto-tab-btn" onclick="switchEvotoInspectorTab('retouch', this)">
+                                    👤 AI Retouch
+                                </button>
+                                <button type="button" class="evoto-tab-btn" onclick="switchEvotoInspectorTab('color', this)">
+                                    🎚️ Color
+                                </button>
+                                <button type="button" class="evoto-tab-btn" onclick="switchEvotoInspectorTab('eraser', this)">
+                                    🧹 AI Eraser
+                                </button>
+                            </div>
+
+                            <!-- PANE 1: PRESETS LENGKAP (PORTRAIT, P01-P09, C01-C10, FILM) -->
+                            <div class="evoto-inspector-pane active" id="evoto-pane-presets">
+                                <!-- SUB-KATEGORI PRESET -->
+                                <div class="evoto-preset-subnav">
+                                    <button type="button" class="evoto-subnav-btn active" onclick="switchEvotoPresetCategory('portrait', this)">Portrait</button>
+                                    <button type="button" class="evoto-subnav-btn" onclick="switchEvotoPresetCategory('tones', this)">Tones (P01-P09)</button>
+                                    <button type="button" class="evoto-subnav-btn" onclick="switchEvotoPresetCategory('cinematic', this)">Cinematic (C01-C10)</button>
+                                    <button type="button" class="evoto-subnav-btn" onclick="switchEvotoPresetCategory('film', this)">Film Simulation</button>
+                                </div>
+
+                                <!-- CONTAINER GRID PRESET KARTU VISUAL -->
+                                <div class="evoto-presets-grid" id="evoto-presets-grid-container">
+                                    <!-- Dirender dinamis oleh JS -->
+                                </div>
+                            </div>
+
+                            <!-- PANE 2: AI PORTRAIT & SKIN RETOUCHING -->
+                            <div class="evoto-inspector-pane" id="evoto-pane-retouch">
+                                <div class="evoto-section-box">
+                                    <div class="evoto-section-title">Target Subjek</div>
+                                    <div class="evoto-subject-pills">
+                                        <button type="button" class="evoto-pill-btn active" onclick="setEvotoRetouchSubject('all', this)">All</button>
+                                        <button type="button" class="evoto-pill-btn" onclick="setEvotoRetouchSubject('female', this)">Female</button>
+                                        <button type="button" class="evoto-pill-btn" onclick="setEvotoRetouchSubject('male', this)">Male</button>
+                                        <button type="button" class="evoto-pill-btn" onclick="setEvotoRetouchSubject('child', this)">Child</button>
+                                    </div>
+                                </div>
+
+                                <div class="evoto-section-box">
+                                    <div class="evoto-section-title">Skin Retouching &amp; Smoothing</div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Kehalusan Kulit (Skin Softening)</span>
+                                            <span id="lbl-evoto-skin-soften" class="evoto-val">35%</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-skin-soften" min="0" max="100" value="35" oninput="updateEvotoRetouchParams()">
+                                    </div>
+
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Tekstur &amp; Pori Wajah (Texture)</span>
+                                            <span id="lbl-evoto-skin-texture" class="evoto-val">50%</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-skin-texture" min="0" max="100" value="50" oninput="updateEvotoRetouchParams()">
+                                    </div>
+
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Blemish &amp; Acne Removal (Noda)</span>
+                                            <span id="lbl-evoto-blemish" class="evoto-val">60%</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-blemish" min="0" max="100" value="60" oninput="updateEvotoRetouchParams()">
+                                    </div>
+                                </div>
+
+                                <div class="evoto-section-box">
+                                    <div class="evoto-section-title">Palet Warna Kulit (Skin Tone)</div>
+                                    <div class="evoto-skin-tones-row">
+                                        <div class="evoto-skin-swatch active" style="background:#fcebe1;" onclick="setEvotoSkinTone('#fcebe1', 'Fair', this)" title="Fair / Cerah"></div>
+                                        <div class="evoto-skin-swatch" style="background:#f7dfd4;" onclick="setEvotoSkinTone('#f7dfd4', 'Ivory', this)" title="Ivory"></div>
+                                        <div class="evoto-skin-swatch" style="background:#f2cbba;" onclick="setEvotoSkinTone('#f2cbba', 'Peach', this)" title="Peach / Segar"></div>
+                                        <div class="evoto-skin-swatch" style="background:#e8bca6;" onclick="setEvotoSkinTone('#e8bca6', 'Natural Tan', this)" title="Natural Tan"></div>
+                                        <div class="evoto-skin-swatch" style="background:#d49b78;" onclick="setEvotoSkinTone('#d49b78', 'Warm Glow', this)" title="Warm Glow"></div>
+                                        <div class="evoto-skin-swatch" style="background:#b87d58;" onclick="setEvotoSkinTone('#b87d58', 'Bronze', this)" title="Bronze"></div>
+                                        <div class="evoto-skin-swatch" style="background:#945f3d;" onclick="setEvotoSkinTone('#945f3d', 'Deep', this)" title="Deep"></div>
+                                    </div>
+                                    <div class="evoto-control-group" style="margin-top:10px;">
+                                        <div class="evoto-label-row">
+                                            <span>Intensitas Tone Kulit</span>
+                                            <span id="lbl-evoto-skin-tone-amount" class="evoto-val">40%</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-skin-tone-amount" min="0" max="100" value="40" oninput="updateEvotoRetouchParams()">
+                                    </div>
+                                </div>
+
+                                <div class="evoto-section-box">
+                                    <div class="evoto-section-title">Facial Features (Gigi &amp; Mata)</div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Pemutih Gigi (Teeth Whitening)</span>
+                                            <span id="lbl-evoto-teeth" class="evoto-val">30%</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-teeth" min="0" max="100" value="30" oninput="updateEvotoRetouchParams()">
+                                    </div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Binar Mata (Eye Brightening)</span>
+                                            <span id="lbl-evoto-eyes" class="evoto-val">35%</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-eyes" min="0" max="100" value="35" oninput="updateEvotoRetouchParams()">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- PANE 3: COLOR ADJUSTMENTS & HISTOGRAM -->
+                            <div class="evoto-inspector-pane" id="evoto-pane-color">
+                                <div class="evoto-section-box">
+                                    <div class="evoto-section-title">Histogram Real-Time</div>
+                                    <canvas id="evoto-histogram-canvas" class="evoto-histogram-canvas"></canvas>
+                                </div>
+
+                                <div class="evoto-section-box">
+                                    <div class="evoto-section-title">Basic Lighting &amp; Contrast</div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Exposure (Pencahayaan)</span>
+                                            <span id="lbl-evoto-exposure" class="evoto-val">0.0 EV</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-exposure" min="-100" max="100" value="0" oninput="updateEvotoColorParams()">
+                                    </div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Contrast (Kontras)</span>
+                                            <span id="lbl-evoto-contrast" class="evoto-val">0</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-contrast" min="-50" max="50" value="0" oninput="updateEvotoColorParams()">
+                                    </div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Highlights (Kilau Terang)</span>
+                                            <span id="lbl-evoto-highlights" class="evoto-val">0</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-highlights" min="-100" max="100" value="0" oninput="updateEvotoColorParams()">
+                                    </div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Shadows (Bayangan Gelap)</span>
+                                            <span id="lbl-evoto-shadows" class="evoto-val">0</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-shadows" min="-100" max="100" value="0" oninput="updateEvotoColorParams()">
+                                    </div>
+                                </div>
+
+                                <div class="evoto-section-box">
+                                    <div class="evoto-section-title">Color Temperature &amp; Tint</div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Temperature (Hangat/Dingin)</span>
+                                            <span id="lbl-evoto-temp" class="evoto-val">0</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-temp" min="-50" max="50" value="0" oninput="updateEvotoColorParams()">
+                                    </div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Tint (Hijau/Magenta)</span>
+                                            <span id="lbl-evoto-tint" class="evoto-val">0</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-tint" min="-50" max="50" value="0" oninput="updateEvotoColorParams()">
+                                    </div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Vibrance (Warna Alami)</span>
+                                            <span id="lbl-evoto-vibrance" class="evoto-val">0%</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-vibrance" min="-50" max="50" value="0" oninput="updateEvotoColorParams()">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- PANE 4: AI OBJECT ERASER (MAGIC BRUSH / INPAINTING) -->
+                            <div class="evoto-inspector-pane" id="evoto-pane-eraser">
+                                <div class="evoto-section-box">
+                                    <div class="evoto-section-title">🧹 AI Magic Eraser (Pembersih Objek)</div>
+                                    <p style="font-size:11.5px; color:#94a3b8; line-height:1.4; margin-top:4px;">
+                                        Usapkan kuas langsung di layar foto untuk menandai kabel studio, sampah lantai, tiang tripod, atau orang lewat di latar belakang.
+                                    </p>
+
+                                    <div class="evoto-control-group" style="margin-top:12px;">
+                                        <div class="evoto-label-row">
+                                            <span>Ukuran Kuas (Brush Size)</span>
+                                            <span id="lbl-evoto-brush-size" class="evoto-val">28px</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-brush-size" min="8" max="90" value="28" oninput="updateEvotoBrushSize(this.value)">
+                                    </div>
+
+                                    <div style="display:flex; gap:8px; margin-top:16px;">
+                                        <button type="button" class="btn btn-gold btn-sm" onclick="executeEvotoObjectInpaint()" style="flex:1; font-weight:700; padding:8px 12px;">
+                                            ✨ Hapus Objek (Inpaint)
+                                        </button>
+                                        <button type="button" class="btn btn-outline btn-sm" onclick="clearEvotoEraserMask()" style="color:#ef4444; border-color:#ef4444; padding:8px 12px;" title="Bersihkan coretan kuas">
+                                            ↺ Batal
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div id="tab-moderation" class="dash-tab" style="display: none;">
                     <div class="top-bar">
                         <div>
@@ -1709,6 +2329,315 @@
                                     </tr>
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
+                </div>
+
+                
+
+                <!-- ================================================================= -->
+                <!-- TAB STUDIO EDITOR: PROJECK KERJA EVOTO AI SUITE (REVISI 90) -->
+                <!-- ================================================================= -->
+                <div id="tab-studio-editor" class="dash-tab" style="display: none;">
+                    <div class="top-bar" style="margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                            <div>
+                                <h2 class="page-heading" style="display: flex; align-items: center; gap: 8px;">
+                                    <span>🎨 Studio Editor (Projeck Kerja Evoto AI)</span>
+                                    <span style="font-size: 11px; font-weight: 800; background: linear-gradient(135deg, #d49438, #b87a28); color: #fff; padding: 2px 8px; border-radius: 12px; letter-spacing: 0.5px;">PRO SUITE</span>
+                                </h2>
+                                <p style="font-size: 12.5px; color: var(--text-muted); margin: 0;">
+                                    Retouch potret cerdas, pembersihan objek/kabel, dan filter simulasi film sinematik real-time.
+                                </p>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                            <div style="display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.04); border: 1px solid var(--border-subtle); padding: 4px 10px; border-radius: 8px;">
+                                <span style="font-size: 11px; font-weight: 700; color: var(--text-muted);">Event:</span>
+                                <select id="evoto-project-select" class="form-control" style="font-size: 11.5px; padding: 2px 6px; border: none; background: transparent; font-weight: 700; color: var(--text-main);" onchange="handleEvotoProjectChange(this.value)">
+                                </select>
+                            </div>
+                            <button type="button" class="btn btn-outline btn-sm" id="btn-evoto-compare" onclick="toggleEvotoBeforeAfter()" style="font-size: 11.5px; padding: 5px 12px;">
+                                👁️ Before / After
+                            </button>
+                            <button type="button" class="btn btn-outline btn-sm" onclick="resetEvotoAllGrading()" style="font-size: 11.5px; padding: 5px 12px; color: #ef4444; border-color: rgba(239,68,68,0.3);">
+                                ↺ Reset
+                            </button>
+                            <button type="button" class="btn btn-gold btn-sm" onclick="syncEvotoRecipeToAllEventPhotos()" style="font-size: 12px; font-weight: 700; padding: 6px 14px; box-shadow: 0 2px 10px rgba(212,148,56,0.35);">
+                                ⚡ Terapkan ke Antrean
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- WORKSPACE UTAMA: 2 KOLOM (CANVAS + INSPECTOR) & FILMSTRIP BAWAH -->
+                    <div class="evoto-workspace-layout">
+                        <!-- KOLOM KIRI / TENGAH: VIEWPORT UTAMA & FILMSTRIP BAWAH -->
+                        <div class="evoto-viewport-column">
+                            <!-- CANVAS FRAME VIEWPORT -->
+                            <div class="evoto-viewport-card" id="evoto-viewport-card">
+                                <div class="evoto-viewport-header">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span id="evoto-active-filename" style="font-size: 12px; font-weight: 700; color: #ffffff;">Memuat Foto...</span>
+                                        <span id="evoto-active-specs" style="font-size: 10px; color: #d49438; font-weight: 700; background: rgba(212,148,56,0.18); padding: 1px 6px; border-radius: 4px;">24 MP • SONY RAW</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span id="evoto-active-preset-badge" style="font-size: 10.5px; color: #38bdf8; font-weight: 700; background: rgba(56,189,248,0.15); padding: 2px 8px; border-radius: 6px;">Preset: Natural</span>
+                                        <button type="button" class="evoto-btn-icon" onclick="zoomEvotoCanvas('fit')" title="Sesuaikan Ukuran Layar">Fit</button>
+                                        <button type="button" class="evoto-btn-icon" onclick="zoomEvotoCanvas('100')" title="Zoom 100%">1:1</button>
+                                    </div>
+                                </div>
+
+                                <!-- CONTAINER STAGE (FOTO & BEFORE/AFTER SPLIT SLIDER) -->
+                                <div class="evoto-stage-container" id="evoto-stage-container">
+                                    <!-- LAYER SEBELUM (ORIGINAL) -->
+                                    <div class="evoto-before-layer" id="evoto-before-layer">
+                                        <img id="evoto-img-before" src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=80" alt="Original">
+                                        <span class="evoto-layer-badge before">BEFORE</span>
+                                    </div>
+
+                                    <!-- LAYER SESUDAH (RETOUCH & GRADED) -->
+                                    <div class="evoto-after-layer" id="evoto-after-layer">
+                                        <img id="evoto-img-after" src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=80" alt="Retouched">
+                                        <span class="evoto-layer-badge after">AFTER</span>
+                                    </div>
+
+                                    <!-- GARIS PEMISAH BEFORE / AFTER INTERAKTIF -->
+                                    <div class="evoto-split-divider" id="evoto-split-divider">
+                                        <div class="evoto-split-handle">
+                                            <span>◀▶</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- CANVAS MASKING AI OBJECT ERASER (MAGIC BRUSH) -->
+                                    <canvas id="evoto-eraser-canvas" class="evoto-eraser-canvas"></canvas>
+                                </div>
+                            </div>
+
+                            <!-- FILMSTRIP / PHOTO REEL HORIZONTAL BAWAH PERSIS EVOTO -->
+                            <div class="evoto-filmstrip-card">
+                                <div class="evoto-filmstrip-header">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span style="font-size: 11.5px; font-weight: 800; color: #ffffff; letter-spacing: 0.5px;">🎞️ FOTO PROJECK KERJA</span>
+                                        <span id="evoto-filmstrip-count" style="font-size: 10.5px; color: #d49438; font-weight: 700; background: rgba(212,148,56,0.2); padding: 1px 7px; border-radius: 10px;">0 Foto</span>
+                                    </div>
+                                    <div style="display: flex; gap: 6px;">
+                                        <button type="button" class="btn btn-outline btn-sm" onclick="refreshEvotoFilmstripPhotos()" style="font-size: 10px; padding: 2px 8px; color: #cbd5e1; border-color: #475569;">
+                                            🔄 Segarkan
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="evoto-filmstrip-track" id="evoto-filmstrip-track">
+                                    <!-- Thumbnail foto acara akan dirender dinamis di sini via JS -->
+                                    <div style="color: #64748b; font-size: 11px; padding: 20px; text-align: center; width: 100%;">
+                                        Memuat antrean foto acara...
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- KOLOM KANAN: INSPECTOR TOOLS EVOTO AI (PRESETS, RETOUCH, COLOR, ERASER) -->
+                        <div class="evoto-inspector-card">
+                            <!-- NAVIGASI TAB INSPECTOR -->
+                            <div class="evoto-inspector-nav">
+                                <button type="button" class="evoto-tab-btn active" onclick="switchEvotoInspectorTab('presets', this)">
+                                    🎨 Presets
+                                </button>
+                                <button type="button" class="evoto-tab-btn" onclick="switchEvotoInspectorTab('retouch', this)">
+                                    👤 AI Retouch
+                                </button>
+                                <button type="button" class="evoto-tab-btn" onclick="switchEvotoInspectorTab('color', this)">
+                                    🎚️ Color
+                                </button>
+                                <button type="button" class="evoto-tab-btn" onclick="switchEvotoInspectorTab('eraser', this)">
+                                    🧹 AI Eraser
+                                </button>
+                            </div>
+
+                            <!-- PANE 1: PRESETS LENGKAP (PORTRAIT, P01-P09, C01-C10, FILM) -->
+                            <div class="evoto-inspector-pane active" id="evoto-pane-presets">
+                                <!-- SUB-KATEGORI PRESET -->
+                                <div class="evoto-preset-subnav">
+                                    <button type="button" class="evoto-subnav-btn active" onclick="switchEvotoPresetCategory('portrait', this)">Portrait</button>
+                                    <button type="button" class="evoto-subnav-btn" onclick="switchEvotoPresetCategory('tones', this)">Tones (P01-P09)</button>
+                                    <button type="button" class="evoto-subnav-btn" onclick="switchEvotoPresetCategory('cinematic', this)">Cinematic (C01-C10)</button>
+                                    <button type="button" class="evoto-subnav-btn" onclick="switchEvotoPresetCategory('film', this)">Film Simulation</button>
+                                </div>
+
+                                <!-- CONTAINER GRID PRESET KARTU VISUAL -->
+                                <div class="evoto-presets-grid" id="evoto-presets-grid-container">
+                                    <!-- Dirender dinamis oleh JS -->
+                                </div>
+                            </div>
+
+                            <!-- PANE 2: AI PORTRAIT & SKIN RETOUCHING -->
+                            <div class="evoto-inspector-pane" id="evoto-pane-retouch">
+                                <div class="evoto-section-box">
+                                    <div class="evoto-section-title">Target Subjek</div>
+                                    <div class="evoto-subject-pills">
+                                        <button type="button" class="evoto-pill-btn active" onclick="setEvotoRetouchSubject('all', this)">All</button>
+                                        <button type="button" class="evoto-pill-btn" onclick="setEvotoRetouchSubject('female', this)">Female</button>
+                                        <button type="button" class="evoto-pill-btn" onclick="setEvotoRetouchSubject('male', this)">Male</button>
+                                        <button type="button" class="evoto-pill-btn" onclick="setEvotoRetouchSubject('child', this)">Child</button>
+                                    </div>
+                                </div>
+
+                                <div class="evoto-section-box">
+                                    <div class="evoto-section-title">Skin Retouching &amp; Smoothing</div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Kehalusan Kulit (Skin Softening)</span>
+                                            <span id="lbl-evoto-skin-soften" class="evoto-val">35%</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-skin-soften" min="0" max="100" value="35" oninput="updateEvotoRetouchParams()">
+                                    </div>
+
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Tekstur &amp; Pori Wajah (Texture)</span>
+                                            <span id="lbl-evoto-skin-texture" class="evoto-val">50%</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-skin-texture" min="0" max="100" value="50" oninput="updateEvotoRetouchParams()">
+                                    </div>
+
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Blemish &amp; Acne Removal (Noda)</span>
+                                            <span id="lbl-evoto-blemish" class="evoto-val">60%</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-blemish" min="0" max="100" value="60" oninput="updateEvotoRetouchParams()">
+                                    </div>
+                                </div>
+
+                                <div class="evoto-section-box">
+                                    <div class="evoto-section-title">Palet Warna Kulit (Skin Tone)</div>
+                                    <div class="evoto-skin-tones-row">
+                                        <div class="evoto-skin-swatch active" style="background:#fcebe1;" onclick="setEvotoSkinTone('#fcebe1', 'Fair', this)" title="Fair / Cerah"></div>
+                                        <div class="evoto-skin-swatch" style="background:#f7dfd4;" onclick="setEvotoSkinTone('#f7dfd4', 'Ivory', this)" title="Ivory"></div>
+                                        <div class="evoto-skin-swatch" style="background:#f2cbba;" onclick="setEvotoSkinTone('#f2cbba', 'Peach', this)" title="Peach / Segar"></div>
+                                        <div class="evoto-skin-swatch" style="background:#e8bca6;" onclick="setEvotoSkinTone('#e8bca6', 'Natural Tan', this)" title="Natural Tan"></div>
+                                        <div class="evoto-skin-swatch" style="background:#d49b78;" onclick="setEvotoSkinTone('#d49b78', 'Warm Glow', this)" title="Warm Glow"></div>
+                                        <div class="evoto-skin-swatch" style="background:#b87d58;" onclick="setEvotoSkinTone('#b87d58', 'Bronze', this)" title="Bronze"></div>
+                                        <div class="evoto-skin-swatch" style="background:#945f3d;" onclick="setEvotoSkinTone('#945f3d', 'Deep', this)" title="Deep"></div>
+                                    </div>
+                                    <div class="evoto-control-group" style="margin-top:10px;">
+                                        <div class="evoto-label-row">
+                                            <span>Intensitas Tone Kulit</span>
+                                            <span id="lbl-evoto-skin-tone-amount" class="evoto-val">40%</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-skin-tone-amount" min="0" max="100" value="40" oninput="updateEvotoRetouchParams()">
+                                    </div>
+                                </div>
+
+                                <div class="evoto-section-box">
+                                    <div class="evoto-section-title">Facial Features (Gigi &amp; Mata)</div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Pemutih Gigi (Teeth Whitening)</span>
+                                            <span id="lbl-evoto-teeth" class="evoto-val">30%</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-teeth" min="0" max="100" value="30" oninput="updateEvotoRetouchParams()">
+                                    </div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Binar Mata (Eye Brightening)</span>
+                                            <span id="lbl-evoto-eyes" class="evoto-val">35%</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-eyes" min="0" max="100" value="35" oninput="updateEvotoRetouchParams()">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- PANE 3: COLOR ADJUSTMENTS & HISTOGRAM -->
+                            <div class="evoto-inspector-pane" id="evoto-pane-color">
+                                <div class="evoto-section-box">
+                                    <div class="evoto-section-title">Histogram Real-Time</div>
+                                    <canvas id="evoto-histogram-canvas" class="evoto-histogram-canvas"></canvas>
+                                </div>
+
+                                <div class="evoto-section-box">
+                                    <div class="evoto-section-title">Basic Lighting &amp; Contrast</div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Exposure (Pencahayaan)</span>
+                                            <span id="lbl-evoto-exposure" class="evoto-val">0.0 EV</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-exposure" min="-100" max="100" value="0" oninput="updateEvotoColorParams()">
+                                    </div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Contrast (Kontras)</span>
+                                            <span id="lbl-evoto-contrast" class="evoto-val">0</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-contrast" min="-50" max="50" value="0" oninput="updateEvotoColorParams()">
+                                    </div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Highlights (Kilau Terang)</span>
+                                            <span id="lbl-evoto-highlights" class="evoto-val">0</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-highlights" min="-100" max="100" value="0" oninput="updateEvotoColorParams()">
+                                    </div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Shadows (Bayangan Gelap)</span>
+                                            <span id="lbl-evoto-shadows" class="evoto-val">0</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-shadows" min="-100" max="100" value="0" oninput="updateEvotoColorParams()">
+                                    </div>
+                                </div>
+
+                                <div class="evoto-section-box">
+                                    <div class="evoto-section-title">Color Temperature &amp; Tint</div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Temperature (Hangat/Dingin)</span>
+                                            <span id="lbl-evoto-temp" class="evoto-val">0</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-temp" min="-50" max="50" value="0" oninput="updateEvotoColorParams()">
+                                    </div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Tint (Hijau/Magenta)</span>
+                                            <span id="lbl-evoto-tint" class="evoto-val">0</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-tint" min="-50" max="50" value="0" oninput="updateEvotoColorParams()">
+                                    </div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Vibrance (Warna Alami)</span>
+                                            <span id="lbl-evoto-vibrance" class="evoto-val">0%</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-vibrance" min="-50" max="50" value="0" oninput="updateEvotoColorParams()">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- PANE 4: AI OBJECT ERASER (MAGIC BRUSH / INPAINTING) -->
+                            <div class="evoto-inspector-pane" id="evoto-pane-eraser">
+                                <div class="evoto-section-box">
+                                    <div class="evoto-section-title">🧹 AI Magic Eraser (Pembersih Objek)</div>
+                                    <p style="font-size:11.5px; color:#94a3b8; line-height:1.4; margin-top:4px;">
+                                        Usapkan kuas langsung di layar foto untuk menandai kabel studio, sampah lantai, tiang tripod, atau orang lewat di latar belakang.
+                                    </p>
+
+                                    <div class="evoto-control-group" style="margin-top:12px;">
+                                        <div class="evoto-label-row">
+                                            <span>Ukuran Kuas (Brush Size)</span>
+                                            <span id="lbl-evoto-brush-size" class="evoto-val">28px</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-brush-size" min="8" max="90" value="28" oninput="updateEvotoBrushSize(this.value)">
+                                    </div>
+
+                                    <div style="display:flex; gap:8px; margin-top:16px;">
+                                        <button type="button" class="btn btn-gold btn-sm" onclick="executeEvotoObjectInpaint()" style="flex:1; font-weight:700; padding:8px 12px;">
+                                            ✨ Hapus Objek (Inpaint)
+                                        </button>
+                                        <button type="button" class="btn btn-outline btn-sm" onclick="clearEvotoEraserMask()" style="color:#ef4444; border-color:#ef4444; padding:8px 12px;" title="Bersihkan coretan kuas">
+                                            ↺ Batal
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1970,6 +2899,315 @@
                             <div class="mon-photo-corner-label">⚡ Foto Ini</div>
                             <div class="mon-photo-corner-imgbox">
                                 <img id="mon-qr-sub2-img" src="" alt="QR Sub Foto 2">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                
+
+                <!-- ================================================================= -->
+                <!-- TAB STUDIO EDITOR: PROJECK KERJA EVOTO AI SUITE (REVISI 90) -->
+                <!-- ================================================================= -->
+                <div id="tab-studio-editor" class="dash-tab" style="display: none;">
+                    <div class="top-bar" style="margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                            <div>
+                                <h2 class="page-heading" style="display: flex; align-items: center; gap: 8px;">
+                                    <span>🎨 Studio Editor (Projeck Kerja Evoto AI)</span>
+                                    <span style="font-size: 11px; font-weight: 800; background: linear-gradient(135deg, #d49438, #b87a28); color: #fff; padding: 2px 8px; border-radius: 12px; letter-spacing: 0.5px;">PRO SUITE</span>
+                                </h2>
+                                <p style="font-size: 12.5px; color: var(--text-muted); margin: 0;">
+                                    Retouch potret cerdas, pembersihan objek/kabel, dan filter simulasi film sinematik real-time.
+                                </p>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                            <div style="display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.04); border: 1px solid var(--border-subtle); padding: 4px 10px; border-radius: 8px;">
+                                <span style="font-size: 11px; font-weight: 700; color: var(--text-muted);">Event:</span>
+                                <select id="evoto-project-select" class="form-control" style="font-size: 11.5px; padding: 2px 6px; border: none; background: transparent; font-weight: 700; color: var(--text-main);" onchange="handleEvotoProjectChange(this.value)">
+                                </select>
+                            </div>
+                            <button type="button" class="btn btn-outline btn-sm" id="btn-evoto-compare" onclick="toggleEvotoBeforeAfter()" style="font-size: 11.5px; padding: 5px 12px;">
+                                👁️ Before / After
+                            </button>
+                            <button type="button" class="btn btn-outline btn-sm" onclick="resetEvotoAllGrading()" style="font-size: 11.5px; padding: 5px 12px; color: #ef4444; border-color: rgba(239,68,68,0.3);">
+                                ↺ Reset
+                            </button>
+                            <button type="button" class="btn btn-gold btn-sm" onclick="syncEvotoRecipeToAllEventPhotos()" style="font-size: 12px; font-weight: 700; padding: 6px 14px; box-shadow: 0 2px 10px rgba(212,148,56,0.35);">
+                                ⚡ Terapkan ke Antrean
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- WORKSPACE UTAMA: 2 KOLOM (CANVAS + INSPECTOR) & FILMSTRIP BAWAH -->
+                    <div class="evoto-workspace-layout">
+                        <!-- KOLOM KIRI / TENGAH: VIEWPORT UTAMA & FILMSTRIP BAWAH -->
+                        <div class="evoto-viewport-column">
+                            <!-- CANVAS FRAME VIEWPORT -->
+                            <div class="evoto-viewport-card" id="evoto-viewport-card">
+                                <div class="evoto-viewport-header">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span id="evoto-active-filename" style="font-size: 12px; font-weight: 700; color: #ffffff;">Memuat Foto...</span>
+                                        <span id="evoto-active-specs" style="font-size: 10px; color: #d49438; font-weight: 700; background: rgba(212,148,56,0.18); padding: 1px 6px; border-radius: 4px;">24 MP • SONY RAW</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span id="evoto-active-preset-badge" style="font-size: 10.5px; color: #38bdf8; font-weight: 700; background: rgba(56,189,248,0.15); padding: 2px 8px; border-radius: 6px;">Preset: Natural</span>
+                                        <button type="button" class="evoto-btn-icon" onclick="zoomEvotoCanvas('fit')" title="Sesuaikan Ukuran Layar">Fit</button>
+                                        <button type="button" class="evoto-btn-icon" onclick="zoomEvotoCanvas('100')" title="Zoom 100%">1:1</button>
+                                    </div>
+                                </div>
+
+                                <!-- CONTAINER STAGE (FOTO & BEFORE/AFTER SPLIT SLIDER) -->
+                                <div class="evoto-stage-container" id="evoto-stage-container">
+                                    <!-- LAYER SEBELUM (ORIGINAL) -->
+                                    <div class="evoto-before-layer" id="evoto-before-layer">
+                                        <img id="evoto-img-before" src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=80" alt="Original">
+                                        <span class="evoto-layer-badge before">BEFORE</span>
+                                    </div>
+
+                                    <!-- LAYER SESUDAH (RETOUCH & GRADED) -->
+                                    <div class="evoto-after-layer" id="evoto-after-layer">
+                                        <img id="evoto-img-after" src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=80" alt="Retouched">
+                                        <span class="evoto-layer-badge after">AFTER</span>
+                                    </div>
+
+                                    <!-- GARIS PEMISAH BEFORE / AFTER INTERAKTIF -->
+                                    <div class="evoto-split-divider" id="evoto-split-divider">
+                                        <div class="evoto-split-handle">
+                                            <span>◀▶</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- CANVAS MASKING AI OBJECT ERASER (MAGIC BRUSH) -->
+                                    <canvas id="evoto-eraser-canvas" class="evoto-eraser-canvas"></canvas>
+                                </div>
+                            </div>
+
+                            <!-- FILMSTRIP / PHOTO REEL HORIZONTAL BAWAH PERSIS EVOTO -->
+                            <div class="evoto-filmstrip-card">
+                                <div class="evoto-filmstrip-header">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span style="font-size: 11.5px; font-weight: 800; color: #ffffff; letter-spacing: 0.5px;">🎞️ FOTO PROJECK KERJA</span>
+                                        <span id="evoto-filmstrip-count" style="font-size: 10.5px; color: #d49438; font-weight: 700; background: rgba(212,148,56,0.2); padding: 1px 7px; border-radius: 10px;">0 Foto</span>
+                                    </div>
+                                    <div style="display: flex; gap: 6px;">
+                                        <button type="button" class="btn btn-outline btn-sm" onclick="refreshEvotoFilmstripPhotos()" style="font-size: 10px; padding: 2px 8px; color: #cbd5e1; border-color: #475569;">
+                                            🔄 Segarkan
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="evoto-filmstrip-track" id="evoto-filmstrip-track">
+                                    <!-- Thumbnail foto acara akan dirender dinamis di sini via JS -->
+                                    <div style="color: #64748b; font-size: 11px; padding: 20px; text-align: center; width: 100%;">
+                                        Memuat antrean foto acara...
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- KOLOM KANAN: INSPECTOR TOOLS EVOTO AI (PRESETS, RETOUCH, COLOR, ERASER) -->
+                        <div class="evoto-inspector-card">
+                            <!-- NAVIGASI TAB INSPECTOR -->
+                            <div class="evoto-inspector-nav">
+                                <button type="button" class="evoto-tab-btn active" onclick="switchEvotoInspectorTab('presets', this)">
+                                    🎨 Presets
+                                </button>
+                                <button type="button" class="evoto-tab-btn" onclick="switchEvotoInspectorTab('retouch', this)">
+                                    👤 AI Retouch
+                                </button>
+                                <button type="button" class="evoto-tab-btn" onclick="switchEvotoInspectorTab('color', this)">
+                                    🎚️ Color
+                                </button>
+                                <button type="button" class="evoto-tab-btn" onclick="switchEvotoInspectorTab('eraser', this)">
+                                    🧹 AI Eraser
+                                </button>
+                            </div>
+
+                            <!-- PANE 1: PRESETS LENGKAP (PORTRAIT, P01-P09, C01-C10, FILM) -->
+                            <div class="evoto-inspector-pane active" id="evoto-pane-presets">
+                                <!-- SUB-KATEGORI PRESET -->
+                                <div class="evoto-preset-subnav">
+                                    <button type="button" class="evoto-subnav-btn active" onclick="switchEvotoPresetCategory('portrait', this)">Portrait</button>
+                                    <button type="button" class="evoto-subnav-btn" onclick="switchEvotoPresetCategory('tones', this)">Tones (P01-P09)</button>
+                                    <button type="button" class="evoto-subnav-btn" onclick="switchEvotoPresetCategory('cinematic', this)">Cinematic (C01-C10)</button>
+                                    <button type="button" class="evoto-subnav-btn" onclick="switchEvotoPresetCategory('film', this)">Film Simulation</button>
+                                </div>
+
+                                <!-- CONTAINER GRID PRESET KARTU VISUAL -->
+                                <div class="evoto-presets-grid" id="evoto-presets-grid-container">
+                                    <!-- Dirender dinamis oleh JS -->
+                                </div>
+                            </div>
+
+                            <!-- PANE 2: AI PORTRAIT & SKIN RETOUCHING -->
+                            <div class="evoto-inspector-pane" id="evoto-pane-retouch">
+                                <div class="evoto-section-box">
+                                    <div class="evoto-section-title">Target Subjek</div>
+                                    <div class="evoto-subject-pills">
+                                        <button type="button" class="evoto-pill-btn active" onclick="setEvotoRetouchSubject('all', this)">All</button>
+                                        <button type="button" class="evoto-pill-btn" onclick="setEvotoRetouchSubject('female', this)">Female</button>
+                                        <button type="button" class="evoto-pill-btn" onclick="setEvotoRetouchSubject('male', this)">Male</button>
+                                        <button type="button" class="evoto-pill-btn" onclick="setEvotoRetouchSubject('child', this)">Child</button>
+                                    </div>
+                                </div>
+
+                                <div class="evoto-section-box">
+                                    <div class="evoto-section-title">Skin Retouching &amp; Smoothing</div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Kehalusan Kulit (Skin Softening)</span>
+                                            <span id="lbl-evoto-skin-soften" class="evoto-val">35%</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-skin-soften" min="0" max="100" value="35" oninput="updateEvotoRetouchParams()">
+                                    </div>
+
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Tekstur &amp; Pori Wajah (Texture)</span>
+                                            <span id="lbl-evoto-skin-texture" class="evoto-val">50%</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-skin-texture" min="0" max="100" value="50" oninput="updateEvotoRetouchParams()">
+                                    </div>
+
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Blemish &amp; Acne Removal (Noda)</span>
+                                            <span id="lbl-evoto-blemish" class="evoto-val">60%</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-blemish" min="0" max="100" value="60" oninput="updateEvotoRetouchParams()">
+                                    </div>
+                                </div>
+
+                                <div class="evoto-section-box">
+                                    <div class="evoto-section-title">Palet Warna Kulit (Skin Tone)</div>
+                                    <div class="evoto-skin-tones-row">
+                                        <div class="evoto-skin-swatch active" style="background:#fcebe1;" onclick="setEvotoSkinTone('#fcebe1', 'Fair', this)" title="Fair / Cerah"></div>
+                                        <div class="evoto-skin-swatch" style="background:#f7dfd4;" onclick="setEvotoSkinTone('#f7dfd4', 'Ivory', this)" title="Ivory"></div>
+                                        <div class="evoto-skin-swatch" style="background:#f2cbba;" onclick="setEvotoSkinTone('#f2cbba', 'Peach', this)" title="Peach / Segar"></div>
+                                        <div class="evoto-skin-swatch" style="background:#e8bca6;" onclick="setEvotoSkinTone('#e8bca6', 'Natural Tan', this)" title="Natural Tan"></div>
+                                        <div class="evoto-skin-swatch" style="background:#d49b78;" onclick="setEvotoSkinTone('#d49b78', 'Warm Glow', this)" title="Warm Glow"></div>
+                                        <div class="evoto-skin-swatch" style="background:#b87d58;" onclick="setEvotoSkinTone('#b87d58', 'Bronze', this)" title="Bronze"></div>
+                                        <div class="evoto-skin-swatch" style="background:#945f3d;" onclick="setEvotoSkinTone('#945f3d', 'Deep', this)" title="Deep"></div>
+                                    </div>
+                                    <div class="evoto-control-group" style="margin-top:10px;">
+                                        <div class="evoto-label-row">
+                                            <span>Intensitas Tone Kulit</span>
+                                            <span id="lbl-evoto-skin-tone-amount" class="evoto-val">40%</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-skin-tone-amount" min="0" max="100" value="40" oninput="updateEvotoRetouchParams()">
+                                    </div>
+                                </div>
+
+                                <div class="evoto-section-box">
+                                    <div class="evoto-section-title">Facial Features (Gigi &amp; Mata)</div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Pemutih Gigi (Teeth Whitening)</span>
+                                            <span id="lbl-evoto-teeth" class="evoto-val">30%</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-teeth" min="0" max="100" value="30" oninput="updateEvotoRetouchParams()">
+                                    </div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Binar Mata (Eye Brightening)</span>
+                                            <span id="lbl-evoto-eyes" class="evoto-val">35%</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-eyes" min="0" max="100" value="35" oninput="updateEvotoRetouchParams()">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- PANE 3: COLOR ADJUSTMENTS & HISTOGRAM -->
+                            <div class="evoto-inspector-pane" id="evoto-pane-color">
+                                <div class="evoto-section-box">
+                                    <div class="evoto-section-title">Histogram Real-Time</div>
+                                    <canvas id="evoto-histogram-canvas" class="evoto-histogram-canvas"></canvas>
+                                </div>
+
+                                <div class="evoto-section-box">
+                                    <div class="evoto-section-title">Basic Lighting &amp; Contrast</div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Exposure (Pencahayaan)</span>
+                                            <span id="lbl-evoto-exposure" class="evoto-val">0.0 EV</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-exposure" min="-100" max="100" value="0" oninput="updateEvotoColorParams()">
+                                    </div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Contrast (Kontras)</span>
+                                            <span id="lbl-evoto-contrast" class="evoto-val">0</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-contrast" min="-50" max="50" value="0" oninput="updateEvotoColorParams()">
+                                    </div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Highlights (Kilau Terang)</span>
+                                            <span id="lbl-evoto-highlights" class="evoto-val">0</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-highlights" min="-100" max="100" value="0" oninput="updateEvotoColorParams()">
+                                    </div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Shadows (Bayangan Gelap)</span>
+                                            <span id="lbl-evoto-shadows" class="evoto-val">0</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-shadows" min="-100" max="100" value="0" oninput="updateEvotoColorParams()">
+                                    </div>
+                                </div>
+
+                                <div class="evoto-section-box">
+                                    <div class="evoto-section-title">Color Temperature &amp; Tint</div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Temperature (Hangat/Dingin)</span>
+                                            <span id="lbl-evoto-temp" class="evoto-val">0</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-temp" min="-50" max="50" value="0" oninput="updateEvotoColorParams()">
+                                    </div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Tint (Hijau/Magenta)</span>
+                                            <span id="lbl-evoto-tint" class="evoto-val">0</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-tint" min="-50" max="50" value="0" oninput="updateEvotoColorParams()">
+                                    </div>
+                                    <div class="evoto-control-group">
+                                        <div class="evoto-label-row">
+                                            <span>Vibrance (Warna Alami)</span>
+                                            <span id="lbl-evoto-vibrance" class="evoto-val">0%</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-vibrance" min="-50" max="50" value="0" oninput="updateEvotoColorParams()">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- PANE 4: AI OBJECT ERASER (MAGIC BRUSH / INPAINTING) -->
+                            <div class="evoto-inspector-pane" id="evoto-pane-eraser">
+                                <div class="evoto-section-box">
+                                    <div class="evoto-section-title">🧹 AI Magic Eraser (Pembersih Objek)</div>
+                                    <p style="font-size:11.5px; color:#94a3b8; line-height:1.4; margin-top:4px;">
+                                        Usapkan kuas langsung di layar foto untuk menandai kabel studio, sampah lantai, tiang tripod, atau orang lewat di latar belakang.
+                                    </p>
+
+                                    <div class="evoto-control-group" style="margin-top:12px;">
+                                        <div class="evoto-label-row">
+                                            <span>Ukuran Kuas (Brush Size)</span>
+                                            <span id="lbl-evoto-brush-size" class="evoto-val">28px</span>
+                                        </div>
+                                        <input type="range" id="slider-evoto-brush-size" min="8" max="90" value="28" oninput="updateEvotoBrushSize(this.value)">
+                                    </div>
+
+                                    <div style="display:flex; gap:8px; margin-top:16px;">
+                                        <button type="button" class="btn btn-gold btn-sm" onclick="executeEvotoObjectInpaint()" style="flex:1; font-weight:700; padding:8px 12px;">
+                                            ✨ Hapus Objek (Inpaint)
+                                        </button>
+                                        <button type="button" class="btn btn-outline btn-sm" onclick="clearEvotoEraserMask()" style="color:#ef4444; border-color:#ef4444; padding:8px 12px;" title="Bersihkan coretan kuas">
+                                            ↺ Batal
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

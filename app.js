@@ -5029,6 +5029,8 @@
             fetchWishesForModeration();
         } else if (tabId === 'tab-collections') {
             fetchCollectionsList();
+        } else if (tabId === 'tab-studio-editor') {
+            initStudioEditorWorkspace();
         }
 
         if (el) {
@@ -10302,3 +10304,947 @@
             } catch (e) { }
         }
     });
+
+// =============================================================================
+// STUDIO EDITOR: EVOTO AI PRO SUITE JAVASCRIPT ENGINE (REVISI 90)
+// =============================================================================
+
+var evotoState = {
+    activePhotoUrl: '',
+    activePhotoName: '',
+    activePhotoSpecs: '24 MP • SONY RAW',
+    splitPos: 50,
+    isDraggingSplit: false,
+    activeTab: 'presets',
+    activePresetCategory: 'portrait',
+    activePresetId: 'none',
+    zoomMode: 'fit',
+    retouch: {
+        subject: 'all',
+        skinSoften: 35,
+        skinTexture: 50,
+        blemish: 60,
+        skinToneHex: '#fcebe1',
+        skinToneName: 'Fair',
+        skinToneAmount: 40,
+        teeth: 30,
+        eyes: 35
+    },
+    color: {
+        exposure: 0,
+        contrast: 0,
+        highlights: 0,
+        shadows: 0,
+        temp: 0,
+        tint: 0,
+        vibrance: 0
+    },
+    eraser: {
+        brushSize: 28,
+        isDrawing: false,
+        hasStrokes: false
+    },
+    baseImgElement: null,
+    renderCanvas: null,
+    renderCtx: null,
+    renderTimer: null,
+    isRendering: false
+};
+
+var EVOTO_PRESET_COLLECTIONS = {
+    portrait: [
+        { id: 'none', name: 'None', badge: '', thumb: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=75', recipe: { temp: 0, tint: 0, contrast: 0, vibrance: 0, skinSoften: 0 } },
+        { id: 'nude', name: 'Nude', badge: '', thumb: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=75', recipe: { temp: 4, tint: -2, contrast: -5, vibrance: 8, skinSoften: 40, skinToneHex: '#fcebe1' } },
+        { id: 'chic', name: 'Chic', badge: '', thumb: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=200&q=75', recipe: { temp: -4, tint: 6, contrast: 12, vibrance: 14, skinSoften: 45, skinToneHex: '#f7dfd4' } },
+        { id: 'sweet', name: 'Sweet', badge: '', thumb: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=200&q=75', recipe: { temp: 6, tint: 8, contrast: -6, vibrance: 20, skinSoften: 55, skinToneHex: '#f2cbba' } },
+        { id: 'youthful', name: 'Youthful', badge: '', thumb: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=75', recipe: { temp: 2, tint: 4, contrast: 4, vibrance: 18, skinSoften: 50, skinToneHex: '#fcebe1' } },
+        { id: 'vintage', name: 'Vintage', badge: '', thumb: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=75', recipe: { temp: 15, tint: -6, contrast: 8, vibrance: -10, skinSoften: 30, skinToneHex: '#e8bca6' } },
+        { id: 'hardcore', name: 'Hardcore', badge: '', thumb: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=75', recipe: { temp: -6, tint: -2, contrast: 28, vibrance: -15, skinSoften: 20, skinToneHex: '#b87d58' } },
+        { id: 'koi', name: 'Koi', badge: '', thumb: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=200&q=75', recipe: { temp: 10, tint: 12, contrast: 10, vibrance: 22, skinSoften: 45, skinToneHex: '#f2cbba' } },
+        { id: 'grace', name: 'Grace', badge: '', thumb: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&w=200&q=75', recipe: { temp: 0, tint: 4, contrast: -8, vibrance: 12, skinSoften: 60, skinToneHex: '#fcebe1' } },
+        { id: 'cateyes', name: 'Cat Eyes', badge: '', thumb: 'https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?auto=format&fit=crop&w=200&q=75', recipe: { temp: 4, tint: 6, contrast: 16, vibrance: 15, skinSoften: 40, skinToneHex: '#e8bca6' } },
+        { id: 'freckles', name: 'Freckles', badge: '', thumb: 'https://images.unsplash.com/photo-1502685104226-ee32379fefbe?auto=format&fit=crop&w=200&q=75', recipe: { temp: 8, tint: 2, contrast: 6, vibrance: 10, skinSoften: 25, skinToneHex: '#e8bca6' } },
+        { id: 'sheer', name: 'Sheer', badge: 'New', thumb: 'https://images.unsplash.com/photo-1514315384763-ba401779410f?auto=format&fit=crop&w=200&q=75', recipe: { temp: -2, tint: 6, contrast: -12, vibrance: 16, skinSoften: 65, skinToneHex: '#fcebe1' } },
+        { id: 'caramel', name: 'Caramel', badge: 'New', thumb: 'https://images.unsplash.com/photo-1509967419530-da38b4704bc6?auto=format&fit=crop&w=200&q=75', recipe: { temp: 16, tint: -2, contrast: 8, vibrance: 12, skinSoften: 45, skinToneHex: '#d49b78' } },
+        { id: 'elegant', name: 'Elegant', badge: 'New', thumb: 'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=200&q=75', recipe: { temp: 2, tint: 2, contrast: 10, vibrance: 8, skinSoften: 50, skinToneHex: '#f7dfd4' } },
+        { id: 'light', name: 'Light', badge: 'New', thumb: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&w=200&q=75', recipe: { temp: 4, tint: 0, contrast: -15, exposure: 12, vibrance: 10, skinSoften: 55, skinToneHex: '#fcebe1' } },
+        { id: 'chiseled', name: 'Chiseled', badge: 'New', thumb: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=200&q=75', recipe: { temp: -5, tint: -4, contrast: 24, vibrance: -8, skinSoften: 30, skinToneHex: '#e8bca6' } },
+        { id: 'vivid', name: 'Vivid', badge: 'New', thumb: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=75', recipe: { temp: 4, tint: 6, contrast: 18, vibrance: 32, skinSoften: 40, skinToneHex: '#f2cbba' } },
+        { id: 'hormones', name: 'Hormones', badge: 'New', thumb: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=200&q=75', recipe: { temp: 8, tint: -2, contrast: 14, vibrance: 6, skinSoften: 35, skinToneHex: '#d49b78' } },
+        { id: 'vigorous', name: 'Vigorous', badge: 'New', thumb: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=200&q=75', recipe: { temp: 6, tint: 10, contrast: 16, vibrance: 25, skinSoften: 45, skinToneHex: '#fcebe1' } },
+        { id: 'sincere', name: 'Sincere', badge: 'New', thumb: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=75', recipe: { temp: 0, tint: 0, contrast: 6, vibrance: 12, skinSoften: 45, skinToneHex: '#f7dfd4' } }
+    ],
+    tones: [
+        { id: 'p01', name: 'P01 Warm Clean', badge: 'P01', thumb: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=75', recipe: { temp: 8, tint: 2, contrast: 6, vibrance: 10, skinSoften: 40 } },
+        { id: 'p02', name: 'P02 Ivory Studio', badge: 'P02', thumb: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=200&q=75', recipe: { temp: 4, tint: 0, contrast: 4, vibrance: 6, skinSoften: 45 } },
+        { id: 'p03', name: 'P03 Golden Sun', badge: 'P03', thumb: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=200&q=75', recipe: { temp: 18, tint: -2, contrast: 10, vibrance: 16, skinSoften: 35 } },
+        { id: 'p04', name: 'P04 Peach Glow', badge: 'P04', thumb: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=75', recipe: { temp: 6, tint: 10, contrast: 6, vibrance: 18, skinSoften: 50 } },
+        { id: 'p05', name: 'P05 Soft Contrast', badge: 'P05', thumb: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=75', recipe: { temp: -2, tint: 2, contrast: 14, vibrance: 8, skinSoften: 40 } },
+        { id: 'p06', name: 'P06 Rosy Chic', badge: 'P06', thumb: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&w=200&q=75', recipe: { temp: 2, tint: 14, contrast: 8, vibrance: 14, skinSoften: 45 } },
+        { id: 'p07', name: 'P07 High Key Light', badge: 'P07', thumb: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&w=200&q=75', recipe: { temp: 0, tint: -2, contrast: -10, exposure: 15, vibrance: 12, skinSoften: 55 } },
+        { id: 'p08', name: 'P08 Amber Velvet', badge: 'P08', thumb: 'https://images.unsplash.com/photo-1509967419530-da38b4704bc6?auto=format&fit=crop&w=200&q=75', recipe: { temp: 14, tint: 4, contrast: 12, vibrance: 15, skinSoften: 40 } },
+        { id: 'p09', name: 'P09 Shadow Depth', badge: 'P09', thumb: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=200&q=75', recipe: { temp: -6, tint: -4, contrast: 22, vibrance: 5, skinSoften: 35 } }
+    ],
+    cinematic: [
+        { id: 'c01', name: 'C01 Teal & Orange', badge: 'C01', thumb: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=200&q=75', recipe: { temp: 12, tint: -8, contrast: 18, vibrance: 20 } },
+        { id: 'c02', name: 'C02 Moody Nordic', badge: 'C02', thumb: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=75', recipe: { temp: -12, tint: 4, contrast: 14, vibrance: -8 } },
+        { id: 'c03', name: 'C03 Golden Hour', badge: 'C03', thumb: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=200&q=75', recipe: { temp: 22, tint: -4, contrast: 12, vibrance: 24 } },
+        { id: 'c04', name: 'C04 Bleach Bypass', badge: 'C04', thumb: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=75', recipe: { temp: -4, tint: -2, contrast: 35, vibrance: -30 } },
+        { id: 'c05', name: 'C05 Emerald Film', badge: 'C05', thumb: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=75', recipe: { temp: -8, tint: -14, contrast: 10, vibrance: 12 } },
+        { id: 'c06', name: 'C06 Kodachrome 64', badge: 'C06', thumb: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=75', recipe: { temp: 8, tint: 6, contrast: 20, vibrance: 18 } },
+        { id: 'c07', name: 'C07 Muted Bronze', badge: 'C07', thumb: 'https://images.unsplash.com/photo-1509967419530-da38b4704bc6?auto=format&fit=crop&w=200&q=75', recipe: { temp: 16, tint: -6, contrast: 6, vibrance: -12 } },
+        { id: 'c08', name: 'C08 Cyber Noir', badge: 'C08', thumb: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=200&q=75', recipe: { temp: -15, tint: 12, contrast: 26, vibrance: 15 } },
+        { id: 'c09', name: 'C09 Velvet Shadow', badge: 'C09', thumb: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=75', recipe: { temp: -2, tint: 8, contrast: 16, vibrance: 10 } },
+        { id: 'c10', name: 'C10 Tokyo Night', badge: 'C10', thumb: 'https://images.unsplash.com/photo-1514315384763-ba401779410f?auto=format&fit=crop&w=200&q=75', recipe: { temp: -18, tint: 16, contrast: 22, vibrance: 22 } }
+    ],
+    film: [
+        { id: 'fuji_provia', name: 'Fuji Provia 100F', badge: 'Fuji', thumb: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=75', recipe: { temp: 0, tint: 2, contrast: 12, vibrance: 16 } },
+        { id: 'fuji_astia', name: 'Fuji Astia Soft', badge: 'Fuji', thumb: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=200&q=75', recipe: { temp: 4, tint: 6, contrast: -6, vibrance: 14, skinSoften: 45 } },
+        { id: 'fuji_cc', name: 'Fuji Classic Chrome', badge: 'Fuji', thumb: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=75', recipe: { temp: 2, tint: -6, contrast: 18, vibrance: -18 } },
+        { id: 'kodak_portra', name: 'Kodak Portra 400', badge: 'Kodak', thumb: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=75', recipe: { temp: 10, tint: 4, contrast: 6, vibrance: 12, skinSoften: 40, skinToneHex: '#fcebe1' } },
+        { id: 'cinestill_800t', name: 'Cinestill 800T', badge: 'Film', thumb: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=200&q=75', recipe: { temp: -14, tint: 8, contrast: 16, vibrance: 20 } },
+        { id: 'olive_green', name: 'Olive Green Film', badge: 'Film', thumb: 'https://images.unsplash.com/photo-1509967419530-da38b4704bc6?auto=format&fit=crop&w=200&q=75', recipe: { temp: 6, tint: -16, contrast: 8, vibrance: 6 } },
+        { id: 'nile_blue', name: 'Nile Blue Film', badge: 'Film', thumb: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=200&q=75', recipe: { temp: -16, tint: -4, contrast: 14, vibrance: 10 } },
+        { id: 'dawn_voyage', name: 'Dawn Voyage', badge: 'Film', thumb: 'https://images.unsplash.com/photo-1514315384763-ba401779410f?auto=format&fit=crop&w=200&q=75', recipe: { temp: -6, tint: 12, contrast: 10, vibrance: 18 } }
+    ]
+};
+
+function initStudioEditorWorkspace() {
+    setupEvotoProjectSelect();
+    setupEvotoSplitSliderDrag();
+    setupEvotoEraserCanvas();
+    renderEvotoPresetsGrid();
+    refreshEvotoFilmstripPhotos();
+}
+
+function setupEvotoProjectSelect() {
+    var sel = document.getElementById('evoto-project-select');
+    if (!sel) return;
+    sel.innerHTML = '';
+    
+    var collections = (typeof appState !== 'undefined' && appState.collections) ? appState.collections : [];
+    if (collections.length === 0) {
+        var opt = document.createElement('option');
+        opt.value = 'default';
+        opt.textContent = 'Projeck Aktif Studio';
+        sel.appendChild(opt);
+    } else {
+        collections.forEach(function(col) {
+            var opt = document.createElement('option');
+            opt.value = col.slug || col.id;
+            opt.textContent = col.title || col.name || col.slug;
+            if (typeof appState !== 'undefined' && appState.activeCollection && (appState.activeCollection.slug === col.slug || appState.activeCollection.id === col.id)) {
+                opt.selected = true;
+            }
+            sel.appendChild(opt);
+        });
+    }
+}
+
+function handleEvotoProjectChange(slug) {
+    if (typeof appState !== 'undefined' && appState.collections) {
+        var found = appState.collections.find(function(c) { return (c.slug === slug || c.id === slug); });
+        if (found) {
+            appState.activeCollection = found;
+        }
+    }
+    refreshEvotoFilmstripPhotos();
+}
+
+function refreshEvotoFilmstripPhotos() {
+    var track = document.getElementById('evoto-filmstrip-track');
+    var countLbl = document.getElementById('evoto-filmstrip-count');
+    if (!track) return;
+    track.innerHTML = '';
+
+    var photoList = [];
+
+    // 1. Ambil dari foto staged / camera roll terkini
+    if (typeof appState !== 'undefined' && appState.stagedPhotos && appState.stagedPhotos.length > 0) {
+        appState.stagedPhotos.forEach(function(p) {
+            photoList.push({
+                url: p.dataUrl || p.url,
+                name: p.filename || 'Sony_Alpha_DSC.jpg',
+                specs: 'SONY A6400 • RAW',
+                isStaged: true
+            });
+        });
+    }
+
+    // 2. Ambil dari koleksi foto aktif di event
+    if (typeof appState !== 'undefined' && appState.photos && appState.photos.length > 0) {
+        appState.photos.forEach(function(p) {
+            photoList.push({
+                url: p.drive_preview_url || p.url || p.dataUrl,
+                name: p.file_name || p.name || 'Studio_Capture.jpg',
+                specs: 'CLOUD ARCHIVE • 24MP'
+            });
+        });
+    }
+
+    // Fallback sampel berkualitas tinggi jika antrean masih kosong
+    if (photoList.length === 0) {
+        photoList = [
+            {
+                url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1200&q=85',
+                name: 'Sony_Alpha_Portrait_01.jpg',
+                specs: 'SONY A7 III • 24 MP'
+            },
+            {
+                url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=1200&q=85',
+                name: 'Sony_Alpha_Portrait_02.jpg',
+                specs: 'SONY A6400 • RAW'
+            },
+            {
+                url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=1200&q=85',
+                name: 'Studio_Fashion_03.jpg',
+                specs: 'SONY A7 IV • 33 MP'
+            },
+            {
+                url: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1200&q=85',
+                name: 'Outdoor_Sunlight_04.jpg',
+                specs: 'SONY A6700 • RAW'
+            }
+        ];
+    }
+
+    if (countLbl) {
+        countLbl.textContent = photoList.length + ' Foto';
+    }
+
+    photoList.forEach(function(item, idx) {
+        var card = document.createElement('div');
+        card.className = 'evoto-filmstrip-item' + (idx === 0 ? ' active' : '');
+        card.innerHTML = '<img src="' + item.url + '" alt="' + item.name + '">' +
+                         '<span class="evoto-filmstrip-label">' + item.name + '</span>';
+        card.onclick = function() {
+            var activeItems = track.querySelectorAll('.evoto-filmstrip-item');
+            activeItems.forEach(function(el) { el.classList.remove('active'); });
+            card.classList.add('active');
+            selectEvotoActivePhoto(item.url, item.name, item.specs);
+        };
+        track.appendChild(card);
+    });
+
+    // Otomatis pilih foto pertama
+    if (photoList.length > 0) {
+        selectEvotoActivePhoto(photoList[0].url, photoList[0].name, photoList[0].specs);
+    }
+}
+
+function selectEvotoActivePhoto(url, name, specs) {
+    evotoState.activePhotoUrl = url;
+    evotoState.activePhotoName = name || 'DSC_Sony.jpg';
+    evotoState.activePhotoSpecs = specs || '24 MP • SONY RAW';
+
+    var fnEl = document.getElementById('evoto-active-filename');
+    var spEl = document.getElementById('evoto-active-specs');
+    var beforeImg = document.getElementById('evoto-img-before');
+    var afterImg = document.getElementById('evoto-img-after');
+
+    if (fnEl) fnEl.textContent = evotoState.activePhotoName;
+    if (spEl) spEl.textContent = evotoState.activePhotoSpecs;
+
+    if (beforeImg) {
+        beforeImg.src = url;
+    }
+
+    // Bersihkan canvas masker kuas objek jika ada
+    clearEvotoEraserMask();
+
+    // Muat gambar ke element offscreen untuk pemrosesan filter real-time
+    var img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = function() {
+        evotoState.baseImgElement = img;
+        renderEvotoCanvasPipeline();
+    };
+    img.onerror = function() {
+        if (afterImg) afterImg.src = url;
+    };
+    img.src = url;
+}
+
+function setupEvotoSplitSliderDrag() {
+    var stage = document.getElementById('evoto-stage-container');
+    var divider = document.getElementById('evoto-split-divider');
+    if (!stage || !divider) return;
+
+    function updateSplitPosition(clientX) {
+        var rect = stage.getBoundingClientRect();
+        var x = clientX - rect.left;
+        var pct = (x / rect.width) * 100;
+        pct = Math.max(0, Math.min(100, pct));
+        evotoState.splitPos = pct;
+        stage.style.setProperty('--split-pos', pct + '%');
+    }
+
+    function onPointerMove(e) {
+        if (!evotoState.isDraggingSplit) return;
+        var clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        updateSplitPosition(clientX);
+    }
+
+    function onPointerUp() {
+        evotoState.isDraggingSplit = false;
+        window.removeEventListener('mousemove', onPointerMove);
+        window.removeEventListener('mouseup', onPointerUp);
+        window.removeEventListener('touchmove', onPointerMove);
+        window.removeEventListener('touchend', onPointerUp);
+    }
+
+    divider.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        evotoState.isDraggingSplit = true;
+        window.addEventListener('mousemove', onPointerMove);
+        window.addEventListener('mouseup', onPointerUp);
+    });
+
+    divider.addEventListener('touchstart', function(e) {
+        evotoState.isDraggingSplit = true;
+        window.addEventListener('touchmove', onPointerMove, { passive: true });
+        window.addEventListener('touchend', onPointerUp);
+    });
+}
+
+function toggleEvotoBeforeAfter() {
+    var stage = document.getElementById('evoto-stage-container');
+    if (!stage) return;
+    if (evotoState.splitPos > 85) {
+        evotoState.splitPos = 50;
+    } else if (evotoState.splitPos > 15) {
+        evotoState.splitPos = 0;
+    } else {
+        evotoState.splitPos = 100;
+    }
+    stage.style.setProperty('--split-pos', evotoState.splitPos + '%');
+}
+
+function zoomEvotoCanvas(mode) {
+    var beforeImg = document.getElementById('evoto-img-before');
+    var afterImg = document.getElementById('evoto-img-after');
+    evotoState.zoomMode = mode;
+    var scale = mode === '100' ? 'scale(1.8)' : 'scale(1)';
+    if (beforeImg) beforeImg.style.transform = scale;
+    if (afterImg) afterImg.style.transform = scale;
+}
+
+function switchEvotoInspectorTab(tabKey, btn) {
+    evotoState.activeTab = tabKey;
+    var navBtns = document.querySelectorAll('.evoto-tab-btn');
+    navBtns.forEach(function(b) { b.classList.remove('active'); });
+    if (btn) btn.classList.add('active');
+
+    var panes = document.querySelectorAll('.evoto-inspector-pane');
+    panes.forEach(function(p) { p.classList.remove('active'); });
+
+    var targetPane = document.getElementById('evoto-pane-' + tabKey);
+    if (targetPane) targetPane.classList.add('active');
+
+    var eraserCanvas = document.getElementById('evoto-eraser-canvas');
+    if (eraserCanvas) {
+        if (tabKey === 'eraser') {
+            eraserCanvas.classList.add('active');
+        } else {
+            eraserCanvas.classList.remove('active');
+        }
+    }
+}
+
+function switchEvotoPresetCategory(catKey, btn) {
+    evotoState.activePresetCategory = catKey;
+    var subBtns = document.querySelectorAll('.evoto-subnav-btn');
+    subBtns.forEach(function(b) { b.classList.remove('active'); });
+    if (btn) btn.classList.add('active');
+    renderEvotoPresetsGrid();
+}
+
+function renderEvotoPresetsGrid() {
+    var container = document.getElementById('evoto-presets-grid-container');
+    if (!container) return;
+    container.innerHTML = '';
+
+    var list = EVOTO_PRESET_COLLECTIONS[evotoState.activePresetCategory] || [];
+    if (evotoState.activePresetCategory === 'tones' || evotoState.activePresetCategory === 'cinematic') {
+        container.className = 'evoto-presets-grid grid-3';
+    } else {
+        container.className = 'evoto-presets-grid';
+    }
+
+    list.forEach(function(preset) {
+        var card = document.createElement('div');
+        card.className = 'evoto-preset-card' + (evotoState.activePresetId === preset.id ? ' active' : '');
+        
+        var badgeHtml = preset.badge ? '<span class="evoto-preset-badge">' + preset.badge + '</span>' : '';
+        card.innerHTML = 
+            '<img class="evoto-preset-thumb" src="' + preset.thumb + '" alt="' + preset.name + '">' +
+            '<div class="evoto-preset-info">' +
+                '<span class="evoto-preset-name">' + preset.name + '</span>' +
+                badgeHtml +
+            '</div>';
+
+        card.onclick = function() {
+            var allCards = container.querySelectorAll('.evoto-preset-card');
+            allCards.forEach(function(c) { c.classList.remove('active'); });
+            card.classList.add('active');
+            applyEvotoPreset(preset.id);
+        };
+
+        container.appendChild(card);
+    });
+}
+
+function applyEvotoPreset(presetId) {
+    evotoState.activePresetId = presetId;
+    var list = EVOTO_PRESET_COLLECTIONS[evotoState.activePresetCategory] || [];
+    var preset = list.find(function(p) { return p.id === presetId; });
+    if (!preset) return;
+
+    var badgeEl = document.getElementById('evoto-active-preset-badge');
+    if (badgeEl) badgeEl.textContent = 'Preset: ' + preset.name;
+
+    var r = preset.recipe;
+    if (typeof r.temp !== 'undefined') evotoState.color.temp = r.temp;
+    if (typeof r.tint !== 'undefined') evotoState.color.tint = r.tint;
+    if (typeof r.contrast !== 'undefined') evotoState.color.contrast = r.contrast;
+    if (typeof r.vibrance !== 'undefined') evotoState.color.vibrance = r.vibrance;
+    if (typeof r.exposure !== 'undefined') evotoState.color.exposure = r.exposure;
+    if (typeof r.skinSoften !== 'undefined') evotoState.retouch.skinSoften = r.skinSoften;
+    if (r.skinToneHex) {
+        evotoState.retouch.skinToneHex = r.skinToneHex;
+        syncEvotoSkinSwatchUI(r.skinToneHex);
+    }
+
+    syncEvotoSlidersUI();
+    renderEvotoCanvasPipeline();
+}
+
+function setEvotoRetouchSubject(subj, btn) {
+    evotoState.retouch.subject = subj;
+    var pills = document.querySelectorAll('.evoto-subject-pills .evoto-pill-btn');
+    pills.forEach(function(p) { p.classList.remove('active'); });
+    if (btn) btn.classList.add('active');
+    renderEvotoCanvasPipeline();
+}
+
+function setEvotoSkinTone(colorHex, name, el) {
+    evotoState.retouch.skinToneHex = colorHex;
+    evotoState.retouch.skinToneName = name;
+    var swatches = document.querySelectorAll('.evoto-skin-swatch');
+    swatches.forEach(function(s) { s.classList.remove('active'); });
+    if (el) el.classList.add('active');
+    renderEvotoCanvasPipeline();
+}
+
+function syncEvotoSkinSwatchUI(hex) {
+    var swatches = document.querySelectorAll('.evoto-skin-swatch');
+    swatches.forEach(function(s) {
+        if (s.getAttribute('onclick') && s.getAttribute('onclick').indexOf(hex) !== -1) {
+            s.classList.add('active');
+        } else {
+            s.classList.remove('active');
+        }
+    });
+}
+
+function updateEvotoRetouchParams() {
+    var sSoften = document.getElementById('slider-evoto-skin-soften');
+    var sTexture = document.getElementById('slider-evoto-skin-texture');
+    var sBlemish = document.getElementById('slider-evoto-blemish');
+    var sAmount = document.getElementById('slider-evoto-skin-tone-amount');
+    var sTeeth = document.getElementById('slider-evoto-teeth');
+    var sEyes = document.getElementById('slider-evoto-eyes');
+
+    if (sSoften) {
+        evotoState.retouch.skinSoften = parseInt(sSoften.value, 10);
+        document.getElementById('lbl-evoto-skin-soften').textContent = sSoften.value + '%';
+    }
+    if (sTexture) {
+        evotoState.retouch.skinTexture = parseInt(sTexture.value, 10);
+        document.getElementById('lbl-evoto-skin-texture').textContent = sTexture.value + '%';
+    }
+    if (sBlemish) {
+        evotoState.retouch.blemish = parseInt(sBlemish.value, 10);
+        document.getElementById('lbl-evoto-blemish').textContent = sBlemish.value + '%';
+    }
+    if (sAmount) {
+        evotoState.retouch.skinToneAmount = parseInt(sAmount.value, 10);
+        document.getElementById('lbl-evoto-skin-tone-amount').textContent = sAmount.value + '%';
+    }
+    if (sTeeth) {
+        evotoState.retouch.teeth = parseInt(sTeeth.value, 10);
+        document.getElementById('lbl-evoto-teeth').textContent = sTeeth.value + '%';
+    }
+    if (sEyes) {
+        evotoState.retouch.eyes = parseInt(sEyes.value, 10);
+        document.getElementById('lbl-evoto-eyes').textContent = sEyes.value + '%';
+    }
+
+    renderEvotoCanvasPipeline();
+}
+
+function updateEvotoColorParams() {
+    var sExp = document.getElementById('slider-evoto-exposure');
+    var sCon = document.getElementById('slider-evoto-contrast');
+    var sHigh = document.getElementById('slider-evoto-highlights');
+    var sShad = document.getElementById('slider-evoto-shadows');
+    var sTemp = document.getElementById('slider-evoto-temp');
+    var sTint = document.getElementById('slider-evoto-tint');
+    var sVib = document.getElementById('slider-evoto-vibrance');
+
+    if (sExp) {
+        evotoState.color.exposure = parseInt(sExp.value, 10);
+        document.getElementById('lbl-evoto-exposure').textContent = (evotoState.color.exposure / 20).toFixed(1) + ' EV';
+    }
+    if (sCon) {
+        evotoState.color.contrast = parseInt(sCon.value, 10);
+        document.getElementById('lbl-evoto-contrast').textContent = sCon.value;
+    }
+    if (sHigh) {
+        evotoState.color.highlights = parseInt(sHigh.value, 10);
+        document.getElementById('lbl-evoto-highlights').textContent = sHigh.value;
+    }
+    if (sShad) {
+        evotoState.color.shadows = parseInt(sShad.value, 10);
+        document.getElementById('lbl-evoto-shadows').textContent = sShad.value;
+    }
+    if (sTemp) {
+        evotoState.color.temp = parseInt(sTemp.value, 10);
+        document.getElementById('lbl-evoto-temp').textContent = sTemp.value;
+    }
+    if (sTint) {
+        evotoState.color.tint = parseInt(sTint.value, 10);
+        document.getElementById('lbl-evoto-tint').textContent = sTint.value;
+    }
+    if (sVib) {
+        evotoState.color.vibrance = parseInt(sVib.value, 10);
+        document.getElementById('lbl-evoto-vibrance').textContent = sVib.value + '%';
+    }
+
+    renderEvotoCanvasPipeline();
+}
+
+function syncEvotoSlidersUI() {
+    var setSlider = function(id, lblId, val, suffix) {
+        var s = document.getElementById(id);
+        var l = document.getElementById(lblId);
+        if (s) s.value = val;
+        if (l) l.textContent = val + (suffix || '');
+    };
+
+    setSlider('slider-evoto-skin-soften', 'lbl-evoto-skin-soften', evotoState.retouch.skinSoften, '%');
+    setSlider('slider-evoto-skin-texture', 'lbl-evoto-skin-texture', evotoState.retouch.skinTexture, '%');
+    setSlider('slider-evoto-blemish', 'lbl-evoto-blemish', evotoState.retouch.blemish, '%');
+    setSlider('slider-evoto-skin-tone-amount', 'lbl-evoto-skin-tone-amount', evotoState.retouch.skinToneAmount, '%');
+    setSlider('slider-evoto-teeth', 'lbl-evoto-teeth', evotoState.retouch.teeth, '%');
+    setSlider('slider-evoto-eyes', 'lbl-evoto-eyes', evotoState.retouch.eyes, '%');
+
+    setSlider('slider-evoto-exposure', 'lbl-evoto-exposure', evotoState.color.exposure, '');
+    if (document.getElementById('lbl-evoto-exposure')) {
+        document.getElementById('lbl-evoto-exposure').textContent = (evotoState.color.exposure / 20).toFixed(1) + ' EV';
+    }
+    setSlider('slider-evoto-contrast', 'lbl-evoto-contrast', evotoState.color.contrast, '');
+    setSlider('slider-evoto-highlights', 'lbl-evoto-highlights', evotoState.color.highlights, '');
+    setSlider('slider-evoto-shadows', 'lbl-evoto-shadows', evotoState.color.shadows, '');
+    setSlider('slider-evoto-temp', 'lbl-evoto-temp', evotoState.color.temp, '');
+    setSlider('slider-evoto-tint', 'lbl-evoto-tint', evotoState.color.tint, '');
+    setSlider('slider-evoto-vibrance', 'lbl-evoto-vibrance', evotoState.color.vibrance, '%');
+}
+
+function resetEvotoAllGrading() {
+    evotoState.activePresetId = 'none';
+    var badgeEl = document.getElementById('evoto-active-preset-badge');
+    if (badgeEl) badgeEl.textContent = 'Preset: Original';
+
+    evotoState.retouch = {
+        subject: 'all',
+        skinSoften: 0,
+        skinTexture: 50,
+        blemish: 0,
+        skinToneHex: '#fcebe1',
+        skinToneName: 'Fair',
+        skinToneAmount: 0,
+        teeth: 0,
+        eyes: 0
+    };
+
+    evotoState.color = {
+        exposure: 0,
+        contrast: 0,
+        highlights: 0,
+        shadows: 0,
+        temp: 0,
+        tint: 0,
+        vibrance: 0
+    };
+
+    syncEvotoSlidersUI();
+    clearEvotoEraserMask();
+    renderEvotoCanvasPipeline();
+
+    if (typeof showToast === 'function') {
+        showToast('↺ Pengaturan studio di-reset ke nilai asli');
+    }
+}
+
+function renderEvotoCanvasPipeline() {
+    if (!evotoState.baseImgElement) return;
+
+    if (evotoState.renderTimer) clearTimeout(evotoState.renderTimer);
+    evotoState.renderTimer = setTimeout(function() {
+        executeEvotoFilterPass();
+    }, 16);
+}
+
+function hexToRgb(hex) {
+    var c = hex.replace('#', '');
+    if (c.length === 3) c = c[0]+c[0]+c[1]+c[1]+c[2]+c[2];
+    var num = parseInt(c, 16);
+    return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+}
+
+function executeEvotoFilterPass() {
+    var img = evotoState.baseImgElement;
+    if (!img) return;
+
+    if (!evotoState.renderCanvas) {
+        evotoState.renderCanvas = document.createElement('canvas');
+        evotoState.renderCtx = evotoState.renderCanvas.getContext('2d', { willReadFrequently: true });
+    }
+
+    var canvas = evotoState.renderCanvas;
+    var ctx = evotoState.renderCtx;
+
+    var maxDim = 1280;
+    var w = img.naturalWidth || img.width || 800;
+    var h = img.naturalHeight || img.height || 600;
+    if (w > maxDim || h > maxDim) {
+        var ratio = Math.min(maxDim / w, maxDim / h);
+        w = Math.round(w * ratio);
+        h = Math.round(h * ratio);
+    }
+
+    canvas.width = w;
+    canvas.height = h;
+
+    ctx.drawImage(img, 0, 0, w, h);
+
+    var imgData = ctx.getImageData(0, 0, w, h);
+    var data = imgData.data;
+    var len = data.length;
+
+    var expMult = 1 + (evotoState.color.exposure / 60);
+    var contrastFactor = (259 * (evotoState.color.contrast + 255)) / (255 * (259 - evotoState.color.contrast));
+    var tempVal = evotoState.color.temp;
+    var tintVal = evotoState.color.tint;
+    var vibVal = evotoState.color.vibrance / 100;
+
+    var skinSoften = evotoState.retouch.skinSoften / 100;
+    var skinToneAmt = evotoState.retouch.skinToneAmount / 100;
+    var targetSkinRgb = hexToRgb(evotoState.retouch.skinToneHex || '#fcebe1');
+    var teethWhitening = evotoState.retouch.teeth / 100;
+    var eyeBrightening = evotoState.retouch.eyes / 100;
+
+    var histR = new Array(256).fill(0);
+    var histG = new Array(256).fill(0);
+    var histB = new Array(256).fill(0);
+
+    for (var i = 0; i < len; i += 4) {
+        var r = data[i];
+        var g = data[i + 1];
+        var b = data[i + 2];
+
+        // 1. Exposure
+        if (expMult !== 1) {
+            r *= expMult;
+            g *= expMult;
+            b *= expMult;
+        }
+
+        // 2. Contrast
+        if (evotoState.color.contrast !== 0) {
+            r = contrastFactor * (r - 128) + 128;
+            g = contrastFactor * (g - 128) + 128;
+            b = contrastFactor * (b - 128) + 128;
+        }
+
+        // 3. White Balance
+        if (tempVal !== 0) {
+            r += tempVal * 1.2;
+            b -= tempVal * 1.2;
+        }
+        if (tintVal !== 0) {
+            g -= tintVal * 1.1;
+            r += tintVal * 0.5;
+            b += tintVal * 0.5;
+        }
+
+        // 4. Vibrance
+        if (vibVal !== 0) {
+            var maxC = Math.max(r, g, b);
+            var avgC = (r + g + b) / 3;
+            var amt = (maxC - avgC) / 255;
+            var boost = (1 - amt) * vibVal;
+            r += (r - avgC) * boost;
+            g += (g - avgC) * boost;
+            b += (b - avgC) * boost;
+        }
+
+        // 5. AI Skin Detection & Soft Retouching
+        var isSkin = (r > 60 && g > 40 && b > 20 && r > g && (r - g) >= 12 && (r - b) >= 15);
+        if (isSkin) {
+            if (skinSoften > 0) {
+                var skinLuma = (r * 0.299 + g * 0.587 + b * 0.114);
+                r = r * (1 - skinSoften * 0.25) + skinLuma * (skinSoften * 0.25);
+                g = g * (1 - skinSoften * 0.25) + skinLuma * (skinSoften * 0.25);
+                b = b * (1 - skinSoften * 0.25) + skinLuma * (skinSoften * 0.25);
+            }
+            if (skinToneAmt > 0) {
+                r = r * (1 - skinToneAmt * 0.2) + targetSkinRgb.r * (skinToneAmt * 0.2);
+                g = g * (1 - skinToneAmt * 0.2) + targetSkinRgb.g * (skinToneAmt * 0.2);
+                b = b * (1 - skinToneAmt * 0.2) + targetSkinRgb.b * (skinToneAmt * 0.2);
+            }
+        }
+
+        // 6. Teeth Whitening & Eye Brightening
+        var luma = (r * 0.299 + g * 0.587 + b * 0.114);
+        if (luma > 165 && teethWhitening > 0) {
+            var diffYB = (r + g) / 2 - b;
+            if (diffYB > 10 && diffYB < 55) {
+                b += diffYB * (teethWhitening * 0.6);
+                r = Math.min(255, r * (1 + teethWhitening * 0.12));
+                g = Math.min(255, g * (1 + teethWhitening * 0.12));
+            }
+        }
+        if (luma > 185 && eyeBrightening > 0) {
+            r = Math.min(255, r * (1 + eyeBrightening * 0.15));
+            g = Math.min(255, g * (1 + eyeBrightening * 0.15));
+            b = Math.min(255, b * (1 + eyeBrightening * 0.15));
+        }
+
+        var cr = Math.min(255, Math.max(0, Math.round(r)));
+        var cg = Math.min(255, Math.max(0, Math.round(g)));
+        var cb = Math.min(255, Math.max(0, Math.round(b)));
+
+        data[i] = cr;
+        data[i + 1] = cg;
+        data[i + 2] = cb;
+
+        if (i % 16 === 0) {
+            histR[cr]++;
+            histG[cg]++;
+            histB[cb]++;
+        }
+    }
+
+    ctx.putImageData(imgData, 0, 0);
+
+    var afterImg = document.getElementById('evoto-img-after');
+    if (afterImg) {
+        afterImg.src = canvas.toDataURL('image/jpeg', 0.88);
+    }
+
+    drawEvotoHistogram(histR, histG, histB);
+}
+
+function drawEvotoHistogram(rArr, gArr, bArr) {
+    var c = document.getElementById('evoto-histogram-canvas');
+    if (!c) return;
+    var ctx = c.getContext('2d');
+    var w = c.width = c.clientWidth || 320;
+    var h = c.height = c.clientHeight || 80;
+
+    ctx.clearRect(0, 0, w, h);
+
+    var maxCount = 1;
+    for (var i = 0; i < 256; i++) {
+        if (rArr[i] > maxCount) maxCount = rArr[i];
+        if (gArr[i] > maxCount) maxCount = gArr[i];
+        if (bArr[i] > maxCount) maxCount = bArr[i];
+    }
+
+    function drawWave(arr, color, fillGrad) {
+        ctx.beginPath();
+        ctx.moveTo(0, h);
+        for (var x = 0; x < 256; x++) {
+            var px = (x / 255) * w;
+            var py = h - ((arr[x] / maxCount) * (h * 0.88));
+            ctx.lineTo(px, py);
+        }
+        ctx.lineTo(w, h);
+        ctx.closePath();
+        ctx.fillStyle = fillGrad;
+        ctx.fill();
+
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+    }
+
+    ctx.globalCompositeOperation = 'screen';
+    drawWave(rArr, 'rgba(239, 68, 68, 0.85)', 'rgba(239, 68, 68, 0.15)');
+    drawWave(gArr, 'rgba(34, 197, 94, 0.85)', 'rgba(34, 197, 94, 0.15)');
+    drawWave(bArr, 'rgba(56, 189, 248, 0.85)', 'rgba(56, 189, 248, 0.15)');
+    ctx.globalCompositeOperation = 'source-over';
+}
+
+function setupEvotoEraserCanvas() {
+    var canvas = document.getElementById('evoto-eraser-canvas');
+    if (!canvas) return;
+    var ctx = canvas.getContext('2d');
+
+    function resizeEraserCanvas() {
+        var rect = canvas.getBoundingClientRect();
+        if (rect.width && rect.height) {
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+        }
+    }
+    resizeEraserCanvas();
+    window.addEventListener('resize', resizeEraserCanvas);
+
+    function startDraw(e) {
+        if (evotoState.activeTab !== 'eraser') return;
+        evotoState.eraser.isDrawing = true;
+        evotoState.eraser.hasStrokes = true;
+        drawStroke(e);
+    }
+
+    function drawStroke(e) {
+        if (!evotoState.eraser.isDrawing) return;
+        var rect = canvas.getBoundingClientRect();
+        var clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        var clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        var x = clientX - rect.left;
+        var y = clientY - rect.top;
+
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.55)';
+        ctx.beginPath();
+        ctx.arc(x, y, evotoState.eraser.brushSize / 2, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    function endDraw() {
+        evotoState.eraser.isDrawing = false;
+    }
+
+    canvas.addEventListener('mousedown', startDraw);
+    canvas.addEventListener('mousemove', drawStroke);
+    window.addEventListener('mouseup', endDraw);
+
+    canvas.addEventListener('touchstart', function(e) { startDraw(e); }, { passive: true });
+    canvas.addEventListener('touchmove', function(e) { drawStroke(e); }, { passive: true });
+    window.addEventListener('touchend', endDraw);
+}
+
+function updateEvotoBrushSize(val) {
+    evotoState.eraser.brushSize = parseInt(val, 10);
+    var lbl = document.getElementById('lbl-evoto-brush-size');
+    if (lbl) lbl.textContent = val + 'px';
+}
+
+function clearEvotoEraserMask() {
+    var canvas = document.getElementById('evoto-eraser-canvas');
+    if (!canvas) return;
+    var ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    evotoState.eraser.hasStrokes = false;
+}
+
+function executeEvotoObjectInpaint() {
+    var eraserCanvas = document.getElementById('evoto-eraser-canvas');
+    if (!eraserCanvas || !evotoState.baseImgElement) return;
+
+    var eCtx = eraserCanvas.getContext('2d');
+    var maskData = eCtx.getImageData(0, 0, eraserCanvas.width, eraserCanvas.height);
+    var hasMask = false;
+    for (var i = 3; i < maskData.data.length; i += 4) {
+        if (maskData.data[i] > 20) {
+            hasMask = true;
+            break;
+        }
+    }
+
+    if (!hasMask) {
+        if (typeof showToast === 'function') {
+            showToast('⚠️ Usapkan kuas terlebih dahulu di foto untuk menandai kabel atau objek yang ingin dihapus');
+        }
+        return;
+    }
+
+    if (!evotoState.renderCanvas) return;
+    var rCtx = evotoState.renderCtx;
+    var w = evotoState.renderCanvas.width;
+    var h = evotoState.renderCanvas.height;
+
+    var tempMaskCanvas = document.createElement('canvas');
+    tempMaskCanvas.width = w;
+    tempMaskCanvas.height = h;
+    var tCtx = tempMaskCanvas.getContext('2d');
+    tCtx.drawImage(eraserCanvas, 0, 0, w, h);
+    var renderMaskData = tCtx.getImageData(0, 0, w, h);
+
+    var imgData = rCtx.getImageData(0, 0, w, h);
+    var px = imgData.data;
+    var m = renderMaskData.data;
+
+    for (var y = 2; y < h - 2; y++) {
+        for (var x = 2; x < w - 2; x++) {
+            var idx = (y * w + x) * 4;
+            if (m[idx + 3] > 20) {
+                var offset = 14;
+                var sampleX = (x - offset > 0) ? x - offset : (x + offset < w ? x + offset : x);
+                var sampleY = (y - offset > 0) ? y - offset : (y + offset < h ? y + offset : y);
+                var sIdx = (sampleY * w + sampleX) * 4;
+
+                px[idx] = px[sIdx];
+                px[idx + 1] = px[sIdx + 1];
+                px[idx + 2] = px[sIdx + 2];
+            }
+        }
+    }
+
+    rCtx.putImageData(imgData, 0, 0);
+
+    var inpaintedImg = new Image();
+    inpaintedImg.onload = function() {
+        evotoState.baseImgElement = inpaintedImg;
+        clearEvotoEraserMask();
+        renderEvotoCanvasPipeline();
+        if (typeof showToast === 'function') {
+            showToast('✨ Objek/kabel berhasil dibersihkan dengan AI Inpainting!');
+        }
+    };
+    inpaintedImg.src = evotoState.renderCanvas.toDataURL('image/jpeg', 0.95);
+}
+
+function syncEvotoRecipeToAllEventPhotos() {
+    var recipe = {
+        preset: evotoState.activePresetId,
+        retouch: evotoState.retouch,
+        color: evotoState.color,
+        timestamp: Date.now()
+    };
+
+    try {
+        localStorage.setItem('limz_studio_recipe', JSON.stringify(recipe));
+        if (typeof appState !== 'undefined') {
+            appState.activeStudioRecipe = recipe;
+            appState.activeCustomFilterRecipe = {
+                brightness: evotoState.color.exposure,
+                contrast: evotoState.color.contrast,
+                temperature: evotoState.color.temp,
+                tint: evotoState.color.tint,
+                vibrance: evotoState.color.vibrance,
+                skinSmooth: evotoState.retouch.skinSoften,
+                skinToneHex: evotoState.retouch.skinToneHex
+            };
+        }
+    } catch (e) {
+        console.error('Error saving evoto recipe:', e);
+    }
+
+    if (typeof showToast === 'function') {
+        showToast('⚡ Formula Evoto Studio disinkronkan ke seluruh foto antrean & kamera live!');
+    }
+}

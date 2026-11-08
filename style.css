@@ -3037,7 +3037,7 @@
         scrollbar-width: thin;
     }
 
-</style>
+
 
     /* ========================================================
        REVISION 57: STORAGE BOOTH & HISTORY GOOGLE DRIVE PENGGUNA
@@ -3505,4 +3505,575 @@
     body.route-gallery #hud-floating-camera-pill,
     #hud-floating-camera-pill.hud-hidden {
         display: none !important;
+    }
+
+    /* ==========================================================================
+       STUDIO EDITOR: PROJECK KERJA EVOTO AI SUITE (REVISI 90)
+       Modeled after Evoto AI Pro Desktop & iPad Edition
+       ========================================================================== */
+    .evoto-workspace-layout {
+        display: flex;
+        gap: 16px;
+        align-items: stretch;
+        min-height: calc(100vh - 190px);
+        margin-top: 8px;
+    }
+
+    .evoto-viewport-column {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .evoto-viewport-card {
+        background: #12151b;
+        border: 1px solid #1f2633;
+        border-radius: 12px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+        flex: 1;
+        min-height: 480px;
+    }
+
+    .evoto-viewport-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 14px;
+        background: #0d1015;
+        border-bottom: 1px solid #1b212c;
+    }
+
+    .evoto-btn-icon {
+        background: #1c222e;
+        border: 1px solid #2e384d;
+        color: #e2e8f0;
+        border-radius: 6px;
+        padding: 4px 10px;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .evoto-btn-icon:hover {
+        background: #2a3447;
+        border-color: var(--accent-gold);
+        color: #ffffff;
+    }
+
+    /* CONTAINER CANVAS STAGE DENGAN SLIDER BEFORE / AFTER */
+    .evoto-stage-container {
+        position: relative;
+        flex: 1;
+        min-height: 440px;
+        background: #090b0e;
+        background-image: 
+            linear-gradient(45deg, #0e1117 25%, transparent 25%), 
+            linear-gradient(-45deg, #0e1117 25%, transparent 25%), 
+            linear-gradient(45deg, transparent 75%, #0e1117 75%), 
+            linear-gradient(-45deg, transparent 75%, #0e1117 75%);
+        background-size: 20px 20px;
+        background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        overflow: hidden;
+        user-select: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .evoto-before-layer,
+    .evoto-after-layer {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+    }
+
+    .evoto-before-layer img,
+    .evoto-after-layer img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        display: block;
+        transition: transform 0.15s ease-out;
+    }
+
+    /* CLIP AFTER LAYER SECARA DINAMIS VIA VARIABEL CSS --split-pos */
+    .evoto-after-layer {
+        clip-path: polygon(var(--split-pos, 50%) 0, 100% 0, 100% 100%, var(--split-pos, 50%) 100%);
+    }
+
+    /* GARIS PEMISAH SLIDER BEFORE / AFTER */
+    .evoto-split-divider {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: var(--split-pos, 50%);
+        width: 2px;
+        background: #ffffff;
+        box-shadow: 0 0 8px rgba(0, 0, 0, 0.7);
+        cursor: ew-resize;
+        z-index: 10;
+        transform: translateX(-50%);
+    }
+
+    .evoto-split-handle {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: #ffffff;
+        border: 2px solid #0f172a;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #0f172a;
+        font-size: 11px;
+        font-weight: 800;
+        pointer-events: auto;
+        cursor: ew-resize;
+        transition: transform 0.15s ease;
+    }
+
+    .evoto-split-handle:hover {
+        transform: translate(-50%, -50%) scale(1.1);
+    }
+
+    .evoto-layer-badge {
+        position: absolute;
+        top: 14px;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 1px;
+        z-index: 5;
+    }
+
+    .evoto-layer-badge.before {
+        left: 14px;
+        background: rgba(15, 23, 42, 0.75);
+        color: #94a3b8;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .evoto-layer-badge.after {
+        right: 14px;
+        background: rgba(212, 148, 56, 0.95);
+        color: #ffffff;
+        box-shadow: 0 2px 8px rgba(212, 148, 56, 0.4);
+    }
+
+    /* CANVAS MASKING AI OBJECT ERASER */
+    .evoto-eraser-canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 12;
+        pointer-events: none;
+        cursor: crosshair;
+    }
+
+    .evoto-eraser-canvas.active {
+        pointer-events: auto;
+    }
+
+    /* FILMSTRIP HORIZONTAL BAWAH PERSIS EVOTO */
+    .evoto-filmstrip-card {
+        background: #12151b;
+        border: 1px solid #1f2633;
+        border-radius: 10px;
+        padding: 8px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .evoto-filmstrip-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .evoto-filmstrip-track {
+        display: flex;
+        gap: 10px;
+        overflow-x: auto;
+        padding: 4px 2px 8px 2px;
+        scrollbar-width: thin;
+        scrollbar-color: #334155 #0f172a;
+    }
+
+    .evoto-filmstrip-track::-webkit-scrollbar {
+        height: 6px;
+    }
+
+    .evoto-filmstrip-track::-webkit-scrollbar-track {
+        background: #0d1015;
+        border-radius: 4px;
+    }
+
+    .evoto-filmstrip-track::-webkit-scrollbar-thumb {
+        background: #334155;
+        border-radius: 4px;
+    }
+
+    .evoto-filmstrip-item {
+        position: relative;
+        flex: 0 0 92px;
+        height: 68px;
+        border-radius: 6px;
+        overflow: hidden;
+        border: 2px solid #232936;
+        cursor: pointer;
+        background: #0d1015;
+        transition: all 0.2s ease;
+    }
+
+    .evoto-filmstrip-item:hover {
+        border-color: #64748b;
+        transform: translateY(-2px);
+    }
+
+    .evoto-filmstrip-item.active {
+        border-color: var(--accent-gold);
+        box-shadow: 0 0 10px rgba(212, 148, 56, 0.45);
+    }
+
+    .evoto-filmstrip-item img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+
+    .evoto-filmstrip-label {
+        position: absolute;
+        bottom: 2px;
+        left: 3px;
+        right: 3px;
+        font-size: 8.5px;
+        font-weight: 700;
+        color: #ffffff;
+        background: rgba(0, 0, 0, 0.65);
+        padding: 1px 4px;
+        border-radius: 3px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* KOLOM KANAN: INSPECTOR PANEL EVOTO AI */
+    .evoto-inspector-card {
+        width: 360px;
+        max-width: 100%;
+        background: #12151b;
+        border: 1px solid #1f2633;
+        border-radius: 12px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    }
+
+    .evoto-inspector-nav {
+        display: flex;
+        background: #0d1015;
+        border-bottom: 1px solid #1f2633;
+    }
+
+    .evoto-tab-btn {
+        flex: 1;
+        background: transparent;
+        border: none;
+        border-bottom: 2px solid transparent;
+        padding: 10px 4px;
+        font-size: 11.5px;
+        font-weight: 700;
+        color: #94a3b8;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+    }
+
+    .evoto-tab-btn:hover {
+        color: #f1f5f9;
+        background: rgba(255, 255, 255, 0.03);
+    }
+
+    .evoto-tab-btn.active {
+        color: #d49438;
+        border-bottom-color: #d49438;
+        background: rgba(212, 148, 56, 0.08);
+    }
+
+    .evoto-inspector-pane {
+        display: none;
+        padding: 14px;
+        overflow-y: auto;
+        max-height: calc(100vh - 270px);
+        flex: 1;
+    }
+
+    .evoto-inspector-pane.active {
+        display: block;
+    }
+
+    /* SUBNAV PRESETS */
+    .evoto-preset-subnav {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 12px;
+        overflow-x: auto;
+        padding-bottom: 4px;
+    }
+
+    .evoto-subnav-btn {
+        background: #1c222e;
+        border: 1px solid #2e384d;
+        color: #94a3b8;
+        padding: 4px 10px;
+        font-size: 11px;
+        font-weight: 700;
+        border-radius: 20px;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: all 0.2s ease;
+    }
+
+    .evoto-subnav-btn:hover {
+        color: #ffffff;
+        border-color: #64748b;
+    }
+
+    .evoto-subnav-btn.active {
+        background: #d49438;
+        color: #ffffff;
+        border-color: #d49438;
+        box-shadow: 0 2px 8px rgba(212, 148, 56, 0.3);
+    }
+
+    /* GRID PRESET KARTU FOTO */
+    .evoto-presets-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    .evoto-presets-grid.grid-3 {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .evoto-preset-card {
+        position: relative;
+        background: #181c24;
+        border: 1px solid #283042;
+        border-radius: 8px;
+        overflow: hidden;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .evoto-preset-card:hover {
+        border-color: #64748b;
+        transform: translateY(-2px);
+    }
+
+    .evoto-preset-card.active {
+        border-color: #d49438;
+        box-shadow: 0 0 12px rgba(212, 148, 56, 0.4);
+    }
+
+    .evoto-preset-thumb {
+        width: 100%;
+        height: 80px;
+        object-fit: cover;
+        display: block;
+        background: #0b0d11;
+    }
+
+    .evoto-preset-info {
+        padding: 6px 8px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #13171f;
+    }
+
+    .evoto-preset-name {
+        font-size: 11px;
+        font-weight: 700;
+        color: #f1f5f9;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .evoto-preset-badge {
+        font-size: 9px;
+        font-weight: 800;
+        background: #d49438;
+        color: #ffffff;
+        padding: 1px 5px;
+        border-radius: 4px;
+        letter-spacing: 0.5px;
+    }
+
+    /* SECTION BOX & CONTROLS */
+    .evoto-section-box {
+        background: #181d26;
+        border: 1px solid #242c3b;
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 12px;
+    }
+
+    .evoto-section-title {
+        font-size: 11.5px;
+        font-weight: 800;
+        color: #ffffff;
+        margin-bottom: 8px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        letter-spacing: 0.3px;
+    }
+
+    .evoto-subject-pills {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+
+    .evoto-pill-btn {
+        background: #202735;
+        border: 1px solid #2f3a4f;
+        color: #94a3b8;
+        border-radius: 6px;
+        padding: 4px 10px;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .evoto-pill-btn:hover {
+        color: #f8fafc;
+        border-color: #475569;
+    }
+
+    .evoto-pill-btn.active {
+        background: rgba(212, 148, 56, 0.2);
+        color: #d49438;
+        border-color: #d49438;
+    }
+
+    .evoto-control-group {
+        margin-bottom: 10px;
+    }
+
+    .evoto-control-group:last-child {
+        margin-bottom: 0;
+    }
+
+    .evoto-label-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 11px;
+        font-weight: 700;
+        color: #cbd5e1;
+        margin-bottom: 4px;
+    }
+
+    .evoto-val {
+        color: #d49438;
+        font-weight: 800;
+    }
+
+    .evoto-control-group input[type="range"] {
+        width: 100%;
+        accent-color: #d49438;
+        height: 4px;
+        background: #2a3447;
+        border-radius: 2px;
+        outline: none;
+    }
+
+    /* PALET WARNA KULIT (SKIN TONE SWATCHES) */
+    .evoto-skin-tones-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-top: 6px;
+    }
+
+    .evoto-skin-swatch {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        border: 2px solid #2e384d;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    }
+
+    .evoto-skin-swatch:hover {
+        transform: scale(1.15);
+    }
+
+    .evoto-skin-swatch.active {
+        border-color: #ffffff;
+        box-shadow: 0 0 0 2px #d49438, 0 2px 6px rgba(0, 0, 0, 0.6);
+        transform: scale(1.2);
+    }
+
+    /* HISTOGRAM REAL-TIME */
+    .evoto-histogram-canvas {
+        width: 100%;
+        height: 80px;
+        background: #0d1015;
+        border: 1px solid #232a38;
+        border-radius: 6px;
+        display: block;
+    }
+
+    /* RESPONSIVE LAYOUT UNTUK TABLET & MOBILE */
+    @media (max-width: 1024px) {
+        .evoto-workspace-layout {
+            flex-direction: column;
+        }
+
+        .evoto-inspector-card {
+            width: 100%;
+        }
+
+        .evoto-viewport-card {
+            min-height: 380px;
+        }
+
+        .evoto-stage-container {
+            min-height: 340px;
+        }
     }
