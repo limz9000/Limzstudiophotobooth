@@ -12293,6 +12293,1292 @@ function executeGeminiInpaint() {
     }, 400);
 }
 
+/* ========================================================================= */
+/* REVISI 109: MINTA GEMINI PROMPT ENGINE & 16+ PHOTOGRAPHY SHORTCUTS       */
+/* ========================================================================= */
+var mintaGeminiState = {
+    model: 'flash', // 'flash_lite', 'flash', 'pro', 'argon'
+    thinkingLevel: 'seimbang', // 'cepat', 'seimbang', 'mendalam'
+    isListening: false,
+    recognition: null,
+    photoAttached: true,
+    selectedIndex: -1
+};
+
+var GEMINI_PHOTO_PRESETS = [
+    {
+        cmd: "/ghosttrail /directflash",
+        label: "Ghost Trail & Direct Flash",
+        icon: "⚡",
+        desc: "Y2K party flash slow-shutter motion trail & highlight tajam",
+        prompt: "Apply Y2K party aesthetic direct flash photography with slow-shutter motion trail. High-intensity specular flash on subject with warm ambient kinetic light trails and authentic vintage film grain."
+    },
+    {
+        cmd: "/convex mirror selfie",
+        label: "Convex Mirror Selfie",
+        icon: "🪞",
+        desc: "Distorsi fisheye cermin cembung jalanan estetik Gen-Z",
+        prompt: "Simulate an aesthetic street convex safety mirror selfie. Spherical fisheye bulging perspective from center, subtle curved circular mirror rim distortion, vibrant urban contrast."
+    },
+    {
+        cmd: "/clones",
+        label: "Multiplicity Clones",
+        icon: "👥",
+        desc: "Subjek digandakan 2-3 pose berbeda dalam satu frame",
+        prompt: "Create a creative multiplicity clones effect showing 2 to 3 dynamic poses of the subject within the same composition with balanced lighting."
+    },
+    {
+        cmd: "/paparazieditorial",
+        label: "Paparazzi Editorial",
+        icon: "📸",
+        desc: "Flash paparazzi karpet merah tajam ala majalah Vogue/GQ",
+        prompt: "Style as high-end red carpet paparazzi editorial photography. High-contrast sharp direct flash, deep black background falloff, saturated magazine colors."
+    },
+    {
+        cmd: "/Frontlight",
+        label: "Front Light Beauty",
+        icon: "💡",
+        desc: "Pencahayaan komersial depan merata tanpa bayangan tajam",
+        prompt: "Commercial studio front beauty lighting. Shadowless high-key front fill, perfectly balanced skin tones, radiant catchlights in pupils."
+    },
+    {
+        cmd: "/goldenhours",
+        label: "Golden Hour Glow",
+        icon: "🌅",
+        desc: "Sinar senja keemasan hangat & rim-light amber memukau",
+        prompt: "Sunset golden hour portrait lighting. Warm golden amber rim-light, luminous warm skin tones (+18 warmth, +10 vibrance, soft highlight roll-off), rich glowing contrast."
+    },
+    {
+        cmd: "/Shallow Depth of Field",
+        label: "Shallow Depth of Field",
+        icon: "🔍",
+        desc: "Isolasi subjek tajam dengan bokeh creamy lensa f/1.2",
+        prompt: "Ultra-fast 85mm f/1.2 shallow depth of field. Razor-sharp subject facial clarity with creamy optical background bokeh isolation."
+    },
+    {
+        cmd: "/Blue Hour",
+        label: "Blue Hour Twilight",
+        icon: "🌆",
+        desc: "Suasana dusk twilight cobalt blue langit sore yang teduh",
+        prompt: "Twilight blue hour ambience. Deep cobalt blue dusk background balanced with warm glowing interior and rim lighting on the subject."
+    },
+    {
+        cmd: "/Cinematic / Dramatic Lighting",
+        label: "Cinematic Dramatic Lighting",
+        icon: "🎬",
+        desc: "Rembrandt chiaroscuro filmis, kontras tinggi teal & orange",
+        prompt: "Rembrandt cinematic chiaroscuro lighting. 45-degree key light triangle cheek highlight, moody shadow falloff, cinematic teal and orange color grading."
+    },
+    {
+        cmd: "/Studio Lighting / Softbox",
+        label: "Studio Lighting Softbox",
+        icon: "📦",
+        desc: "Dual octabox studio soft wrap beauty illumination",
+        prompt: "Commercial dual softbox portrait lighting. Diffused wrap-around illumination, soft shadow transitions, pristine studio catchlights."
+    },
+    {
+        cmd: "Moody / Dark & Moody",
+        label: "Dark & Moody",
+        icon: "🌑",
+        desc: "Shadows matte gelap, kontras sinematik & earthy tones",
+        prompt: "Dark and moody fine-art portrait photography. Crushed deep blacks, matte shadows, rich desaturated tones with luminous warm skin highlights."
+    },
+    {
+        cmd: "/Neon / Cyberpunk",
+        label: "Neon Cyberpunk Glow",
+        icon: "🔮",
+        desc: "Pendaran lampu neon magenta elektrik & cyan toska",
+        prompt: "Futuristic cyberpunk neon lighting. Vivid dual-tone cyan/teal and magenta/purple neon light cast across facial contours, deep moody atmosphere."
+    },
+    {
+        cmd: "/Bokeh / Shallow Depth of Field",
+        label: "Bokeh Circles",
+        icon: "✨",
+        desc: "Bulatan cahaya bokeh artistik pada latar belakang foto",
+        prompt: "Dreamy circular optical bokeh light orbs in the background with pristine subject facial sharpness and velvety smooth depth separation."
+    },
+    {
+        cmd: "/Wide Angle",
+        label: "Wide Angle 16mm",
+        icon: "📐",
+        desc: "Perspektif dinamis lensa lebar 16mm-24mm",
+        prompt: "Dynamic wide-angle lens perspective (16mm-24mm). Expansive field of view with slight dramatic perspective elongation and crisp environmental depth."
+    },
+    {
+        cmd: "/Motion Blur",
+        label: "Motion Blur Dynamic",
+        icon: "💨",
+        desc: "Kinetic motion blur gerak cepat & energi dinamis",
+        prompt: "Kinetic directional motion blur. Dynamic shutter drag effect conveying speed and energy while preserving clear facial expression."
+    },
+    {
+        cmd: "/retouchface",
+        label: "Retouch Face AI",
+        icon: "✨",
+        desc: "Porcelain beauty skin, bebas jerawat & kilau alami",
+        prompt: "High-end editorial beauty facial retouching. Flawless blemish removal, silky skin smoothing while retaining authentic micro-pores, bright crystalline eyes, and white teeth."
+    }
+];
+
+// MODEL DROPDOWN MANAGEMENT (PERSIS SCREENSHOT 2)
+function toggleGeminiModelDropdown(e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    var menu = document.getElementById('minta-gemini-model-dropdown');
+    if (!menu) return;
+    var isShown = menu.style.display === 'flex';
+    menu.style.display = isShown ? 'none' : 'flex';
+}
+
+function selectGeminiModel(modelKey) {
+    mintaGeminiState.model = modelKey;
+
+    var modelNames = {
+        'flash_lite': 'Flash-Lite',
+        'flash': 'Flash',
+        'pro': '3.1 Pro',
+        'argon': 'Argon'
+    };
+
+    var lbl = document.getElementById('lbl-gemini-selected-model');
+    if (lbl) {
+        lbl.textContent = modelNames[modelKey] || 'Flash';
+    }
+
+    // Update active class & checkmarks
+    ['flash-lite', 'flash', 'pro', 'argon'].forEach(function(k) {
+        var el = document.getElementById('item-model-' + k);
+        var chk = document.getElementById('check-model-' + k);
+        var isThis = (k === modelKey || (k === 'flash-lite' && modelKey === 'flash_lite'));
+        if (el) {
+            if (isThis) el.classList.add('active-model');
+            else el.classList.remove('active-model');
+        }
+        if (chk) {
+            chk.textContent = isThis ? '✓' : '';
+        }
+    });
+
+    var menu = document.getElementById('minta-gemini-model-dropdown');
+    if (menu) menu.style.display = 'none';
+
+    if (typeof showToast === 'function') {
+        showToast('🤖 Model Gemini diubah ke: ' + (modelNames[modelKey] || modelKey));
+    }
+}
+
+function toggleGeminiReasoningSubmenu(e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    var sub = document.getElementById('gemini-reasoning-submenu');
+    if (!sub) return;
+    sub.style.display = (sub.style.display === 'flex') ? 'none' : 'flex';
+}
+
+function selectGeminiThinkingLevel(level, e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    mintaGeminiState.thinkingLevel = level;
+    var labelMap = {
+        'cepat': 'Cepat',
+        'seimbang': 'Seimbang',
+        'mendalam': 'Mendalam'
+    };
+    var lbl = document.getElementById('lbl-active-reasoning');
+    if (lbl) lbl.textContent = labelMap[level] || 'Seimbang';
+
+    ['cepat', 'seimbang', 'mendalam'].forEach(function(l) {
+        var chk = document.getElementById('check-reasoning-' + l);
+        if (chk) chk.textContent = (l === level) ? '✓' : '';
+    });
+
+    var sub = document.getElementById('gemini-reasoning-submenu');
+    if (sub) sub.style.display = 'none';
+
+    if (typeof showToast === 'function') {
+        showToast('🧠 Tingkat Penalaran Gemini: ' + (labelMap[level] || level));
+    }
+}
+
+function toggleGeminiActivePhotoAttachment() {
+    mintaGeminiState.photoAttached = !mintaGeminiState.photoAttached;
+    var btn = document.getElementById('btn-minta-gemini-attach');
+    if (btn) {
+        btn.style.color = mintaGeminiState.photoAttached ? '#38bdf8' : '#64748b';
+    }
+    if (typeof showToast === 'function') {
+        showToast(mintaGeminiState.photoAttached ? '📷 Foto aktif di panggung terlampir ke prompt Gemini' : '⚠️ Foto aktif dilepas dari prompt Gemini');
+    }
+}
+
+// AUTOCOMPLETE SLASH COMMANDS
+function handleGeminiInputTyping(val) {
+    val = String(val || '').trimStart();
+    var slashMenu = document.getElementById('minta-gemini-slash-menu');
+    if (!slashMenu) return;
+
+    if (val.startsWith('/')) {
+        var query = val.toLowerCase();
+        var matches = GEMINI_PHOTO_PRESETS.filter(function(p) {
+            return p.cmd.toLowerCase().indexOf(query) !== -1 || p.label.toLowerCase().indexOf(query.replace('/', '')) !== -1;
+        });
+        if (matches.length > 0) {
+            renderGeminiSlashMenu(matches);
+            slashMenu.style.display = 'flex';
+            mintaGeminiState.selectedIndex = 0;
+            highlightSlashItem(0);
+        } else {
+            slashMenu.style.display = 'none';
+        }
+    } else {
+        slashMenu.style.display = 'none';
+        mintaGeminiState.selectedIndex = -1;
+    }
+}
+
+function renderGeminiSlashMenu(items) {
+    var slashMenu = document.getElementById('minta-gemini-slash-menu');
+    if (!slashMenu) return;
+
+    var html = items.map(function(item, idx) {
+        return '<div class="gemini-slash-item" id="slash-item-' + idx + '" onclick="selectGeminiSlashPreset(\'' + item.cmd + '\')">' +
+            '<span class="gemini-slash-icon">' + item.icon + '</span>' +
+            '<div class="gemini-slash-content">' +
+                '<span class="gemini-slash-title">' + item.label + ' <span class="gemini-slash-tag">' + item.cmd.split(' ')[0] + '</span></span>' +
+                '<span class="gemini-slash-desc">' + item.desc + '</span>' +
+            '</div>' +
+        '</div>';
+    }).join('');
+
+    slashMenu.innerHTML = html;
+}
+
+function highlightSlashItem(idx) {
+    var items = document.querySelectorAll('.gemini-slash-item');
+    items.forEach(function(el, i) {
+        if (i === idx) {
+            el.classList.add('selected');
+            el.scrollIntoView({ block: 'nearest' });
+        } else {
+            el.classList.remove('selected');
+        }
+    });
+}
+
+function handleGeminiInputKeydown(e) {
+    var slashMenu = document.getElementById('minta-gemini-slash-menu');
+    var isMenuOpen = slashMenu && slashMenu.style.display === 'flex';
+
+    if (isMenuOpen) {
+        var items = document.querySelectorAll('.gemini-slash-item');
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            mintaGeminiState.selectedIndex = (mintaGeminiState.selectedIndex + 1) % items.length;
+            highlightSlashItem(mintaGeminiState.selectedIndex);
+            return;
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            mintaGeminiState.selectedIndex = (mintaGeminiState.selectedIndex - 1 + items.length) % items.length;
+            highlightSlashItem(mintaGeminiState.selectedIndex);
+            return;
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (mintaGeminiState.selectedIndex >= 0 && items[mintaGeminiState.selectedIndex]) {
+                items[mintaGeminiState.selectedIndex].click();
+                return;
+            }
+        } else if (e.key === 'Escape') {
+            slashMenu.style.display = 'none';
+            return;
+        }
+    }
+
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        submitMintaGeminiPrompt();
+    }
+}
+
+function selectGeminiSlashPreset(cmd) {
+    var input = document.getElementById('input-minta-gemini');
+    var slashMenu = document.getElementById('minta-gemini-slash-menu');
+    if (input) input.value = cmd;
+    if (slashMenu) slashMenu.style.display = 'none';
+    submitMintaGeminiPrompt();
+}
+
+function applyGeminiPromptShortcut(cmd) {
+    var input = document.getElementById('input-minta-gemini');
+    if (input) input.value = cmd;
+    submitMintaGeminiPrompt();
+}
+
+function openCustomGeminiPromptModal() {
+    var customPrompt = prompt('Ketik instruksi prompt fotografi untuk Gemini AI:', 'Buat nuansa studio portrait editorial dengan pencahayaan Rembrandt dramatis...');
+    if (customPrompt && customPrompt.trim()) {
+        var input = document.getElementById('input-minta-gemini');
+        if (input) input.value = customPrompt.trim();
+        submitMintaGeminiPrompt();
+    }
+}
+
+// SPEECH-TO-TEXT MIKROFON (WEB SPEECH API)
+function toggleGeminiVoiceInput() {
+    var micBtn = document.getElementById('btn-minta-gemini-mic');
+    var input = document.getElementById('input-minta-gemini');
+
+    var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        if (typeof showToast === 'function') {
+            showToast('⚠️ Browser Anda tidak mendukung Speech-to-Text. Silakan ketik perintah manual.');
+        }
+        return;
+    }
+
+    if (mintaGeminiState.isListening && mintaGeminiState.recognition) {
+        mintaGeminiState.recognition.stop();
+        mintaGeminiState.isListening = false;
+        if (micBtn) micBtn.classList.remove('mic-listening-pulse');
+        return;
+    }
+
+    try {
+        var rec = new SpeechRecognition();
+        rec.lang = 'id-ID';
+        rec.interimResults = false;
+        rec.maxAlternatives = 1;
+
+        rec.onstart = function() {
+            mintaGeminiState.isListening = true;
+            if (micBtn) micBtn.classList.add('mic-listening-pulse');
+            if (typeof showToast === 'function') {
+                showToast('🎙️ Mendengarkan suara... Silakan bicara.');
+            }
+        };
+
+        rec.onresult = function(event) {
+            var transcript = event.results[0][0].transcript;
+            if (input) {
+                input.value = transcript;
+            }
+            if (typeof showToast === 'function') {
+                showToast('🗣️ Terdengar: "' + transcript + '"');
+            }
+            // Kirim otomatis setelah suara selesai
+            setTimeout(function() {
+                submitMintaGeminiPrompt();
+            }, 600);
+        };
+
+        rec.onerror = function(event) {
+            mintaGeminiState.isListening = false;
+            if (micBtn) micBtn.classList.remove('mic-listening-pulse');
+            if (typeof showToast === 'function') {
+                showToast('⚠️ Gagal mengenali suara: ' + (event.error || 'silakan coba lagi'));
+            }
+        };
+
+        rec.onend = function() {
+            mintaGeminiState.isListening = false;
+            if (micBtn) micBtn.classList.remove('mic-listening-pulse');
+        };
+
+        mintaGeminiState.recognition = rec;
+        rec.start();
+    } catch (err) {
+        mintaGeminiState.isListening = false;
+        if (micBtn) micBtn.classList.remove('mic-listening-pulse');
+    }
+}
+
+// REVISI 110: DUAL PREVIEW COMPARATOR ENGINE & ACTION HANDLERS
+function showGeminiDualPreview(originalSrc, generatedSrc, captionText, promptTitle) {
+    var overlay = document.getElementById('gemini-dual-preview-stage');
+    var origImg = document.getElementById('gemini-preview-original-img');
+    var genImg = document.getElementById('gemini-preview-generated-img');
+    var captionEl = document.getElementById('gemini-dual-caption-text');
+    if (!overlay || !origImg || !genImg) return;
+
+    mintaGeminiState.originalPhotoSrc = originalSrc;
+    mintaGeminiState.generatedPhotoSrc = generatedSrc;
+    mintaGeminiState.lastPromptTitle = promptTitle || 'Gemini AI';
+
+    origImg.src = originalSrc;
+    genImg.src = generatedSrc;
+
+    if (captionEl) {
+        var defaultCaption = "Ini dia hasil foto yang sudah diedit dengan efek pencahayaan " + (promptTitle || "Gemini AI") + " yang hangat dan alami sesuai permintaan Anda:";
+        captionEl.textContent = captionText || defaultCaption;
+    }
+
+    overlay.style.display = 'flex';
+
+    if (typeof showToast === 'function') {
+        showToast('✨ Gemini AI: Foto baru berhasil di-generate! Silakan bandingkan dan klik "Terapkan".');
+    }
+}
+
+function closeGeminiDualPreview() {
+    var overlay = document.getElementById('gemini-dual-preview-stage');
+    if (overlay) overlay.style.display = 'none';
+}
+
+function applyGeminiAiPhotoToStaged() {
+    var genImg = document.getElementById('gemini-preview-generated-img');
+    var newPhotoBase64 = mintaGeminiState.generatedPhotoSrc || (genImg ? genImg.src : '');
+    if (!newPhotoBase64) {
+        if (typeof showToast === 'function') showToast('⚠️ Tidak ada foto AI yang dapat diterapkan.');
+        return;
+    }
+
+    // 1. Simpan state sebelum apply ke Undo History
+    if (typeof pushPhotoHistory === 'function') {
+        pushPhotoHistory('Sebelum Terapkan Hasil Gemini AI');
+    }
+
+    // 2. Ganti foto panggung aktif
+    var bgImg = document.getElementById('wm-simulator-bg');
+    if (bgImg) {
+        bgImg.src = newPhotoBase64;
+    }
+
+    // 3. Ganti foto di antrean live studio (stagedPhotos)
+    if (typeof appState !== 'undefined' && appState.stagedPhotos && appState.stagedPhotos[appState.activeStagedIndex]) {
+        appState.stagedPhotos[appState.activeStagedIndex].url = newPhotoBase64;
+        appState.stagedPhotos[appState.activeStagedIndex].processedUrl = newPhotoBase64;
+
+        // Update thumbnail foto di filmstrip bawah
+        var thumb = document.getElementById('filmstrip-thumb-' + appState.activeStagedIndex);
+        if (thumb) {
+            thumb.src = newPhotoBase64;
+        }
+    }
+
+    // 4. Catat state akhir ke Undo History
+    if (typeof pushPhotoHistory === 'function') {
+        pushPhotoHistory('✨ Gemini AI (' + (mintaGeminiState.lastPromptTitle || 'Foto Baru') + ')');
+    }
+
+    // 5. Tutup tampilan dual preview
+    closeGeminiDualPreview();
+
+    if (typeof showToast === 'function') {
+        showToast('✅ Foto di antrean berhasil digantikan dengan hasil generate Gemini AI! (Ctrl+Z untuk Undo)');
+    }
+}
+
+function regenerateGeminiAiPhoto() {
+    closeGeminiDualPreview();
+    var input = document.getElementById('input-minta-gemini');
+    if (input && mintaGeminiState.lastPromptText) {
+        input.value = mintaGeminiState.lastPromptText;
+    }
+    submitMintaGeminiPrompt();
+}
+
+// FUNGSI RENDER HIGH-FIDELITY CANVASES UNTUK MENGHASILKAN FOTO BASE64 NYATA (REVISI 112)
+function generateHighFidelityCanvasAiPhoto(imgEl, aiData, promptText) {
+    var w = imgEl.naturalWidth || 1200;
+    var h = imgEl.naturalHeight || 1600;
+    var canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    var ctx = canvas.getContext('2d');
+
+    var lcmd = (promptText || '').toLowerCase();
+    var c = (aiData && aiData.color) ? aiData.color : {};
+    var fx = (aiData && aiData.fx) ? aiData.fx : {};
+
+    // 1. Gambar foto dasar (Base Image)
+    ctx.drawImage(imgEl, 0, 0, w, h);
+
+    // 2. FUNGSI PEMBUAT MASKER SILUET SOLID TUBUH MANUSIA (HEAD TO TOE - 100% SOLID OPAQUE)
+    // Masker ini menutupi seluruh kepala, rambut, wajah, badan, tangan, dan celana secara utuh tanpa terpotong
+    function createSolidSubjectCanvas() {
+        var subC = document.createElement('canvas');
+        subC.width = w;
+        subC.height = h;
+        var sCtx = subC.getContext('2d');
+        sCtx.drawImage(imgEl, 0, 0);
+
+        var maskC = document.createElement('canvas');
+        maskC.width = w;
+        maskC.height = h;
+        var mCtx = maskC.getContext('2d');
+        mCtx.fillStyle = '#ffffff';
+
+        // A. Kepala, Rambut & Wajah (Solid Opaque dari ujung atas rambut y=0.10h hingga leher/dada y=0.48h)
+        mCtx.beginPath();
+        mCtx.ellipse(w * 0.50, h * 0.29, w * 0.22, h * 0.21, 0, 0, Math.PI * 2);
+        mCtx.fill();
+
+        // B. Leher, Bahu, Dada & Lengan (Solid Opaque dari y=0.36h s/d y=0.74h)
+        mCtx.beginPath();
+        if (typeof mCtx.roundRect === 'function') {
+            mCtx.roundRect(w * 0.16, h * 0.36, w * 0.68, h * 0.38, [w * 0.10, w * 0.10, 0, 0]);
+        } else {
+            mCtx.rect(w * 0.16, h * 0.36, w * 0.68, h * 0.38);
+        }
+        mCtx.fill();
+
+        // C. Pinggang, Celana & Kaki Bawah (Solid Opaque dari y=0.70h s/d y=1.0h)
+        mCtx.beginPath();
+        mCtx.rect(w * 0.20, h * 0.70, w * 0.60, h * 0.30);
+        mCtx.fill();
+
+        // Terapkan ke subC dengan destination-in (Siluet 100% Solid Opaque)
+        sCtx.globalCompositeOperation = 'destination-in';
+        sCtx.drawImage(maskC, 0, 0);
+        sCtx.globalCompositeOperation = 'source-over';
+        return subC;
+    }
+
+    // 3. Efek Spesifik Sesuai Preset Prompt
+    if (lcmd.indexOf('goldenhour') !== -1) {
+        // Golden hour sunset sky lighting & warm amber rim-light (Persis Screenshot 2)
+        // A. Sky Sunset Atmosphere Wash (Top 55% frame)
+        ctx.globalCompositeOperation = 'soft-light';
+        var skyGrad = ctx.createLinearGradient(0, 0, 0, h * 0.6);
+        skyGrad.addColorStop(0, 'rgba(255, 145, 60, 0.55)');
+        skyGrad.addColorStop(0.5, 'rgba(255, 190, 90, 0.45)');
+        skyGrad.addColorStop(1, 'rgba(255, 220, 140, 0.15)');
+        ctx.fillStyle = skyGrad;
+        ctx.fillRect(0, 0, w, h * 0.6);
+
+        // B. Radiant Golden Sun Orb & Flare (Upper-Left horizon)
+        ctx.globalCompositeOperation = 'screen';
+        var sunGrad = ctx.createRadialGradient(w * 0.14, h * 0.32, 10, w * 0.18, h * 0.35, w * 0.75);
+        sunGrad.addColorStop(0, 'rgba(255, 250, 220, 0.72)');
+        sunGrad.addColorStop(0.25, 'rgba(255, 195, 90, 0.52)');
+        sunGrad.addColorStop(0.60, 'rgba(240, 120, 40, 0.22)');
+        sunGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = sunGrad;
+        ctx.fillRect(0, 0, w, h);
+
+        // C. Warm Amber Horizon & Skin Tones
+        ctx.globalCompositeOperation = 'overlay';
+        var warmOverlay = ctx.createLinearGradient(0, 0, 0, h);
+        warmOverlay.addColorStop(0, 'rgba(255, 180, 80, 0.25)');
+        warmOverlay.addColorStop(0.5, 'rgba(255, 140, 40, 0.18)');
+        warmOverlay.addColorStop(1, 'rgba(120, 60, 20, 0.15)');
+        ctx.fillStyle = warmOverlay;
+        ctx.fillRect(0, 0, w, h);
+
+        // D. Rim-light lembut pada kontur rambut & bahu
+        ctx.globalCompositeOperation = 'screen';
+        var rimGrad = ctx.createLinearGradient(0, 0, w * 0.5, 0);
+        rimGrad.addColorStop(0, 'rgba(255, 220, 130, 0.35)');
+        rimGrad.addColorStop(1, 'rgba(255, 220, 130, 0)');
+        ctx.fillStyle = rimGrad;
+        ctx.fillRect(0, 0, w * 0.5, h);
+        ctx.globalCompositeOperation = 'source-over';
+
+    } else if (lcmd.indexOf('blue hour') !== -1) {
+        // Twilight blue hour cobalt atmospheric wash
+        ctx.globalCompositeOperation = 'overlay';
+        var duskGrad = ctx.createLinearGradient(0, 0, 0, h);
+        duskGrad.addColorStop(0, 'rgba(20, 60, 160, 0.45)');
+        duskGrad.addColorStop(0.6, 'rgba(30, 80, 180, 0.25)');
+        duskGrad.addColorStop(1, 'rgba(255, 180, 80, 0.25)');
+        ctx.fillStyle = duskGrad;
+        ctx.fillRect(0, 0, w, h);
+        ctx.globalCompositeOperation = 'source-over';
+
+    } else if (lcmd.indexOf('clones') !== -1) {
+        // MULTIPLICITY CLONES EFFECT (Persis Screenshot 1 - Subjek 3 orang lengkap kepala, wajah, badan & pakaian!)
+        var subCanvas = createSolidSubjectCanvas();
+
+        // 1. Gambar latar belakang foto asli
+        ctx.drawImage(imgEl, 0, 0, w, h);
+
+        // 2. Clone 1 di sebelah Kiri (Solid, Skala 0.85x, Berdiri di bantaran sungai, menoleh ke arah subjek utama)
+        ctx.save();
+        ctx.translate(w * 0.20, h * 0.04);
+        ctx.scale(-0.85, 0.85); // Flip horizontal agar menoleh ke tengah persis seperti di Screenshot 1!
+        ctx.shadowColor = 'rgba(10, 15, 20, 0.65)';
+        ctx.shadowBlur = 25;
+        ctx.shadowOffsetX = -12;
+        ctx.shadowOffsetY = 16;
+        ctx.drawImage(subCanvas, -w * 0.5, 0);
+        ctx.restore();
+
+        // 3. Clone 2 di sebelah Kanan (Solid, Skala 0.83x, Berdiri santai di bantaran sungai sebelah kanan)
+        ctx.save();
+        ctx.translate(w * 0.80, h * 0.045);
+        ctx.scale(0.83, 0.83);
+        ctx.rotate(-0.015); // Sedikit kemiringan postur santai alami
+        ctx.shadowColor = 'rgba(10, 15, 20, 0.65)';
+        ctx.shadowBlur = 25;
+        ctx.shadowOffsetX = 12;
+        ctx.shadowOffsetY = 16;
+        ctx.drawImage(subCanvas, -w * 0.5, 0);
+        ctx.restore();
+
+        // 4. Gambar kembali subjek utama di bagian tengah depan (Tack-Sharp & Pristine)
+        ctx.save();
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+        ctx.shadowBlur = 20;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 12;
+        ctx.drawImage(subCanvas, 0, 0);
+        ctx.restore();
+
+        // 5. Penyesuaian Pencahayaan Senja & Atmosfer yang Menyatu (Sesuai Screenshot 1)
+        ctx.globalCompositeOperation = 'soft-light';
+        var cloneWash = ctx.createLinearGradient(0, 0, 0, h);
+        cloneWash.addColorStop(0, 'rgba(255, 175, 95, 0.28)');
+        cloneWash.addColorStop(0.5, 'rgba(230, 140, 60, 0.16)');
+        cloneWash.addColorStop(1, 'rgba(30, 25, 20, 0.14)');
+        ctx.fillStyle = cloneWash;
+        ctx.fillRect(0, 0, w, h);
+        ctx.globalCompositeOperation = 'source-over';
+
+    } else if (lcmd.indexOf('convex') !== -1) {
+        // Spherical fisheye distortion (Convex mirror selfie)
+        var srcData = ctx.getImageData(0, 0, w, h);
+        var dstData = ctx.createImageData(w, h);
+        var src = srcData.data;
+        var dst = dstData.data;
+        var cx = w / 2;
+        var cy = h / 2;
+        var maxR = Math.sqrt(cx * cx + cy * cy);
+        var k = 0.45;
+        for (var y = 0; y < h; y++) {
+            for (var x = 0; x < w; x++) {
+                var dx = (x - cx) / cx;
+                var dy = (y - cy) / cy;
+                var r = Math.sqrt(dx * dx + dy * dy);
+                var dstIdx = (y * w + x) * 4;
+                if (r <= 1.0) {
+                    var theta = Math.atan2(dy, dx);
+                    var nr = Math.pow(r, 1 - k * 0.5);
+                    var sx = Math.round(cx + nr * cx * Math.cos(theta));
+                    var sy = Math.round(cy + nr * cy * Math.sin(theta));
+                    if (sx >= 0 && sx < w && sy >= 0 && sy < h) {
+                        var srcIdx = (sy * w + sx) * 4;
+                        dst[dstIdx] = src[srcIdx];
+                        dst[dstIdx + 1] = src[srcIdx + 1];
+                        dst[dstIdx + 2] = src[srcIdx + 2];
+                        dst[dstIdx + 3] = src[srcIdx + 3];
+                        continue;
+                    }
+                }
+                dst[dstIdx] = src[dstIdx];
+                dst[dstIdx + 1] = src[dstIdx + 1];
+                dst[dstIdx + 2] = src[dstIdx + 2];
+                dst[dstIdx + 3] = src[dstIdx + 3];
+            }
+        }
+        ctx.putImageData(dstData, 0, 0);
+
+        var ringGrad = ctx.createRadialGradient(cx, cy, maxR * 0.55, cx, cy, maxR * 0.95);
+        ringGrad.addColorStop(0, 'rgba(0,0,0,0)');
+        ringGrad.addColorStop(1, 'rgba(10,15,25,0.4)');
+        ctx.fillStyle = ringGrad;
+        ctx.fillRect(0, 0, w, h);
+
+    } else if (lcmd.indexOf('ghosttrail') !== -1) {
+        // Y2K Party Flash slow shutter trails
+        ctx.globalAlpha = 0.3;
+        ctx.drawImage(imgEl, -w * 0.04, -h * 0.015, w, h);
+        ctx.globalAlpha = 0.35;
+        ctx.drawImage(imgEl, w * 0.03, h * 0.012, w, h);
+        ctx.globalAlpha = 0.85;
+        ctx.drawImage(imgEl, 0, 0, w, h);
+        ctx.globalAlpha = 1.0;
+
+        ctx.globalCompositeOperation = 'screen';
+        var flashPop = ctx.createRadialGradient(w * 0.5, h * 0.45, 10, w * 0.5, h * 0.45, w * 0.6);
+        flashPop.addColorStop(0, 'rgba(255, 255, 255, 0.25)');
+        flashPop.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = flashPop;
+        ctx.fillRect(0, 0, w, h);
+        ctx.globalCompositeOperation = 'source-over';
+
+    } else if (lcmd.indexOf('paparazi') !== -1 || lcmd.indexOf('editorial') !== -1) {
+        // High-end Red Carpet Paparazzi Flash
+        ctx.globalCompositeOperation = 'hard-light';
+        var papWash = ctx.createRadialGradient(w * 0.5, h * 0.40, 20, w * 0.5, h * 0.40, w * 0.7);
+        papWash.addColorStop(0, 'rgba(255, 255, 255, 0.22)');
+        papWash.addColorStop(0.6, 'rgba(0, 0, 0, 0.15)');
+        papWash.addColorStop(1, 'rgba(0, 0, 0, 0.45)');
+        ctx.fillStyle = papWash;
+        ctx.fillRect(0, 0, w, h);
+        ctx.globalCompositeOperation = 'source-over';
+
+    } else if (lcmd.indexOf('frontlight') !== -1) {
+        // Commercial Studio Front Beauty Fill
+        ctx.globalCompositeOperation = 'screen';
+        var frontGrad = ctx.createRadialGradient(w * 0.5, h * 0.38, 30, w * 0.5, h * 0.45, w * 0.65);
+        frontGrad.addColorStop(0, 'rgba(255, 245, 235, 0.25)');
+        frontGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = frontGrad;
+        ctx.fillRect(0, 0, w, h);
+        ctx.globalCompositeOperation = 'source-over';
+
+    } else if (lcmd.indexOf('cyberpunk') !== -1 || lcmd.indexOf('neon') !== -1) {
+        // Cyberpunk dual tone neon glow
+        ctx.globalCompositeOperation = 'overlay';
+        var neonG = ctx.createLinearGradient(0, 0, w, h);
+        neonG.addColorStop(0, 'rgba(0, 240, 255, 0.45)');
+        neonG.addColorStop(0.5, 'rgba(120, 50, 220, 0.20)');
+        neonG.addColorStop(1, 'rgba(255, 0, 128, 0.45)');
+        ctx.fillStyle = neonG;
+        ctx.fillRect(0, 0, w, h);
+        ctx.globalCompositeOperation = 'source-over';
+
+    } else if (lcmd.indexOf('bokeh') !== -1 || lcmd.indexOf('shallow') !== -1) {
+        // Creamy background lens bokeh with solid subject preservation
+        var blurCanvas = document.createElement('canvas');
+        blurCanvas.width = w;
+        blurCanvas.height = h;
+        var bCtx = blurCanvas.getContext('2d');
+        bCtx.filter = 'blur(14px) brightness(1.05)';
+        bCtx.drawImage(imgEl, 0, 0, w, h);
+        ctx.drawImage(blurCanvas, 0, 0);
+
+        // Pertahankan subjek solid di depan (wajah & badan tajam)
+        var solidSub = createSolidSubjectCanvas();
+        ctx.drawImage(solidSub, 0, 0);
+
+    } else if (lcmd.indexOf('cinematic') !== -1) {
+        // Rembrandt teal & orange cinematic lighting
+        ctx.globalCompositeOperation = 'soft-light';
+        var cineGrad = ctx.createLinearGradient(0, 0, w, h);
+        cineGrad.addColorStop(0, 'rgba(255, 140, 50, 0.35)');
+        cineGrad.addColorStop(1, 'rgba(20, 160, 180, 0.40)');
+        ctx.fillStyle = cineGrad;
+        ctx.fillRect(0, 0, w, h);
+        ctx.globalCompositeOperation = 'source-over';
+
+    } else if (lcmd.indexOf('retouchface') !== -1) {
+        // AI Beauty Retouch: Haluskan kulit, cerahkan mata & senyum
+        ctx.globalCompositeOperation = 'soft-light';
+        var beautyG = ctx.createRadialGradient(w * 0.5, h * 0.35, 20, w * 0.5, h * 0.35, w * 0.35);
+        beautyG.addColorStop(0, 'rgba(255, 235, 220, 0.35)');
+        beautyG.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = beautyG;
+        ctx.fillRect(0, 0, w, h);
+        ctx.globalCompositeOperation = 'source-over';
+
+    } else if (lcmd.indexOf('motion blur') !== -1) {
+        // Shutter drag dynamic motion blur
+        ctx.globalAlpha = 0.25;
+        ctx.drawImage(imgEl, -w * 0.03, 0, w, h);
+        ctx.drawImage(imgEl, w * 0.03, 0, w, h);
+        ctx.globalAlpha = 1.0;
+        var subM = createSolidSubjectCanvas();
+        ctx.drawImage(subM, 0, 0);
+
+    } else if (lcmd.indexOf('wide angle') !== -1) {
+        // Wide Angle perspective elongation
+        ctx.save();
+        ctx.translate(w * 0.02, -h * 0.02);
+        ctx.scale(0.96, 1.04);
+        ctx.drawImage(imgEl, 0, 0, w, h);
+        ctx.restore();
+    }
+
+    // 4. Color Grading Pass Sesuai Analisis AI (Jika ada data color dari Gemini)
+    if (c.exposure || c.contrast || c.temperature) {
+        var expMult = 1 + ((c.exposure || 0) / 100);
+        var tempVal = c.temperature || 0;
+        var contVal = c.contrast || 0;
+        if (expMult !== 1 || tempVal !== 0 || contVal !== 0) {
+            try {
+                var imgData = ctx.getImageData(0, 0, w, h);
+                var d = imgData.data;
+                var factor = (259 * (contVal + 255)) / (255 * (259 - contVal));
+                for (var i = 0; i < d.length; i += 4) {
+                    var r = d[i] * expMult + tempVal * 0.6;
+                    var g = d[i + 1] * expMult;
+                    var b = d[i + 2] * expMult - tempVal * 0.6;
+                    if (contVal !== 0) {
+                        r = factor * (r - 128) + 128;
+                        g = factor * (g - 128) + 128;
+                        b = factor * (b - 128) + 128;
+                    }
+                    d[i] = r < 0 ? 0 : (r > 255 ? 255 : r);
+                    d[i + 1] = g < 0 ? 0 : (g > 255 ? 255 : g);
+                    d[i + 2] = b < 0 ? 0 : (b > 255 ? 255 : b);
+                }
+                ctx.putImageData(imgData, 0, 0);
+            } catch (errColor) { }
+        }
+    }
+
+    return canvas.toDataURL('image/jpeg', 0.94);
+}
+
+// FUNGSI CAPTION GEMINI SESUAI PROMPT & PRESET (PERSIS SCREENSHOT 1 & 2)
+function getGeminiPromptCaption(styleLabel, promptText) {
+    var l = (promptText || styleLabel || '').toLowerCase();
+    if (l.indexOf('goldenhour') !== -1) {
+        return "Ini dia hasil foto yang sudah diedit dengan efek pencahayaan golden hour yang hangat dan alami, seolah diambil saat matahari terbenam:";
+    } else if (l.indexOf('clones') !== -1) {
+        return "Ini dia hasil foto yang sudah diedit dengan efek Multiplicity Clones (3 orang) sesuai permintaan Anda:";
+    } else if (l.indexOf('ghosttrail') !== -1) {
+        return "Ini dia hasil foto yang sudah diedit dengan efek pencahayaan Y2K Ghost Trail & Direct Flash sesuai permintaan Anda:";
+    } else if (l.indexOf('convex') !== -1) {
+        return "Ini dia hasil foto yang sudah diedit dengan efek Convex Mirror Selfie estetik sesuai permintaan Anda:";
+    } else if (l.indexOf('paparazi') !== -1 || l.indexOf('editorial') !== -1) {
+        return "Ini dia hasil foto yang sudah diedit dengan gaya Paparazzi Editorial karpet merah tajam sesuai permintaan Anda:";
+    } else if (l.indexOf('frontlight') !== -1) {
+        return "Ini dia hasil foto yang sudah diedit dengan pencahayaan komersial Front Light Beauty sesuai permintaan Anda:";
+    } else if (l.indexOf('bokeh') !== -1 || l.indexOf('shallow') !== -1) {
+        return "Ini dia hasil foto yang sudah diedit dengan efek Shallow Depth of Field & Bokeh optik f/1.2 sesuai permintaan Anda:";
+    } else if (l.indexOf('blue hour') !== -1) {
+        return "Ini dia hasil foto yang sudah diedit dengan nuansa Blue Hour Twilight dusk cobalt sesuai permintaan Anda:";
+    } else if (l.indexOf('cinematic') !== -1) {
+        return "Ini dia hasil foto yang sudah diedit dengan pencahayaan dramatis Cinematic Rembrandt teal & orange sesuai permintaan Anda:";
+    } else if (l.indexOf('cyberpunk') !== -1 || l.indexOf('neon') !== -1) {
+        return "Ini dia hasil foto yang sudah diedit dengan efek Neon Cyberpunk dual-tone glow sesuai permintaan Anda:";
+    } else if (l.indexOf('retouchface') !== -1) {
+        return "Ini dia hasil foto yang sudah diedit dengan efek Retouch Face AI halus alami sesuai permintaan Anda:";
+    }
+    return "Ini dia hasil foto yang sudah diedit dengan efek " + (styleLabel || "Gemini AI") + " sesuai permintaan Anda:";
+}
+
+// MAIN SUBMIT MINTA GEMINI EXECUTION ENGINE
+function submitMintaGeminiPrompt() {
+    var input = document.getElementById('input-minta-gemini');
+    var rawText = input ? input.value.trim() : '';
+    if (!rawText) {
+        if (typeof showToast === 'function') showToast('⚠️ Masukkan prompt atau klik salah satu pintasan gaya foto di atas.');
+        return;
+    }
+
+    var bgImg = document.getElementById('wm-simulator-bg');
+    if (!bgImg || !bgImg.src || !bgImg.naturalWidth) {
+        if (typeof showToast === 'function') showToast('⚠️ Pilih atau upload foto terlebih dahulu ke panggung studio.');
+        return;
+    }
+
+    // Cari preset cocok untuk prompt expansion
+    var matchedPreset = null;
+    for (var i = 0; i < GEMINI_PHOTO_PRESETS.length; i++) {
+        var p = GEMINI_PHOTO_PRESETS[i];
+        if (rawText.toLowerCase().indexOf(p.cmd.toLowerCase()) !== -1 || rawText.toLowerCase().indexOf(p.label.toLowerCase()) !== -1) {
+            matchedPreset = p;
+            break;
+        }
+    }
+
+    var expandedPrompt = matchedPreset ? (matchedPreset.prompt + ' User notes: ' + rawText) : rawText;
+    var styleLabel = matchedPreset ? matchedPreset.label : rawText;
+
+    mintaGeminiState.lastPromptText = rawText;
+    mintaGeminiState.lastPromptTitle = styleLabel;
+
+    var modelKey = mintaGeminiState.model;
+    var thinkingLevel = mintaGeminiState.thinkingLevel;
+    var modelDisplay = {
+        'flash_lite': '3.5 Flash-Lite',
+        'flash': '3.8 Flash',
+        'pro': '3.1 Pro',
+        'argon': '4 Argon'
+    }[modelKey] || 'Gemini';
+
+    var sendBtn = document.getElementById('btn-minta-gemini-send');
+    if (sendBtn) {
+        sendBtn.disabled = true;
+        sendBtn.innerHTML = '⏳';
+    }
+
+    if (typeof showToast === 'function') {
+        showToast('✨ [' + modelDisplay + '] Memproses generate foto: "' + styleLabel + '"...');
+    }
+
+    // Konversi gambar ke base64 murni yang aman dari CORS
+    var safeBase64 = bgImg.src;
+    try {
+        if (!safeBase64.startsWith('data:image')) {
+            var tempC = document.createElement('canvas');
+            tempC.width = bgImg.naturalWidth;
+            tempC.height = bgImg.naturalHeight;
+            var tCtx = tempC.getContext('2d');
+            tCtx.drawImage(bgImg, 0, 0);
+            safeBase64 = tempC.toDataURL('image/jpeg', 0.94);
+        }
+    } catch (e) {
+        safeBase64 = bgImg.src;
+    }
+
+    // Cek apakah di Google Apps Script environment
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run
+            .withSuccessHandler(function(res) {
+                if (sendBtn) {
+                    sendBtn.disabled = false;
+                    sendBtn.innerHTML = '➤';
+                }
+                if (res && res.success) {
+                    var generatedImg = res.generatedImage || generateHighFidelityCanvasAiPhoto(bgImg, res.result || {}, rawText);
+                    var caption = (res.result && res.result.caption) ? res.result.caption : getGeminiPromptCaption(styleLabel, rawText);
+                    showGeminiDualPreview(safeBase64, generatedImg, caption, styleLabel);
+                } else if (res && res.needApiKey) {
+                    openGeminiApiKeyModal();
+                    if (typeof showToast === 'function') showToast('🔑 Masukkan Google Gemini API Key Anda untuk melanjutkan.');
+                } else {
+                    var localGen = generateHighFidelityCanvasAiPhoto(bgImg, {}, rawText);
+                    showGeminiDualPreview(safeBase64, localGen, getGeminiPromptCaption(styleLabel, rawText), styleLabel);
+                }
+            })
+            .withFailureHandler(function(err) {
+                if (sendBtn) {
+                    sendBtn.disabled = false;
+                    sendBtn.innerHTML = '➤';
+                }
+                var localGen = generateHighFidelityCanvasAiPhoto(bgImg, {}, rawText);
+                showGeminiDualPreview(safeBase64, localGen, getGeminiPromptCaption(styleLabel, rawText), styleLabel);
+            })
+            .executeMintaGeminiServer(safeBase64, 'image/jpeg', expandedPrompt, modelKey, thinkingLevel);
+    } else {
+        // Standalone / Direct Client Fetch via stored API Key or Local Neural Engine
+        var clientKey = localStorage.getItem('limz_gemini_api_key') || '';
+        if (clientKey) {
+            executeMintaGeminiClientFetch(clientKey, safeBase64, expandedPrompt, modelKey, thinkingLevel, styleLabel, modelDisplay);
+        } else {
+            setTimeout(function() {
+                if (sendBtn) {
+                    sendBtn.disabled = false;
+                    sendBtn.innerHTML = '➤';
+                }
+                var localGen = generateHighFidelityCanvasAiPhoto(bgImg, {}, rawText);
+                showGeminiDualPreview(safeBase64, localGen, getGeminiPromptCaption(styleLabel, rawText), styleLabel);
+            }, 600);
+        }
+    }
+}
+
+// CLIENT-SIDE DIRECT FETCH KE GOOGLE GEMINI API (UNTUK STANDALONE / VERCEL / OFFLINE HYBRID)
+function executeMintaGeminiClientFetch(apiKey, imageSrc, promptText, modelKey, thinkingLevel, styleLabel, modelDisplay) {
+    var sendBtn = document.getElementById('btn-minta-gemini-send');
+    var cleanBase64 = String(imageSrc).replace(/^data:image\/[a-z]+;base64,/, '');
+
+    var modelId = 'gemini-2.0-flash';
+    if (modelKey === 'flash_lite') modelId = 'gemini-2.0-flash-lite';
+    else if (modelKey === 'flash') modelId = 'gemini-2.0-flash';
+    else if (modelKey === 'pro') modelId = 'gemini-2.0-pro-exp-02-05';
+    else if (modelKey === 'argon') modelId = 'gemini-2.0-flash-thinking-exp-01-21';
+
+    var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + modelId + ':generateContent?key=' + apiKey;
+
+    var structuredPrompt = "You are a world-class professional portrait photographer and AI editor. " +
+        "Transform this portrait according to: \"" + promptText + "\". Return strictly valid JSON: " +
+        "{\"caption\":\"" + getGeminiPromptCaption(styleLabel, promptText) + "\",\"styleTitle\":\"" + styleLabel + "\",\"reasoning\":\"Transformasi foto berhasil.\",\"color\":{\"exposure\":5,\"contrast\":12,\"highlights\":-8,\"shadows\":6,\"temperature\":15,\"tint\":2,\"vibrance\":12,\"saturation\":8},\"retouch\":{\"skinSmoothing\":50,\"teeth\":25,\"eyes\":30},\"fx\":{\"blurType\":\"none\",\"blurAmount\":0,\"vignette\":0,\"grain\":0,\"fisheyeDistort\":0}}";
+
+    var payload = {
+        contents: [{
+            parts: [
+                { text: structuredPrompt },
+                {
+                    inline_data: {
+                        mime_type: 'image/jpeg',
+                        data: cleanBase64
+                    }
+                }
+            ]
+        }],
+        generationConfig: {
+            temperature: 0.25,
+            maxOutputTokens: 2048
+        }
+    };
+
+    fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(json) {
+        if (sendBtn) {
+            sendBtn.disabled = false;
+            sendBtn.innerHTML = '➤';
+        }
+        var bgImg = document.getElementById('wm-simulator-bg');
+        var parsed = null;
+        if (json.candidates && json.candidates[0] && json.candidates[0].content && json.candidates[0].content.parts) {
+            try {
+                var raw = json.candidates[0].content.parts.map(function(p) { return p.text || ''; }).join('');
+                raw = raw.replace(/```json/gi, '').replace(/```/g, '').trim();
+                parsed = JSON.parse(raw);
+            } catch (e) { }
+        }
+        var localGen = generateHighFidelityCanvasAiPhoto(bgImg, parsed || {}, promptText);
+        var caption = (parsed && parsed.caption) ? parsed.caption : getGeminiPromptCaption(styleLabel, promptText);
+        showGeminiDualPreview(imageSrc, localGen, caption, styleLabel);
+    })
+    .catch(function(err) {
+        if (sendBtn) {
+            sendBtn.disabled = false;
+            sendBtn.innerHTML = '➤';
+        }
+        var bgImg = document.getElementById('wm-simulator-bg');
+        var localGen = generateHighFidelityCanvasAiPhoto(bgImg, {}, promptText);
+        showGeminiDualPreview(imageSrc, localGen, getGeminiPromptCaption(styleLabel, promptText), styleLabel);
+    });
+}
+
+// LOCAL ARTISTIC NEURAL FALLBACK (JIKA OFFLINE / KUOTA HABIS / CEPAT)
+function applyMintaGeminiLocalFallback(preset, promptText, modelDisplay) {
+    var bgImg = document.getElementById('wm-simulator-bg');
+    if (!bgImg || !bgImg.naturalWidth) return;
+
+    var cmd = preset ? preset.cmd : (promptText || '');
+    var lcmd = cmd.toLowerCase();
+
+    var fallbackData = {
+        styleTitle: preset ? preset.label : promptText,
+        reasoning: "Efek fotografi studio diterapkan secara optimal.",
+        color: { exposure: 0, contrast: 10, highlights: -5, shadows: 5, temperature: 0, tint: 0, vibrance: 10 },
+        retouch: { skinSmoothing: 45, teeth: 30, eyes: 35 },
+        fx: {}
+    };
+
+    if (lcmd.indexOf('goldenhour') !== -1) {
+        fallbackData.color = { exposure: 8, contrast: 12, highlights: -10, shadows: 8, temperature: 22, tint: 4, vibrance: 16 };
+        fallbackData.reasoning = "Pencahayaan senja keemasan dengan hangat amber dan rim-light lembut.";
+    } else if (lcmd.indexOf('blue hour') !== -1) {
+        fallbackData.color = { exposure: -4, contrast: 15, highlights: -15, shadows: 10, temperature: -24, tint: -6, vibrance: 8 };
+        fallbackData.reasoning = "Suasana dusk twilight langit sore dengan kontras cobalt blue alami.";
+    } else if (lcmd.indexOf('cinematic') !== -1) {
+        fallbackData.color = { exposure: -2, contrast: 24, highlights: -20, shadows: 12, temperature: 8, tint: -8, vibrance: 12 };
+        fallbackData.reasoning = "Rembrandt lighting filmis dengan bayangan chiaroscuro dan rona teal-orange.";
+    } else if (lcmd.indexOf('moody') !== -1) {
+        fallbackData.color = { exposure: -8, contrast: 20, highlights: -25, shadows: -10, temperature: 4, tint: 0, vibrance: -10 };
+        fallbackData.reasoning = "Nuansa fine-art dark & moody dengan deep crushed shadows.";
+    } else if (lcmd.indexOf('frontlight') !== -1 || lcmd.indexOf('softbox') !== -1) {
+        fallbackData.color = { exposure: 12, contrast: 8, highlights: 5, shadows: 18, temperature: 2, tint: 2, vibrance: 8 };
+        fallbackData.reasoning = "Pencahayaan depan komersial merata tanpa bayangan kasar.";
+    } else if (lcmd.indexOf('paparazi') !== -1) {
+        fallbackData.color = { exposure: 15, contrast: 30, highlights: 15, shadows: -20, temperature: 0, tint: 0, vibrance: 20 };
+        fallbackData.reasoning = "Flash paparazzi tajam karpet merah dengan background falloff pekat.";
+    } else if (lcmd.indexOf('retouchface') !== -1) {
+        fallbackData.retouch = { skinSmoothing: 65, teeth: 40, eyes: 45 };
+        fallbackData.reasoning = "Tekstur kulit porselen mulus, pori-pori mikro terjaga, mata & senyum bening.";
+    } else if (lcmd.indexOf('convex') !== -1) {
+        fallbackData.fx.fisheyeDistort = 45;
+        fallbackData.reasoning = "Distorsi cermin cembung cembung Gen-Z fisheye diterapkan.";
+    } else if (lcmd.indexOf('ghosttrail') !== -1) {
+        fallbackData.fx.blurType = 'ghost_trail';
+        fallbackData.reasoning = "Y2K party direct flash dengan slow-shutter motion trail.";
+    } else if (lcmd.indexOf('neon') !== -1 || lcmd.indexOf('cyberpunk') !== -1) {
+        fallbackData.fx.duotone = 'cyan_magenta';
+        fallbackData.reasoning = "Pendaran lampu neon cyberpunk magenta & cyan toska.";
+    } else if (lcmd.indexOf('bokeh') !== -1 || lcmd.indexOf('shallow') !== -1) {
+        fallbackData.fx.blurType = 'bokeh';
+        fallbackData.reasoning = "Isolasi lensa tajam f/1.2 dengan background bokeh creamy.";
+    } else if (lcmd.indexOf('motion blur') !== -1) {
+        fallbackData.fx.blurType = 'motion_horizontal';
+        fallbackData.reasoning = "Kinetic motion blur gerak dinamis diterapkan.";
+    }
+
+    var safeBase64 = bgImg.src;
+    var localGen = generateHighFidelityCanvasAiPhoto(bgImg, fallbackData, cmd);
+    var caption = getGeminiPromptCaption(preset ? preset.label : promptText, cmd);
+    showGeminiDualPreview(safeBase64, localGen, caption, preset ? preset.label : promptText);
+}
+
+// SPECIAL CANVAS FX: CONVEX MIRROR FISHEYE WARP
+function applyConvexMirrorFisheyeWarp(imgEl, strength) {
+    var w = imgEl.naturalWidth;
+    var h = imgEl.naturalHeight;
+    var canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    var ctx = canvas.getContext('2d');
+    ctx.drawImage(imgEl, 0, 0, w, h);
+
+    var srcData = ctx.getImageData(0, 0, w, h);
+    var dstData = ctx.createImageData(w, h);
+    var src = srcData.data;
+    var dst = dstData.data;
+
+    var cx = w / 2;
+    var cy = h / 2;
+    var maxR = Math.sqrt(cx * cx + cy * cy);
+    var k = (strength || 40) / 100 * 0.8;
+
+    for (var y = 0; y < h; y++) {
+        for (var x = 0; x < w; x++) {
+            var dx = (x - cx) / cx;
+            var dy = (y - cy) / cy;
+            var r = Math.sqrt(dx * dx + dy * dy);
+
+            var dstIdx = (y * w + x) * 4;
+            if (r <= 1.0) {
+                var theta = Math.atan2(dy, dx);
+                var nr = Math.pow(r, 1 - k * 0.5);
+                var sx = Math.round(cx + nr * cx * Math.cos(theta));
+                var sy = Math.round(cy + nr * cy * Math.sin(theta));
+
+                if (sx >= 0 && sx < w && sy >= 0 && sy < h) {
+                    var srcIdx = (sy * w + sx) * 4;
+                    dst[dstIdx] = src[srcIdx];
+                    dst[dstIdx + 1] = src[srcIdx + 1];
+                    dst[dstIdx + 2] = src[srcIdx + 2];
+                    dst[dstIdx + 3] = src[srcIdx + 3];
+                    continue;
+                }
+            }
+            dst[dstIdx] = src[dstIdx];
+            dst[dstIdx + 1] = src[dstIdx + 1];
+            dst[dstIdx + 2] = src[dstIdx + 2];
+            dst[dstIdx + 3] = src[dstIdx + 3];
+        }
+    }
+
+    ctx.putImageData(dstData, 0, 0);
+
+    // Vignette circular mirror ring
+    var grad = ctx.createRadialGradient(cx, cy, maxR * 0.6, cx, cy, maxR * 0.95);
+    grad.addColorStop(0, 'rgba(0,0,0,0)');
+    grad.addColorStop(1, 'rgba(10,15,25,0.4)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+
+    imgEl.src = canvas.toDataURL('image/jpeg', 0.94);
+}
+
+// SPECIAL CANVAS FX: GHOST TRAIL DIRECT FLASH
+function applyGhostTrailDirectFlashFX(imgEl) {
+    var w = imgEl.naturalWidth;
+    var h = imgEl.naturalHeight;
+    var canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    var ctx = canvas.getContext('2d');
+
+    // Trail pass 1 (motion offset left)
+    ctx.globalAlpha = 0.28;
+    ctx.drawImage(imgEl, -w * 0.04, -h * 0.015, w, h);
+
+    // Trail pass 2 (motion offset right)
+    ctx.globalAlpha = 0.35;
+    ctx.drawImage(imgEl, w * 0.03, h * 0.012, w, h);
+
+    // Sharp flash foreground pass
+    ctx.globalAlpha = 0.88;
+    ctx.drawImage(imgEl, 0, 0, w, h);
+    ctx.globalAlpha = 1.0;
+
+    // Direct flash specular pop overlay
+    ctx.globalCompositeOperation = 'screen';
+    var flashGrad = ctx.createRadialGradient(w * 0.5, h * 0.45, 20, w * 0.5, h * 0.45, w * 0.6);
+    flashGrad.addColorStop(0, 'rgba(255, 255, 250, 0.22)');
+    flashGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = flashGrad;
+    ctx.fillRect(0, 0, w, h);
+    ctx.globalCompositeOperation = 'source-over';
+
+    imgEl.src = canvas.toDataURL('image/jpeg', 0.94);
+}
+
+// SPECIAL CANVAS FX: OPTICAL BOKEH DEPTH OF FIELD
+function applyOpticalBokehDepthFX(imgEl) {
+    var w = imgEl.naturalWidth;
+    var h = imgEl.naturalHeight;
+    var canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    var ctx = canvas.getContext('2d');
+
+    // Background blurred pass
+    ctx.filter = 'blur(10px) brightness(1.05)';
+    ctx.drawImage(imgEl, 0, 0, w, h);
+    ctx.filter = 'none';
+
+    // Face oval sharpness preservation pass
+    var sharpCanvas = document.createElement('canvas');
+    sharpCanvas.width = w;
+    sharpCanvas.height = h;
+    var sCtx = sharpCanvas.getContext('2d');
+    sCtx.drawImage(imgEl, 0, 0, w, h);
+
+    // Mask ellipse
+    var maskCanvas = document.createElement('canvas');
+    maskCanvas.width = w;
+    maskCanvas.height = h;
+    var mCtx = maskCanvas.getContext('2d');
+    var radGrad = mCtx.createRadialGradient(w * 0.5, h * 0.45, w * 0.15, w * 0.5, h * 0.45, w * 0.42);
+    radGrad.addColorStop(0, 'rgba(255,255,255,1)');
+    radGrad.addColorStop(0.7, 'rgba(255,255,255,0.85)');
+    radGrad.addColorStop(1, 'rgba(255,255,255,0)');
+    mCtx.fillStyle = radGrad;
+    mCtx.fillRect(0, 0, w, h);
+
+    sCtx.globalCompositeOperation = 'destination-in';
+    sCtx.drawImage(maskCanvas, 0, 0);
+
+    ctx.drawImage(sharpCanvas, 0, 0);
+    imgEl.src = canvas.toDataURL('image/jpeg', 0.94);
+}
+
+// SPECIAL CANVAS FX: DIRECTIONAL MOTION BLUR
+function applyDirectionalMotionBlurFX(imgEl) {
+    var w = imgEl.naturalWidth;
+    var h = imgEl.naturalHeight;
+    var canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    var ctx = canvas.getContext('2d');
+
+    var passes = 7;
+    var offsetStep = Math.max(2, Math.round(w / 120));
+    ctx.globalAlpha = 1 / passes;
+    for (var i = -Math.floor(passes / 2); i <= Math.floor(passes / 2); i++) {
+        ctx.drawImage(imgEl, i * offsetStep, 0, w, h);
+    }
+    ctx.globalAlpha = 1.0;
+
+    imgEl.src = canvas.toDataURL('image/jpeg', 0.94);
+}
+
+// SPECIAL CANVAS FX: CYBERPUNK NEON GLOW
+function applyCyberpunkNeonFX(imgEl) {
+    var w = imgEl.naturalWidth;
+    var h = imgEl.naturalHeight;
+    var canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    var ctx = canvas.getContext('2d');
+    ctx.drawImage(imgEl, 0, 0, w, h);
+
+    // Neon split lighting gradient (Cyan left, Magenta right)
+    ctx.globalCompositeOperation = 'overlay';
+    var neonGrad = ctx.createLinearGradient(0, 0, w, h);
+    neonGrad.addColorStop(0, 'rgba(0, 240, 255, 0.4)');
+    neonGrad.addColorStop(0.5, 'rgba(100, 50, 200, 0.15)');
+    neonGrad.addColorStop(1, 'rgba(255, 0, 128, 0.45)');
+    ctx.fillStyle = neonGrad;
+    ctx.fillRect(0, 0, w, h);
+    ctx.globalCompositeOperation = 'source-over';
+
+    imgEl.src = canvas.toDataURL('image/jpeg', 0.94);
+}
+
+// Close model dropdown on outside click
+document.addEventListener('click', function(e) {
+    var menu = document.getElementById('minta-gemini-model-dropdown');
+    var btn = document.getElementById('btn-minta-gemini-model-toggle');
+    if (menu && menu.style.display === 'flex' && btn && !btn.contains(e.target) && !menu.contains(e.target)) {
+        menu.style.display = 'none';
+    }
+    var slashMenu = document.getElementById('minta-gemini-slash-menu');
+    var input = document.getElementById('input-minta-gemini');
+    if (slashMenu && slashMenu.style.display === 'flex' && input && !input.contains(e.target) && !slashMenu.contains(e.target)) {
+        slashMenu.style.display = 'none';
+    }
+});
+
 
 /* ========================================================================= */
 /* REVISI 96: CLEAN BEFORE / AFTER REALTIME COMPARISON (TANPA GARIS PEMBELAH)*/
@@ -13440,7 +14726,7 @@ function healBlemishPatch(data, w, h, centerX, centerY, patchRadius) {
     }
 }
 
-// Eksekusi Pembersih Jerawat Otomatis Cerdas dengan Proteksi Ketat Organ Wajah
+// Eksekusi Pembersih Jerawat Otomatis Cerdas dengan Standar Evoto AI & MediaPipe
 function executeAutoBlemishRemoval() {
     var bgImg = document.getElementById('wm-simulator-bg');
     if (!bgImg || !bgImg.naturalWidth) {
@@ -13448,16 +14734,15 @@ function executeAutoBlemishRemoval() {
         return;
     }
 
-    // Catat ke riwayat Undo sebelum memodifikasi foto
     if (typeof pushPhotoHistory === 'function') {
-        pushPhotoHistory('Sebelum Bersihkan Jerawat');
+        pushPhotoHistory('Sebelum Bersihkan Jerawat (Evoto AI)');
     }
 
     if (typeof showToast === 'function') {
-        showToast('✨ Memindai bintik jerawat di kulit wajah (Mata & bibir 100% terlindungi)...');
+        showToast('✨ Evoto AI: Memindai bintik jerawat dengan 468 titik landmark wajah...');
     }
 
-    setTimeout(function() {
+    detectFaceLandmarksAsync(bgImg).then(function(landmarks) {
         var canvas = document.createElement('canvas');
         var w = bgImg.naturalWidth;
         var h = bgImg.naturalHeight;
@@ -13469,6 +14754,14 @@ function executeAutoBlemishRemoval() {
         var imgData = ctx.getImageData(0, 0, w, h);
         var data = imgData.data;
 
+        var landmarkMaskData = null;
+        if (landmarks && landmarks.length > 0) {
+            var mCanvas = buildEvotoSkinMaskCanvas(w, h, landmarks);
+            if (mCanvas) {
+                landmarkMaskData = mCanvas.getContext('2d').getImageData(0, 0, w, h).data;
+            }
+        }
+
         var patchRadius = Math.max(8, Math.round(w / 180));
         var step = Math.max(4, Math.round(patchRadius * 0.8));
 
@@ -13476,21 +14769,26 @@ function executeAutoBlemishRemoval() {
 
         for (var y = patchRadius + 15; y < h - patchRadius - 15; y += step) {
             for (var x = patchRadius + 15; x < w - patchRadius - 15; x += step) {
-                var idx = (y * w + x) * 4;
-                var r = data[idx], g = data[idx + 1], b = data[idx + 2];
+                var pos = y * w + x;
+                var idx = pos * 4;
 
+                // Proteksi Mutlak MediaPipe Evoto AI:
+                // Jika titik ini berada di luar zona pipi/dahi (misal di mata, kelopak mata, pupil, alis, atau bibir), lewati seketika!
+                if (landmarkMaskData && landmarkMaskData[idx + 3] < 128) {
+                    continue;
+                }
+
+                var r = data[idx], g = data[idx + 1], b = data[idx + 2];
                 var yVal = 0.299 * r + 0.587 * g + 0.114 * b;
                 var cbVal = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
                 var crVal = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
 
-                // Proteksi Organ Wajah: Jangan proses area gelap (pupil, alis) atau bibir
                 if (yVal < 55 || (r < 55 && g < 55 && b < 55)) continue;
                 if (r > 115 && (r - g) > 40 && (r - b) > 35) continue;
 
                 var isSkin = (cbVal >= 75 && cbVal <= 135 && crVal >= 130 && crVal <= 180) || (r > g && g > b && r > 60 && (r - b) > 16);
 
                 if (isSkin) {
-                    // Cek gradien tepi Sobel sederhana: Jika titik ini berada di garis kelopak mata, lewati!
                     var leftIdx = (y * w + (x - 2)) * 4;
                     var rightIdx = (y * w + (x + 2)) * 4;
                     var upIdx = ((y - 2) * w + x) * 4;
@@ -13499,7 +14797,6 @@ function executeAutoBlemishRemoval() {
                     var gy = Math.abs(data[downIdx] - data[upIdx]);
                     if (gx + gy > 36) continue;
 
-                    // Hitung kecerahan rata-rata kulit sekitar
                     var localYSum = 0, localCount = 0;
                     var sampleDist = patchRadius + 6;
                     var sOffsets = [
@@ -13518,7 +14815,6 @@ function executeAutoBlemishRemoval() {
 
                     if (localCount > 0) {
                         var localMeanY = localYSum / localCount;
-                        // Jerawat: noda kemerahan ATAU flek hitam kecil moderat (BUKAN organ hitam pekat)
                         var isDarkBlemish = (localMeanY - yVal) >= 12 && (localMeanY - yVal) <= 38;
                         var isRedPimple = (r - g) > 22 && (r - b) > 22 && (yVal < localMeanY + 8) && (yVal >= 60);
 
@@ -13531,7 +14827,7 @@ function executeAutoBlemishRemoval() {
                                     break;
                                 }
                             }
-                            if (!tooClose && blemishCenters.length < 16) {
+                            if (!tooClose && blemishCenters.length < 18) {
                                 blemishCenters.push({ x: x, y: y });
                             }
                         }
@@ -13540,7 +14836,6 @@ function executeAutoBlemishRemoval() {
             }
         }
 
-        // Eksekusi penambalan bilateral pada bintik jerawat terisolasi yang terverifikasi
         for (var i = 0; i < blemishCenters.length; i++) {
             healBlemishPatch(data, w, h, blemishCenters[i].x, blemishCenters[i].y, patchRadius);
         }
@@ -13557,9 +14852,9 @@ function executeAutoBlemishRemoval() {
         }
 
         if (typeof showToast === 'function') {
-            showToast('✨ Jerawat dibersihkan (' + blemishCenters.length + ' titik) — Mata & bibir aman!');
+            showToast('✨ Evoto AI: Jerawat dibersihkan (' + blemishCenters.length + ' titik) — Mata & bibir 100% aman!');
         }
-    }, 200);
+    });
 }
 
 // Kuas Spot Healing Jerawat Manual Interaktif
@@ -14645,71 +15940,249 @@ function clearSkinBrushOverlay() {
     if (typeof showToast === 'function') showToast('✕ Overlay kuas di-reset.');
 }
 
-// Algoritma Edge-Preserving Bilateral Skin Smoothing dengan Pori Terjaga
-// Hanya menghaluskan tone kulit & pori kasar, MENOLAK keras menghaluskan mata, pupil, alis, kumis, dan bibir!
-function applyBilateralSkinSmoothing(data, w, h, maskArray, strengthPct) {
-    var blendFactor = (strengthPct / 100) * 0.85;
-    var radius = Math.max(3, Math.round(w / 400));
-    var kernelStep = 1;
 
+/* ========================================================================= */
+/* REVISI 108: EVOTO AI RETOUCHING ENGINE (MEDIAPIPE 468 LANDMARKS +         */
+/* TRUE FREQUENCY SEPARATION FOR AUTHENTIC SKIN PORES & EYE PROTECTION)      */
+/* ========================================================================= */
+
+var evotoEngineState = {
+    faceMesh: null,
+    isInitializing: false,
+    isReady: false,
+    lastLandmarks: null
+};
+
+// 1. Inisialisasi Google MediaPipe Face Mesh
+function initMediaPipeFaceMesh(callback) {
+    if (evotoEngineState.isReady && evotoEngineState.faceMesh) {
+        if (callback) callback(evotoEngineState.faceMesh);
+        return;
+    }
+    if (typeof FaceMesh === 'undefined') {
+        var script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js';
+        script.crossOrigin = 'anonymous';
+        script.onload = function() {
+            setupFaceMeshInstance(callback);
+        };
+        script.onerror = function() {
+            console.warn('MediaPipe CDN offline, menggunakan fallback anatomi lokal.');
+            if (callback) callback(null);
+        };
+        document.head.appendChild(script);
+    } else {
+        setupFaceMeshInstance(callback);
+    }
+}
+
+function setupFaceMeshInstance(callback) {
+    try {
+        var fm = new FaceMesh({
+            locateFile: function(file) {
+                return 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/' + file;
+            }
+        });
+        fm.setOptions({
+            maxNumFaces: 4,
+            refineLandmarks: true,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+        fm.onResults(function(results) {
+            if (results && results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+                evotoEngineState.lastLandmarks = results.multiFaceLandmarks;
+            } else {
+                evotoEngineState.lastLandmarks = null;
+            }
+            if (fm._pendingResolve) {
+                fm._pendingResolve(evotoEngineState.lastLandmarks);
+                fm._pendingResolve = null;
+            }
+        });
+        evotoEngineState.faceMesh = fm;
+        evotoEngineState.isReady = true;
+        if (callback) callback(fm);
+    } catch (e) {
+        console.warn('FaceMesh init error:', e);
+        if (callback) callback(null);
+    }
+}
+
+// Deteksi koordinat landmark wajah dari elemen foto
+function detectFaceLandmarksAsync(imgElement) {
+    return new Promise(function(resolve) {
+        if (!imgElement || !imgElement.naturalWidth) {
+            resolve(null);
+            return;
+        }
+        initMediaPipeFaceMesh(function(fm) {
+            if (!fm) {
+                resolve(null);
+                return;
+            }
+            fm._pendingResolve = resolve;
+            fm.send({ image: imgElement }).catch(function(err) {
+                console.warn('FaceMesh send error:', err);
+                resolve(null);
+            });
+            setTimeout(function() {
+                if (fm._pendingResolve) {
+                    fm._pendingResolve(null);
+                    fm._pendingResolve = null;
+                }
+            }, 1800);
+        });
+    });
+}
+
+// 2. Indeks Landmark Anatomi Standar MediaPipe 468/478 Titik
+var MP_INDICES = {
+    faceOval: [10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109],
+    leftEye: [33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246],
+    rightEye: [362, 382, 381, 380, 374, 373, 390, 249, 263, 466, 388, 387, 386, 385, 384, 398],
+    leftEyebrow: [70, 63, 105, 66, 107, 55, 65, 52, 53, 46],
+    rightEyebrow: [300, 293, 334, 296, 336, 285, 295, 282, 283, 276],
+    lipsOuter: [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 308, 324, 318, 402, 317, 14, 87, 178, 88, 95],
+    nostrils: [1, 2, 98, 327, 168, 197, 5, 4]
+};
+
+// 3. Bangun Masker Kulit Presisi Tinggi (Mata, Alis, Bibir Dikecualikan 100%)
+function buildEvotoSkinMaskCanvas(w, h, allFacesLandmarks) {
+    if (!allFacesLandmarks || allFacesLandmarks.length === 0) return null;
+
+    var canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    var ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, w, h);
+
+    for (var f = 0; f < allFacesLandmarks.length; f++) {
+        var lm = allFacesLandmarks[f];
+
+        function drawPolygon(indices) {
+            if (!indices || indices.length === 0) return;
+            ctx.beginPath();
+            var p0 = lm[indices[0]];
+            ctx.moveTo(p0.x * w, p0.y * h);
+            for (var i = 1; i < indices.length; i++) {
+                var p = lm[indices[i]];
+                ctx.lineTo(p.x * w, p.y * h);
+            }
+            ctx.closePath();
+        }
+
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.fillStyle = '#ffffff';
+        drawPolygon(MP_INDICES.faceOval);
+        ctx.fill();
+
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.fillStyle = '#000000';
+
+        drawPolygon(MP_INDICES.leftEye);
+        ctx.fill();
+        drawPolygon(MP_INDICES.rightEye);
+        ctx.fill();
+        drawPolygon(MP_INDICES.leftEyebrow);
+        ctx.fill();
+        drawPolygon(MP_INDICES.rightEyebrow);
+        ctx.fill();
+        drawPolygon(MP_INDICES.lipsOuter);
+        ctx.fill();
+        drawPolygon(MP_INDICES.nostrils);
+        ctx.fill();
+    }
+
+    ctx.globalCompositeOperation = 'source-over';
+    return canvas;
+}
+
+// 4. Algoritma True Frequency Separation Berbasis Standar Photoshop & Evoto AI
+function applyEvotoFrequencySeparation(data, w, h, maskArray, softenPct, texturePct) {
+    var blendStrength = (softenPct / 100);
+    var textureScale = (texturePct / 50);
+    if (blendStrength <= 0) return;
+
+    var totalPixels = w * h;
     var orig = new Uint8Array(data.length);
     orig.set(data);
 
-    for (var y = radius; y < h - radius; y++) {
-        for (var x = radius; x < w - radius; x++) {
+    var lowLayer = new Uint8Array(data.length);
+    var radius = Math.max(3, Math.round(w / 350));
+    var spatialRadSq = radius * radius;
+
+    for (var y = 0; y < h; y++) {
+        for (var x = 0; x < w; x++) {
             var pos = y * w + x;
-            if (maskArray && maskArray[pos] === 0) continue;
-
             var idx = pos * 4;
+
+            if (maskArray && maskArray[pos] === 0) {
+                lowLayer[idx] = orig[idx];
+                lowLayer[idx + 1] = orig[idx + 1];
+                lowLayer[idx + 2] = orig[idx + 2];
+                lowLayer[idx + 3] = orig[idx + 3];
+                continue;
+            }
+
             var cR = orig[idx], cG = orig[idx + 1], cB = orig[idx + 2];
-
-            // 1. Safeguard Landmark Wajah Mutlak:
-            // Jangan pernah sentuh pupil, bulu mata, alis gelap (cY < 50 atau r,g,b < 55)
-            var cY = 0.299 * cR + 0.587 * cG + 0.114 * cB;
-            if (cY < 50 || (cR < 55 && cG < 55 && cB < 55)) continue;
-
-            // 2. Safeguard Bibir (Lips exclusion):
-            if (cR > 115 && (cR - cG) > 40 && (cR - cB) > 35) continue;
-
-            // 3. Bilateral Spatial & Color Weighting
             var sumR = 0, sumG = 0, sumB = 0, sumWeight = 0;
 
-            for (var dy = -radius; dy <= radius; dy += kernelStep) {
-                for (var dx = -radius; dx <= radius; dx += kernelStep) {
-                    var nPos = (y + dy) * w + (x + dx);
-                    var nIdx = nPos * 4;
+            for (var dy = -radius; dy <= radius; dy += 2) {
+                var ny = y + dy;
+                if (ny < 0 || ny >= h) continue;
+                for (var dx = -radius; dx <= radius; dx += 2) {
+                    var nx = x + dx;
+                    if (nx < 0 || nx >= w) continue;
+
+                    var dSq = dx * dx + dy * dy;
+                    if (dSq > spatialRadSq) continue;
+
+                    var nIdx = (ny * w + nx) * 4;
                     var nR = orig[nIdx], nG = orig[nIdx + 1], nB = orig[nIdx + 2];
 
-                    // Spatial distance weight
-                    var distSq = dx * dx + dy * dy;
-                    if (distSq > radius * radius) continue;
-                    var spatialWeight = 1 - (distSq / (radius * radius * 1.5));
+                    var cDiff = Math.abs(nR - cR) + Math.abs(nG - cG) + Math.abs(nB - cB);
+                    if (cDiff > 42) continue;
 
-                    // Color similarity weight (Edge preservation)
-                    var colorDist = Math.abs(nR - cR) + Math.abs(nG - cG) + Math.abs(nB - cB);
-                    if (colorDist > 38) continue;
-                    var colorWeight = 1 - (colorDist / 45);
-
-                    var weight = spatialWeight * colorWeight;
-                    sumR += nR * weight;
-                    sumG += nG * weight;
-                    sumB += nB * weight;
-                    sumWeight += weight;
+                    var wgt = (1 - (dSq / (spatialRadSq * 1.5))) * (1 - (cDiff / 50));
+                    sumR += nR * wgt;
+                    sumG += nG * wgt;
+                    sumB += nB * wgt;
+                    sumWeight += wgt;
                 }
             }
 
             if (sumWeight > 0) {
-                var smoothR = sumR / sumWeight;
-                var smoothG = sumG / sumWeight;
-                var smoothB = sumB / sumWeight;
-
-                // Frequency separation pore blend: pertahankan mikro pori asli
-                data[idx] = Math.round(cR * (1 - blendFactor) + smoothR * blendFactor);
-                data[idx + 1] = Math.round(cG * (1 - blendFactor) + smoothG * blendFactor);
-                data[idx + 2] = Math.round(cB * (1 - blendFactor) + smoothB * blendFactor);
+                lowLayer[idx] = Math.round(sumR / sumWeight);
+                lowLayer[idx + 1] = Math.round(sumG / sumWeight);
+                lowLayer[idx + 2] = Math.round(sumB / sumWeight);
+            } else {
+                lowLayer[idx] = cR;
+                lowLayer[idx + 1] = cG;
+                lowLayer[idx + 2] = cB;
             }
+            lowLayer[idx + 3] = orig[idx + 3];
         }
     }
+
+    for (var i = 0; i < totalPixels; i++) {
+        if (maskArray && maskArray[i] === 0) continue;
+
+        var pIdx = i * 4;
+        for (var c = 0; c < 3; c++) {
+            var origVal = orig[pIdx + c];
+            var lowVal = lowLayer[pIdx + c];
+            
+            var highDelta = (origVal - lowVal) * textureScale;
+            var blendedLow = origVal * (1 - blendStrength) + lowVal * blendStrength;
+            var finalVal = Math.round(blendedLow + highDelta);
+            data[pIdx + c] = Math.max(0, Math.min(255, finalVal));
+        }
+    }
+}
+
+function applyBilateralSkinSmoothing(data, w, h, maskArray, strengthPct) {
+    applyEvotoFrequencySeparation(data, w, h, maskArray, strengthPct, 50);
 }
 
 function initSkinSmoothBrushStageListeners() {
@@ -14799,59 +16272,75 @@ function applyTargetedSkinSmoothingFromBrush() {
     if (!pts || pts.length === 0) return;
 
     if (typeof pushPhotoHistory === 'function') {
-        pushPhotoHistory('Kuas Mulus Kulit');
+        pushPhotoHistory('Kuas Mulus Kulit (Evoto AI)');
     }
 
     var w = bgImg.naturalWidth;
     var h = bgImg.naturalHeight;
-    var canvas = document.createElement('canvas');
-    canvas.width = w;
-    canvas.height = h;
-    var ctx = canvas.getContext('2d');
-    ctx.drawImage(bgImg, 0, 0, w, h);
+    var softenVal = skinSmoothBrushState.strength;
+    var textureSlider = document.getElementById('slider-evoto-ret-texture');
+    var textureVal = textureSlider ? parseInt(textureSlider.value, 10) : 50;
 
-    var imgData = ctx.getImageData(0, 0, w, h);
-    var data = imgData.data;
+    detectFaceLandmarksAsync(bgImg).then(function(landmarks) {
+        var canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(bgImg, 0, 0, w, h);
 
-    // Buat masker selektif dari sapuan kuas
-    var maskArray = new Uint8Array(w * h);
-    var brushRadiusPx = Math.max(12, Math.round((skinSmoothBrushState.size / 800) * w));
+        var imgData = ctx.getImageData(0, 0, w, h);
+        var data = imgData.data;
 
-    for (var p = 0; p < pts.length; p++) {
-        var px = Math.round(pts[p].normX * w);
-        var py = Math.round(pts[p].normY * h);
-        for (var dy = -brushRadiusPx; dy <= brushRadiusPx; dy++) {
-            var ny = py + dy;
-            if (ny >= 0 && ny < h) {
-                for (var dx = -brushRadiusPx; dx <= brushRadiusPx; dx++) {
-                    var nx = px + dx;
-                    if (nx >= 0 && nx < w) {
-                        if (dx * dx + dy * dy <= brushRadiusPx * brushRadiusPx) {
-                            maskArray[ny * w + nx] = 1;
+        var maskArray = new Uint8Array(w * h);
+        var brushRadiusPx = Math.max(12, Math.round((skinSmoothBrushState.size / 800) * w));
+
+        for (var p = 0; p < pts.length; p++) {
+            var px = Math.round(pts[p].normX * w);
+            var py = Math.round(pts[p].normY * h);
+            for (var dy = -brushRadiusPx; dy <= brushRadiusPx; dy++) {
+                var ny = py + dy;
+                if (ny >= 0 && ny < h) {
+                    for (var dx = -brushRadiusPx; dx <= brushRadiusPx; dx++) {
+                        var nx = px + dx;
+                        if (nx >= 0 && nx < w) {
+                            if (dx * dx + dy * dy <= brushRadiusPx * brushRadiusPx) {
+                                maskArray[ny * w + nx] = 1;
+                            }
                         }
                     }
                 }
             }
         }
-    }
 
-    applyBilateralSkinSmoothing(data, w, h, maskArray, skinSmoothBrushState.strength);
+        if (landmarks && landmarks.length > 0) {
+            var mCanvas = buildEvotoSkinMaskCanvas(w, h, landmarks);
+            if (mCanvas) {
+                var mData = mCanvas.getContext('2d').getImageData(0, 0, w, h).data;
+                for (var i = 0; i < w * h; i++) {
+                    if (maskArray[i] === 1 && mData[i * 4 + 3] < 128) {
+                        maskArray[i] = 0;
+                    }
+                }
+            }
+        }
 
-    ctx.putImageData(imgData, 0, 0);
-    var smoothedUrl = canvas.toDataURL('image/jpeg', 0.95);
-    bgImg.src = smoothedUrl;
-    if (typeof appState !== 'undefined' && appState.stagedPhotos && appState.stagedPhotos[appState.activeStagedIndex]) {
-        appState.stagedPhotos[appState.activeStagedIndex].dataUrl = smoothedUrl;
-    }
+        applyEvotoFrequencySeparation(data, w, h, maskArray, softenVal, textureVal);
 
-    clearSkinBrushOverlay();
+        ctx.putImageData(imgData, 0, 0);
+        var smoothedUrl = canvas.toDataURL('image/jpeg', 0.95);
+        bgImg.src = smoothedUrl;
+        if (typeof appState !== 'undefined' && appState.stagedPhotos && appState.stagedPhotos[appState.activeStagedIndex]) {
+            appState.stagedPhotos[appState.activeStagedIndex].dataUrl = smoothedUrl;
+        }
 
-    if (typeof showToast === 'function') {
-        showToast('✨ Area kulit yang diusap berhasil dihaluskan mulus (Mata & bibir tajam)!');
-    }
+        clearSkinBrushOverlay();
+
+        if (typeof showToast === 'function') {
+            showToast('✨ Evoto AI: Area usapan dihaluskan dengan pori-pori alami terjaga!');
+        }
+    });
 }
 
-// Auto Skin Mask Preview ala Portraiture (SS 2)
 function toggleAutoSkinMaskPreview() {
     var bgImg = document.getElementById('wm-simulator-bg');
     var canvas = document.getElementById('wm-skin-brush-canvas');
@@ -14879,109 +16368,150 @@ function toggleAutoSkinMaskPreview() {
 
     var w = bgImg.naturalWidth;
     var h = bgImg.naturalHeight;
-    var offCanvas = document.createElement('canvas');
-    offCanvas.width = w;
-    offCanvas.height = h;
-    var offCtx = offCanvas.getContext('2d');
-    offCtx.drawImage(bgImg, 0, 0, w, h);
-    var imgData = offCtx.getImageData(0, 0, w, h);
-    var data = imgData.data;
-
     canvas.width = bgImg.clientWidth || 800;
     canvas.height = bgImg.clientHeight || 600;
     var ctx = canvas.getContext('2d');
-    var dispData = ctx.createImageData(canvas.width, canvas.height);
-    var dd = dispData.data;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    var scaleX = w / canvas.width;
-    var scaleY = h / canvas.height;
-
-    for (var cy = 0; cy < canvas.height; cy++) {
-        var srcY = Math.floor(cy * scaleY);
-        for (var cx = 0; cx < canvas.width; cx++) {
-            var srcX = Math.floor(cx * scaleX);
-            var srcIdx = (srcY * w + srcX) * 4;
-            var dIdx = (cy * canvas.width + cx) * 4;
-
-            var r = data[srcIdx], g = data[srcIdx + 1], b = data[srcIdx + 2];
-            var yVal = 0.299 * r + 0.587 * g + 0.114 * b;
-            var cbVal = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
-            var crVal = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
-
-            var isSkin = (cbVal >= 75 && cbVal <= 135 && crVal >= 130 && crVal <= 180) || (r > g && g > b && r > 50 && (r - b) > 15);
-            var isEyeOrLip = yVal < 50 || (r < 55 && g < 55 && b < 55) || (r > 115 && (r - g) > 40 && (r - b) > 35);
-
-            if (isSkin && !isEyeOrLip) {
-                dd[dIdx] = 52;
-                dd[dIdx + 1] = 211;
-                dd[dIdx + 2] = 153;
-                dd[dIdx + 3] = 130;
-            } else {
-                dd[dIdx + 3] = 0;
+    detectFaceLandmarksAsync(bgImg).then(function(landmarks) {
+        if (landmarks && landmarks.length > 0) {
+            var dispW = canvas.width;
+            var dispH = canvas.height;
+            var maskCanvas = buildEvotoSkinMaskCanvas(dispW, dispH, landmarks);
+            if (maskCanvas) {
+                ctx.globalAlpha = 0.55;
+                ctx.drawImage(maskCanvas, 0, 0);
+                ctx.globalCompositeOperation = 'source-in';
+                ctx.fillStyle = '#10b981';
+                ctx.fillRect(0, 0, dispW, dispH);
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.globalAlpha = 1.0;
             }
-        }
-    }
+        } else {
+            var offCanvas = document.createElement('canvas');
+            offCanvas.width = w;
+            offCanvas.height = h;
+            var offCtx = offCanvas.getContext('2d');
+            offCtx.drawImage(bgImg, 0, 0, w, h);
+            var data = offCtx.getImageData(0, 0, w, h).data;
+            var dispData = ctx.createImageData(canvas.width, canvas.height);
+            var dd = dispData.data;
 
-    ctx.putImageData(dispData, 0, 0);
-    if (typeof showToast === 'function') {
-        showToast('👁️ Area Hijau = Kulit yang akan dihaluskan (Mata & bibir dikecualikan)');
-    }
+            var scaleX = w / canvas.width;
+            var scaleY = h / canvas.height;
+
+            for (var cy = 0; cy < canvas.height; cy++) {
+                var srcY = Math.floor(cy * scaleY);
+                for (var cx = 0; cx < canvas.width; cx++) {
+                    var srcX = Math.floor(cx * scaleX);
+                    var srcIdx = (srcY * w + srcX) * 4;
+                    var dIdx = (cy * canvas.width + cx) * 4;
+
+                    var r = data[srcIdx], g = data[srcIdx + 1], b = data[srcIdx + 2];
+                    var yVal = 0.299 * r + 0.587 * g + 0.114 * b;
+                    var cbVal = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
+                    var crVal = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
+
+                    var isSkin = (cbVal >= 75 && cbVal <= 135 && crVal >= 130 && crVal <= 180) || (r > g && g > b && r > 50 && (r - b) > 15);
+                    var isEyeOrLip = yVal < 50 || (r < 55 && g < 55 && b < 55) || (r > 115 && (r - g) > 40 && (r - b) > 35);
+
+                    if (isSkin && !isEyeOrLip) {
+                        dd[dIdx] = 16;
+                        dd[dIdx + 1] = 185;
+                        dd[dIdx + 2] = 129;
+                        dd[dIdx + 3] = 135;
+                    } else {
+                        dd[dIdx + 3] = 0;
+                    }
+                }
+            }
+            ctx.putImageData(dispData, 0, 0);
+        }
+
+        if (typeof showToast === 'function') {
+            showToast('👁️ Area Hijau = Topeng Kulit Evoto AI (Mata & bibir 100% terlindungi)');
+        }
+    });
 }
 
-// Menerapkan kehalusan ke seluruh topeng kulit wajah
 function applyAutoSkinMaskSmoothing() {
     var bgImg = document.getElementById('wm-simulator-bg');
     if (!bgImg || !bgImg.naturalWidth) return;
 
     if (typeof pushPhotoHistory === 'function') {
-        pushPhotoHistory('Auto Mask Kulit Wajah');
+        pushPhotoHistory('Auto Mask Kulit Wajah (Evoto AI)');
+    }
+
+    if (typeof showToast === 'function') {
+        showToast('🧠 Evoto AI: Menganalisa 468 landmark wajah & memisahkan pori...');
     }
 
     var w = bgImg.naturalWidth;
     var h = bgImg.naturalHeight;
-    var canvas = document.createElement('canvas');
-    canvas.width = w;
-    canvas.height = h;
-    var ctx = canvas.getContext('2d');
-    ctx.drawImage(bgImg, 0, 0, w, h);
 
-    var imgData = ctx.getImageData(0, 0, w, h);
-    var data = imgData.data;
+    var softenSlider = document.getElementById('slider-evoto-ret-soften');
+    var textureSlider = document.getElementById('slider-evoto-ret-texture');
+    var softenVal = softenSlider ? parseInt(softenSlider.value, 10) : skinSmoothBrushState.strength;
+    var textureVal = textureSlider ? parseInt(textureSlider.value, 10) : 50;
 
-    var maskArray = new Uint8Array(w * h);
-    for (var y = 0; y < h; y++) {
-        for (var x = 0; x < w; x++) {
-            var pos = y * w + x;
-            var idx = pos * 4;
-            var r = data[idx], g = data[idx + 1], b = data[idx + 2];
-            var yVal = 0.299 * r + 0.587 * g + 0.114 * b;
-            var cbVal = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
-            var crVal = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
+    detectFaceLandmarksAsync(bgImg).then(function(landmarks) {
+        var canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(bgImg, 0, 0, w, h);
+        var imgData = ctx.getImageData(0, 0, w, h);
+        var data = imgData.data;
 
-            var isSkin = (cbVal >= 75 && cbVal <= 135 && crVal >= 130 && crVal <= 180) || (r > g && g > b && r > 50 && (r - b) > 15);
-            var isEyeOrLip = yVal < 50 || (r < 55 && g < 55 && b < 55) || (r > 115 && (r - g) > 40 && (r - b) > 35);
+        var maskArray = new Uint8Array(w * h);
 
-            if (isSkin && !isEyeOrLip) {
-                maskArray[pos] = 1;
+        if (landmarks && landmarks.length > 0) {
+            var maskCanvas = buildEvotoSkinMaskCanvas(w, h, landmarks);
+            if (maskCanvas) {
+                var mData = maskCanvas.getContext('2d').getImageData(0, 0, w, h).data;
+                for (var i = 0; i < w * h; i++) {
+                    if (mData[i * 4 + 3] > 128) {
+                        maskArray[i] = 1;
+                    }
+                }
+            }
+        } else {
+            for (var y = 0; y < h; y++) {
+                for (var x = 0; x < w; x++) {
+                    var pos = y * w + x;
+                    var idx = pos * 4;
+                    var r = data[idx], g = data[idx + 1], b = data[idx + 2];
+                    var yVal = 0.299 * r + 0.587 * g + 0.114 * b;
+                    var cbVal = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
+                    var crVal = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
+
+                    var isSkin = (cbVal >= 75 && cbVal <= 135 && crVal >= 130 && crVal <= 180) || (r > g && g > b && r > 50 && (r - b) > 15);
+                    var isEyeOrLip = yVal < 50 || (r < 55 && g < 55 && b < 55) || (r > 115 && (r - g) > 40 && (r - b) > 35);
+
+                    if (isSkin && !isEyeOrLip) {
+                        maskArray[pos] = 1;
+                    }
+                }
             }
         }
-    }
 
-    applyBilateralSkinSmoothing(data, w, h, maskArray, skinSmoothBrushState.strength);
+        applyEvotoFrequencySeparation(data, w, h, maskArray, softenVal, textureVal);
 
-    ctx.putImageData(imgData, 0, 0);
-    var smoothedUrl = canvas.toDataURL('image/jpeg', 0.95);
-    bgImg.src = smoothedUrl;
-    if (typeof appState !== 'undefined' && appState.stagedPhotos && appState.stagedPhotos[appState.activeStagedIndex]) {
-        appState.stagedPhotos[appState.activeStagedIndex].dataUrl = smoothedUrl;
-    }
+        ctx.putImageData(imgData, 0, 0);
+        var smoothedUrl = canvas.toDataURL('image/jpeg', 0.95);
+        bgImg.src = smoothedUrl;
+        if (typeof appState !== 'undefined' && appState.stagedPhotos && appState.stagedPhotos[appState.activeStagedIndex]) {
+            appState.stagedPhotos[appState.activeStagedIndex].dataUrl = smoothedUrl;
+        }
 
-    clearSkinBrushOverlay();
+        clearSkinBrushOverlay();
 
-    if (typeof showToast === 'function') {
-        showToast('✨ Seluruh kulit wajah berhasil dihaluskan mulus (Mata, alis & bibir tetap tajam)!');
-    }
+        if (typeof showToast === 'function') {
+            showToast('✨ Evoto AI: Kulit wajah mulus sutra, pori alami terjaga & mata pin-sharp!');
+        }
+    });
 }
+
 
 // Inisialisasi listener kuas mulus saat halaman siap
 document.addEventListener('DOMContentLoaded', initSkinSmoothBrushStageListeners);

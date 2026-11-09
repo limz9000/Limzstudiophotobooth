@@ -28,6 +28,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gifshot/0.3.2/gifshot.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- Google MediaPipe Face Mesh (Standar Evoto AI 468 Landmark Anatomi Wajah) -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
 
     <!-- Zero-Flicker Pre-Route Detection (Menghilangkan Kedipan Putih Monitor & Galeri) -->
     <script>
@@ -663,10 +665,164 @@
                                         </div>
                                     </div>
 
+                                    <!-- REVISI 110: DUAL PREVIEW COMPARATOR (FOTO ASLI VS HASIL GENERATE GEMINI AI) -->
+                                    <div id="gemini-dual-preview-stage" class="gemini-dual-stage-overlay" style="display: none;">
+                                        <!-- CAPTION BOX PERSIS SCREENSHOT GEMINI -->
+                                        <div class="gemini-dual-caption-bar" id="gemini-dual-caption-bar">
+                                            <div style="display: flex; align-items: center; gap: 8px;">
+                                                <span style="font-size: 16px;">✨</span>
+                                                <span id="gemini-dual-caption-text" style="font-size: 12px; font-weight: 600; color: #f1f5f9; line-height: 1.4;">
+                                                    Ini dia hasil foto yang sudah diedit dengan efek pencahayaan AI Gemini sesuai permintaan Anda:
+                                                </span>
+                                            </div>
+                                            <button type="button" class="btn btn-outline btn-sm" onclick="closeGeminiDualPreview()" style="color: #94a3b8; border-color: #334155; padding: 2px 8px; font-size: 12px;" title="Tutup Preview (Kembali ke Foto Asli)">✕</button>
+                                        </div>
+
+                                        <!-- DUAL COMPARISON COLUMNS (SISI KIRI: ASLI, SISI KANAN: HASIL AI) -->
+                                        <div class="gemini-dual-cards-container">
+                                            <!-- SISI KIRI: FOTO ASLI MENTAH -->
+                                            <div class="gemini-dual-card original-card">
+                                                <div class="gemini-dual-badge badge-orig">◀ FOTO ASLI (MENTAH)</div>
+                                                <div class="gemini-dual-img-wrap">
+                                                    <img id="gemini-preview-original-img" src="" alt="Foto Asli" style="width: 100%; height: 100%; object-fit: contain;">
+                                                </div>
+                                            </div>
+
+                                            <!-- SISI KANAN: HASIL GENERATE GEMINI AI -->
+                                            <div class="gemini-dual-card generated-card">
+                                                <div class="gemini-dual-badge badge-ai">▶ HASIL GENERATE GEMINI AI • LIVE</div>
+                                                <div class="gemini-dual-img-wrap">
+                                                    <img id="gemini-preview-generated-img" src="" alt="Hasil Generate Gemini AI" style="width: 100%; height: 100%; object-fit: contain;">
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- BOTTOM FLOATING ACTION BAR: GENERATE ULANG, TERAPKAN & BATALKAN -->
+                                        <div class="gemini-dual-action-bar">
+                                            <button type="button" class="btn btn-dark btn-sm" onclick="regenerateGeminiAiPhoto()" style="font-size: 11px; font-weight: 700; color: #38bdf8; border: 1px solid #0284c7; background: #0f172a; padding: 6px 14px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;" title="Minta variasi generate baru dari Gemini">
+                                                <span>🔄</span> Generate Ulang
+                                            </button>
+                                            <button type="button" class="btn btn-gold btn-sm" onclick="applyGeminiAiPhotoToStaged()" style="font-size: 11.5px; font-weight: 800; background: linear-gradient(135deg, #d49438 0%, #f59e0b 100%); color: #ffffff; border: none; padding: 7px 18px; border-radius: 8px; box-shadow: 0 4px 14px rgba(245, 158, 11, 0.4); display: inline-flex; align-items: center; gap: 6px;" title="Terapkan foto ini secara permanen ke antrean live studio">
+                                                <span>✓</span> Terapkan ke Foto Antrean
+                                            </button>
+                                            <button type="button" class="btn btn-outline btn-sm" onclick="closeGeminiDualPreview()" style="font-size: 11px; font-weight: 700; color: #cbd5e1; border-color: #475569; background: #1e293b; padding: 6px 14px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;" title="Batalkan dan pertahankan foto asli">
+                                                <span>✕</span> Batalkan
+                                            </button>
+                                        </div>
+                                    </div>
+
                                     <!-- GARIS PANDUAN MAGNETIK TENGAH -->
                                     <div id="wm-guide-center-x" class="wm-guide-line v-line"></div>
                                     <div id="wm-guide-center-y" class="wm-guide-line h-line"></div>
                                     <div id="wm-snap-badge" class="wm-snap-badge">🎯 Tengah Sempurna</div>
+                                </div>
+
+                                <!-- REVISI 109: MINTA GEMINI PROMPT DOCK & 16+ SHORTCUTS RIBBON (PERSIS SCREENSHOT 1 & 2) -->
+                                <div class="minta-gemini-dock" id="minta-gemini-dock">
+                                    <!-- PINTASAN GAYA FOTO CEPAT (CHIPS RIBBON) -->
+                                    <div class="minta-gemini-chips-ribbon" id="minta-gemini-chips-ribbon">
+                                        <button type="button" class="minta-gemini-chip" onclick="applyGeminiPromptShortcut('/ghosttrail /directflash')" title="Y2K party flash slow-shutter motion trail">⚡ /ghosttrail /directflash</button>
+                                        <button type="button" class="minta-gemini-chip" onclick="applyGeminiPromptShortcut('/convex mirror selfie')" title="Distorsi fisheye cermin cembung cembung jalanan">🪞 /convex mirror selfie</button>
+                                        <button type="button" class="minta-gemini-chip" onclick="applyGeminiPromptShortcut('/clones')" title="Multiplicity clone 2-3 pose dalam frame">👥 /clones</button>
+                                        <button type="button" class="minta-gemini-chip" onclick="applyGeminiPromptShortcut('/paparazieditorial')" title="Candid red-carpet paparazzi flash tajam">📸 /paparazieditorial</button>
+                                        <button type="button" class="minta-gemini-chip" onclick="applyGeminiPromptShortcut('/Frontlight')" title="Pencahayaan komersial depan merata">💡 /Frontlight</button>
+                                        <button type="button" class="minta-gemini-chip" onclick="applyGeminiPromptShortcut('/goldenhours')" title="Sinar matahari senja keemasan hangat">🌅 /goldenhours</button>
+                                        <button type="button" class="minta-gemini-chip" onclick="applyGeminiPromptShortcut('/Shallow Depth of Field')" title="Isolasi subjek dengan bokeh creamy f/1.2">🔍 /Shallow Depth of Field</button>
+                                        <button type="button" class="minta-gemini-chip" onclick="applyGeminiPromptShortcut('/Blue Hour')" title="Dusk twilight langit sore cobalt blue">🌆 /Blue Hour</button>
+                                        <button type="button" class="minta-gemini-chip" onclick="applyGeminiPromptShortcut('/Cinematic / Dramatic Lighting')" title="Rembrandt chiaroscuro filmis dramatis">🎬 /Cinematic / Dramatic Lighting</button>
+                                        <button type="button" class="minta-gemini-chip" onclick="applyGeminiPromptShortcut('/Studio Lighting / Softbox')" title="Dual octabox studio beauty lighting">📦 /Studio Lighting / Softbox</button>
+                                        <button type="button" class="minta-gemini-chip" onclick="applyGeminiPromptShortcut('Moody / Dark & Moody')" title="Shadows gelap matte desaturated">🌑 Moody / Dark & Moody</button>
+                                        <button type="button" class="minta-gemini-chip" onclick="applyGeminiPromptShortcut('/Neon / Cyberpunk')" title="Pendaran neon magenta & cyan elektrik">🔮 /Neon / Cyberpunk</button>
+                                        <button type="button" class="minta-gemini-chip" onclick="applyGeminiPromptShortcut('/Bokeh / Shallow Depth of Field')" title="Bulatan cahaya bokeh latar belakang">✨ /Bokeh / Shallow Depth of Field</button>
+                                        <button type="button" class="minta-gemini-chip" onclick="applyGeminiPromptShortcut('/Wide Angle')" title="Dynamic wide-angle 16mm-24mm perspective">📐 /Wide Angle</button>
+                                        <button type="button" class="minta-gemini-chip" onclick="applyGeminiPromptShortcut('/Motion Blur')" title="Kinetic motion blur gerak dinamis">💨 /Motion Blur</button>
+                                        <button type="button" class="minta-gemini-chip" onclick="applyGeminiPromptShortcut('/retouchface')" title="Editorial beauty porcelain skin retouching">✨ /retouchface</button>
+                                        <button type="button" class="minta-gemini-chip" onclick="openCustomGeminiPromptModal()" title="Ketik racikan prompt kustom sendiri">➕ dst...</button>
+                                    </div>
+
+                                    <!-- AUTOCOMPLETE SLASH MENU POPOVER (MUNCUL OTOMATIS SAAT KETIK '/') -->
+                                    <div class="minta-gemini-slash-menu" id="minta-gemini-slash-menu">
+                                        <!-- Diisi dinamis oleh renderGeminiSlashMenu() -->
+                                    </div>
+
+                                    <!-- MODEL SELECTION DROPDOWN POPOVER (PERSIS SCREENSHOT 2) -->
+                                    <div class="minta-gemini-model-dropdown" id="minta-gemini-model-dropdown">
+                                        <div class="gemini-model-item" id="item-model-flash-lite" onclick="selectGeminiModel('flash_lite')">
+                                            <span class="gemini-model-check" id="check-model-flash-lite"></span>
+                                            <div class="gemini-model-info">
+                                                <span class="gemini-model-name">3.5 Flash-Lite</span>
+                                                <span class="gemini-model-sub">Jawaban tercepat</span>
+                                            </div>
+                                        </div>
+                                        <div class="gemini-model-item active-model" id="item-model-flash" onclick="selectGeminiModel('flash')">
+                                            <span class="gemini-model-check" id="check-model-flash">✓</span>
+                                            <div class="gemini-model-info">
+                                                <span class="gemini-model-name">3.8 Flash</span>
+                                                <span class="gemini-model-sub">Bantuan serbaguna</span>
+                                            </div>
+                                        </div>
+                                        <div class="gemini-model-item" id="item-model-pro" onclick="selectGeminiModel('pro')">
+                                            <span class="gemini-model-check" id="check-model-pro"></span>
+                                            <div class="gemini-model-info">
+                                                <span class="gemini-model-name">3.1 Pro</span>
+                                                <span class="gemini-model-sub">Penalaran yang canggih</span>
+                                            </div>
+                                        </div>
+                                        <div class="gemini-model-item" id="item-model-argon" onclick="selectGeminiModel('argon')">
+                                            <span class="gemini-model-check" id="check-model-argon"></span>
+                                            <div class="gemini-model-info">
+                                                <span class="gemini-model-name">4 Argon</span>
+                                                <span class="gemini-model-sub">Tugas kompleks</span>
+                                            </div>
+                                        </div>
+                                        <div class="gemini-dropdown-divider"></div>
+                                        <div class="gemini-reasoning-toggle" id="btn-toggle-reasoning" onclick="toggleGeminiReasoningSubmenu(event)">
+                                            <span>Tingkat penalaran</span>
+                                            <span id="lbl-active-reasoning" style="font-size: 11px; color: #38bdf8; margin-right: 6px;">Seimbang</span>
+                                            <span style="font-size: 11px;">▸</span>
+                                            <!-- SUBMENU TINGKAT PENALARAN -->
+                                            <div class="gemini-reasoning-submenu" id="gemini-reasoning-submenu">
+                                                <div class="gemini-reasoning-subitem" onclick="selectGeminiThinkingLevel('cepat', event)">
+                                                    <span>⚡ Cepat (1.024)</span>
+                                                    <span id="check-reasoning-cepat"></span>
+                                                </div>
+                                                <div class="gemini-reasoning-subitem active" onclick="selectGeminiThinkingLevel('seimbang', event)">
+                                                    <span>⚖️ Seimbang (4.096)</span>
+                                                    <span id="check-reasoning-seimbang">✓</span>
+                                                </div>
+                                                <div class="gemini-reasoning-subitem" onclick="selectGeminiThinkingLevel('mendalam', event)">
+                                                    <span>🧠 Mendalam (16.384)</span>
+                                                    <span id="check-reasoning-mendalam"></span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="gemini-dropdown-divider"></div>
+                                        <div class="gemini-model-item" onclick="openGeminiApiKeyModal()" style="padding: 6px 10px;">
+                                            <span style="font-size: 14px; margin-right: 8px;">🔑</span>
+                                            <div class="gemini-model-info">
+                                                <span class="gemini-model-name" style="font-size: 11.5px; color: #38bdf8;">Hubungkan Akun / API Key</span>
+                                                <span class="gemini-model-sub" style="font-size: 10px;">Atur Google AI Studio API Key</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- FLOATING DARK PILL PROMPT BAR (PERSIS SCREENSHOT 1) -->
+                                    <div class="minta-gemini-pill-bar" id="minta-gemini-pill-bar">
+                                        <button type="button" class="btn-gemini-attach" id="btn-minta-gemini-attach" onclick="toggleGeminiActivePhotoAttachment()" title="Foto aktif di kanvas terlampir otomatis. Klik untuk verifikasi/lampirkan file referensi">
+                                            <span>+</span>
+                                        </button>
+                                        <input type="text" class="input-minta-gemini" id="input-minta-gemini" placeholder="Minta Gemini (atau ketik / untuk pintasan foto)..." autocomplete="off" oninput="handleGeminiInputTyping(this.value)" onkeydown="handleGeminiInputKeydown(event)">
+                                        <button type="button" class="btn-gemini-model-toggle" id="btn-minta-gemini-model-toggle" onclick="toggleGeminiModelDropdown(event)" title="Pilih Model Google Gemini">
+                                            <span id="lbl-gemini-selected-model">Flash</span>
+                                            <span style="font-size: 9px; margin-left: 2px;">▾</span>
+                                        </button>
+                                        <button type="button" class="btn-gemini-action-btn" id="btn-minta-gemini-mic" onclick="toggleGeminiVoiceInput()" title="Perintah Suara (Speech-to-Text)">
+                                            <span style="font-size: 16px;">🎙️</span>
+                                        </button>
+                                        <button type="button" class="btn-gemini-send" id="btn-minta-gemini-send" onclick="submitMintaGeminiPrompt()" title="Kirim Permintaan ke Gemini AI">
+                                            <span>➤</span>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 
