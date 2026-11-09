@@ -3792,27 +3792,55 @@
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
     }
 
-    .evoto-inspector-nav {
-        display: flex;
-        background: #0d1015;
+    .evoto-inspector-nav,
+    .evoto-tabs-nav {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center;
+        background: #0c0f14;
         border-bottom: 1px solid #1f2633;
+        overflow-x: auto;
+        white-space: nowrap;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        padding: 4px 6px;
+        gap: 4px;
+    }
+
+    .evoto-inspector-nav::-webkit-scrollbar,
+    .evoto-tabs-nav::-webkit-scrollbar {
+        display: none;
     }
 
     .evoto-tab-btn {
-        flex: 1;
+        flex: 1 0 auto;
+        min-width: max-content;
         background: transparent;
-        border: none;
-        border-bottom: 2px solid transparent;
-        padding: 10px 4px;
-        font-size: 11.5px;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        padding: 6px 10px;
+        font-size: 11px;
         font-weight: 700;
         color: #94a3b8;
         cursor: pointer;
         transition: all 0.2s ease;
-        display: flex;
+        display: inline-flex;
         align-items: center;
         justify-content: center;
         gap: 5px;
+        white-space: nowrap;
+    }
+
+    .evoto-tab-btn:hover {
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .evoto-tab-btn.active {
+        color: #d49438;
+        border-color: rgba(212, 148, 56, 0.4);
+        background: rgba(212, 148, 56, 0.12);
+        box-shadow: 0 1px 4px rgba(0,0,0,0.3);
     }
 
     .evoto-tab-btn:hover {
@@ -3875,8 +3903,14 @@
     /* GRID PRESET KARTU FOTO */
     .evoto-presets-grid {
         display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 10px;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+    }
+
+    @media (max-width: 500px) {
+        .evoto-presets-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
     }
 
     .evoto-presets-grid.grid-3 {
@@ -3907,14 +3941,14 @@
 
     .evoto-preset-thumb {
         width: 100%;
-        height: 80px;
+        height: 52px;
         object-fit: cover;
         display: block;
         background: #0b0d11;
     }
 
     .evoto-preset-info {
-        padding: 6px 8px;
+        padding: 3px 5px;
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -3922,7 +3956,7 @@
     }
 
     .evoto-preset-name {
-        font-size: 11px;
+        font-size: 9.5px;
         font-weight: 700;
         color: #f1f5f9;
         white-space: nowrap;
@@ -4076,4 +4110,608 @@
         .evoto-stage-container {
             min-height: 340px;
         }
+    }
+
+    /* =========================================================================
+       EVOTO MINI GRID & UPLOAD WORKSTATION UNIFIED STYLES (REVISI 92)
+       Mini/compact cards as requested: "tampilan di ss ini jangan dibuat besar buat kecil saja"
+       ========================================================================= */
+    .evoto-mini-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(54px, 1fr));
+        gap: 6px;
+        padding: 4px;
+        max-height: 180px;
+        overflow-y: auto;
+    }
+
+    .evoto-mini-card {
+        background: #ffffff;
+        border: 1px solid var(--border-subtle, #e2e8f0);
+        border-radius: 6px;
+        padding: 3px;
+        cursor: pointer;
+        text-align: center;
+        transition: all 0.15s ease;
+        user-select: none;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .evoto-mini-card:hover {
+        border-color: var(--accent-gold, #d49438);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    }
+
+    .evoto-mini-card.active {
+        border-color: var(--accent-gold, #d49438);
+        background: rgba(212, 148, 56, 0.08);
+        box-shadow: 0 0 0 2px rgba(212, 148, 56, 0.4);
+    }
+
+    .evoto-mini-thumb {
+        width: 100%;
+        height: 48px;
+        object-fit: cover;
+        border-radius: 4px;
+        background: #1e293b;
+        display: block;
+    }
+
+    .evoto-mini-info {
+        width: 100%;
+        margin-top: 3px;
+        padding: 0 1px;
+    }
+
+    .evoto-mini-name {
+        font-size: 9.5px;
+        font-weight: 700;
+        color: var(--text-main, #1e293b);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: block;
+        line-height: 1.1;
+    }
+
+    .evoto-mini-badge {
+        position: absolute;
+        top: 4px;
+        left: 4px;
+        background: #f59e0b;
+        color: #ffffff;
+        font-size: 7.5px;
+        font-weight: 800;
+        padding: 1px 3px;
+        border-radius: 3px;
+        text-transform: uppercase;
+        line-height: 1;
+        z-index: 2;
+    }
+
+    /* BEFORE / AFTER SPLIT DIVIDER ON LIVE STUDIO PREVIEW */
+    .wm-split-divider {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: var(--wm-split-pos, 50%);
+        width: 2px;
+        background: #ffffff;
+        box-shadow: 0 0 8px rgba(0, 0, 0, 0.7);
+        cursor: ew-resize;
+        z-index: 10;
+        transform: translateX(-50%);
+    }
+
+    .wm-split-handle {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: #ffffff;
+        border: 2px solid #0f172a;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: ew-resize;
+        user-select: none;
+    }
+
+    .wm-split-handle span {
+        font-size: 9px;
+        font-weight: 800;
+        color: #0f172a;
+        letter-spacing: -1px;
+    }
+
+    /* AI ERASER CANVAS ON LIVE STUDIO PREVIEW */
+    .wm-eraser-canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 12;
+        cursor: crosshair;
+        touch-action: none;
+    }
+
+/* =========================================================================
+   STRICT VIEW FENCING: ISOLASI MUTLAK GALERI PUBLIK & UCAPAN (REVISI 93)
+   Mencegah Wedding Gallery / Doa Restu bocor di dalam Dashboard Operator
+   ========================================================================= */
+#view-dashboard.view-active ~ #view-public-gallery,
+#view-dashboard.view-active + #view-public-gallery,
+body.in-dashboard #view-public-gallery,
+body.in-dashboard #guest-wish-section {
+    display: none !important;
+}
+
+/* KARTU PRESET 2 KOLOM RAPI ALA SS 2 */
+.evoto-presets-grid.grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    padding: 4px;
+}
+
+
+    /* ========================================================================= */
+    /* REVISI 96: TATA LETAK WORKSTATION SIDE-BY-SIDE & PRESET 1:1 PERSEGI       */
+    /* ========================================================================= */
+    .card-unified-hub {
+        display: grid !important;
+        grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)) !important;
+        gap: 24px !important;
+        align-items: start !important;
+    }
+
+    #section-upload-source {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+    }
+
+    #card-watermark-settings {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        border-left: 1.5px dashed var(--border-subtle);
+        padding-left: 24px;
+    }
+
+    @media (max-width: 860px) {
+        .card-unified-hub {
+            grid-template-columns: 1fr !important;
+            gap: 20px !important;
+        }
+        #card-watermark-settings {
+            border-left: none !important;
+            padding-left: 0 !important;
+            border-top: 1.5px dashed var(--border-subtle);
+            padding-top: 20px;
+        }
+    }
+
+    /* PRESET 1:1 SQUARE COMPACT GRID (REVISI 96) */
+    .evoto-presets-grid,
+    .evoto-presets-grid.grid-2,
+    .evoto-presets-grid.grid-3 {
+        display: grid !important;
+        grid-template-columns: repeat(4, 1fr) !important;
+        gap: 6px !important;
+        padding: 4px 2px !important;
+    }
+
+    @media (max-width: 480px) {
+        .evoto-presets-grid,
+        .evoto-presets-grid.grid-2,
+        .evoto-presets-grid.grid-3 {
+            grid-template-columns: repeat(3, 1fr) !important;
+            gap: 5px !important;
+        }
+    }
+
+    .evoto-preset-card {
+        position: relative !important;
+        aspect-ratio: 1 / 1 !important;
+        width: 100% !important;
+        background: #181c24 !important;
+        border: 1.5px solid #283042 !important;
+        border-radius: 8px !important;
+        overflow: hidden !important;
+        cursor: pointer !important;
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: flex-end !important;
+        box-sizing: border-box !important;
+    }
+
+    .evoto-preset-card:hover {
+        border-color: #64748b !important;
+        transform: translateY(-2px) !important;
+    }
+
+    .evoto-preset-card.active {
+        border-color: #d49438 !important;
+        box-shadow: 0 0 10px rgba(212, 148, 56, 0.5) !important;
+    }
+
+    .evoto-preset-thumb {
+        position: absolute !important;
+        inset: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
+        display: block !important;
+        background: #0b0d11 !important;
+        transition: transform 0.3s ease !important;
+    }
+
+    .evoto-preset-card:hover .evoto-preset-thumb {
+        transform: scale(1.08) !important;
+    }
+
+    .evoto-preset-info {
+        position: relative !important;
+        z-index: 2 !important;
+        padding: 3px 4px !important;
+        background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 60%, transparent 100%) !important;
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    .evoto-preset-name {
+        font-size: 8.5px !important;
+        font-weight: 700 !important;
+        color: #ffffff !important;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.9) !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+
+    .evoto-preset-badge {
+        font-size: 7.5px !important;
+        font-weight: 800 !important;
+        background: #d49438 !important;
+        color: #ffffff !important;
+        padding: 1px 4px !important;
+        border-radius: 3px !important;
+        line-height: 1 !important;
+    }
+
+
+    /* ========================================================================= */
+    /* REVISI 97: WATERMARK BOUNDING WRAPPER & TAB ISOLATION                   */
+    /* ========================================================================= */
+    #wm-photo-wrapper {
+        position: relative !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        max-width: 100% !important;
+        max-height: 100% !important;
+        box-sizing: border-box !important;
+        line-height: 0 !important;
+    }
+
+    #wm-photo-wrapper img#wm-simulator-bg {
+        max-width: 100% !important;
+        max-height: 100% !important;
+        object-fit: contain !important;
+        display: block !important;
+    }
+
+    #wm-simulator-overlay {
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        pointer-events: auto !important;
+    }
+
+    #wm-simulator-overlay img#wm-sim-logo-img {
+        max-width: 100% !important;
+        height: auto !important;
+        display: block !important;
+        object-fit: contain !important;
+    }
+
+    /* Pastikan tab upload tertutup rapat dan modul di dalamnya tidak bocor */
+    #tab-upload:not(.active) #card-unified-hub,
+    body:not(.in-tab-upload) #card-unified-hub {
+        /* perlindungan sekunder */
+    }
+
+
+    /* ========================================================================= */
+    /* REVISI 98: PERFECT PHOTO FIT CONTAIN & LIGHTROOM DEVELOP UI              */
+    /* ========================================================================= */
+    #wm-photo-wrapper {
+        position: relative !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        height: 100% !important;
+        max-height: 100% !important;
+        max-width: 100% !important;
+        width: auto !important;
+        box-sizing: border-box !important;
+        line-height: 0 !important;
+        overflow: visible !important;
+    }
+
+    #wm-photo-wrapper img#wm-simulator-bg {
+        width: 100% !important;
+        height: 100% !important;
+        max-width: 100% !important;
+        max-height: 100% !important;
+        object-fit: contain !important;
+        display: block !important;
+    }
+
+    /* Track gradient Kelvin (Blue to Amber) */
+    #slider-flt-temp {
+        background: linear-gradient(90deg, #38bdf8 0%, #94a3b8 50%, #f59e0b 100%) !important;
+        height: 5px !important;
+        border-radius: 3px !important;
+    }
+
+    /* Track gradient Tint (Green to Magenta) */
+    #slider-flt-tint {
+        background: linear-gradient(90deg, #22c55e 0%, #94a3b8 50%, #d946ef 100%) !important;
+        height: 5px !important;
+        border-radius: 3px !important;
+    }
+
+
+    /* ========================================================================= */
+    /* REVISI 99: BALANCED STAGE VIEWPORT & HORIZONTAL FILMSTRIP REEL            */
+    /* ========================================================================= */
+    .evoto-workspace-layout {
+        display: flex !important;
+        gap: 20px !important;
+        align-items: stretch !important;
+        justify-content: center !important;
+        min-height: calc(100vh - 190px) !important;
+        margin-top: 8px !important;
+    }
+
+    /* Batasi lebar kolom viewport agar kanvas foto portrait tidak melebar kosong */
+    .evoto-viewport-column {
+        flex: 1 1 65% !important;
+        max-width: 960px !important;
+        min-width: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 12px !important;
+    }
+
+    .evoto-viewport-card {
+        max-width: 100% !important;
+        min-height: 400px !important;
+    }
+
+    .evoto-stage-container {
+        min-height: 380px !important;
+        max-height: 500px !important;
+    }
+
+    /* Berikan ruang lebih ergonomis pada panel kontrol kanan */
+    .evoto-inspector-card {
+        flex: 0 0 410px !important;
+        width: 410px !important;
+        max-width: 100% !important;
+    }
+
+    /* Filmstrip reel horizontal: foto masuk berjejer menyamping */
+    #staged-thumbnails-container,
+    .evoto-filmstrip-scroll {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 12px !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        white-space: nowrap !important;
+        padding: 10px 14px !important;
+        scrollbar-width: thin !important;
+        scrollbar-color: #d49438 #11151c !important;
+    }
+
+    #staged-thumbnails-container::-webkit-scrollbar,
+    .evoto-filmstrip-scroll::-webkit-scrollbar {
+        height: 6px !important;
+    }
+
+    #staged-thumbnails-container::-webkit-scrollbar-track,
+    .evoto-filmstrip-scroll::-webkit-scrollbar-track {
+        background: #11151c !important;
+        border-radius: 3px !important;
+    }
+
+    #staged-thumbnails-container::-webkit-scrollbar-thumb,
+    .evoto-filmstrip-scroll::-webkit-scrollbar-thumb {
+        background: #d49438 !important;
+        border-radius: 3px !important;
+    }
+
+    .staged-thumb-item {
+        width: 120px !important;
+        height: 155px !important;
+        flex-shrink: 0 !important;
+        display: inline-block !important;
+    }
+
+
+    /* ========================================================================= */
+    /* REVISI 101: 6-TAB STUDIO DOCK, DARK THEME SOURCE PANE & COLOR REFERENCE    */
+    /* ========================================================================= */
+    .evoto-inspector-card {
+        flex: 0 0 460px !important;
+        width: 460px !important;
+        max-width: 100% !important;
+    }
+
+    #evoto-inspector-tabs-nav {
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 2px !important;
+        padding: 6px 3px !important;
+        overflow-x: auto !important;
+        background: #0c0f14 !important;
+        scrollbar-width: none !important;
+    }
+
+    #evoto-inspector-tabs-nav::-webkit-scrollbar {
+        display: none !important;
+    }
+
+    .evoto-tab-btn {
+        flex: 1 1 auto !important;
+        padding: 6px 2px !important;
+        font-size: 10px !important;
+        text-align: center !important;
+        white-space: nowrap !important;
+        letter-spacing: -0.2px !important;
+    }
+
+    /* Pane Sumber & Tethering */
+    #evoto-pane-source select,
+    #evoto-pane-source input {
+        color-scheme: dark;
+    }
+
+    .dng-ref-swatch {
+        cursor: pointer;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .dng-ref-swatch:hover {
+        transform: scale(1.15);
+        z-index: 2;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+    }
+
+    /* Kanvas AI Eraser presisi 1:1 */
+    #wm-eraser-canvas {
+        position: absolute !important;
+        inset: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        pointer-events: auto !important;
+        cursor: crosshair !important;
+        z-index: 20 !important;
+    }
+
+    /* ========================================================================= */
+    /* REVISI 102: AUTO-EXPAND WORKSPACE LEMBAR KERJA SAAT SIDEBAR DISEMBUNYIKAN */
+    /* ========================================================================= */
+    .sidebar.collapsed ~ .main-content .evoto-workspace-layout,
+    body.sidebar-is-collapsed .evoto-workspace-layout {
+        max-width: 100% !important;
+        justify-content: stretch !important;
+    }
+
+    .sidebar.collapsed ~ .main-content .evoto-viewport-column,
+    body.sidebar-is-collapsed .evoto-viewport-column {
+        flex: 1 1 auto !important;
+        max-width: 100% !important;
+        width: auto !important;
+    }
+
+    .sidebar.collapsed ~ .main-content .evoto-stage-container,
+    body.sidebar-is-collapsed .evoto-stage-container {
+        min-height: 520px !important;
+        max-height: calc(100vh - 240px) !important;
+    }
+
+    .sidebar.collapsed ~ .main-content .evoto-viewport-card,
+    body.sidebar-is-collapsed .evoto-viewport-card {
+        min-height: 540px !important;
+    }
+
+    /* ========================================================================= */
+    /* REVISI 103: INTERACTIVE CANVAS ZOOM, PAN & PHOTOSHOP VARIANT SELECTOR     */
+    /* ========================================================================= */
+    .evoto-stage-container {
+        overflow: hidden !important;
+        position: relative !important;
+        user-select: none !important;
+        touch-action: none !important;
+    }
+
+    #wm-photo-wrapper {
+        transform-origin: center center !important;
+        will-change: transform !important;
+        transition: transform 0.08s ease-out !important;
+    }
+
+    #wm-photo-wrapper.is-panning {
+        cursor: grab !important;
+        transition: none !important;
+    }
+
+    #wm-photo-wrapper.is-panning:active {
+        cursor: grabbing !important;
+    }
+
+    .inpaint-var-pill, .pane-variant-btn, .variant-thumb-card {
+        transition: all 0.15s ease !important;
+        cursor: pointer !important;
+    }
+
+    .inpaint-var-pill:hover, .pane-variant-btn:hover, .variant-thumb-card:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.5) !important;
+    }
+
+    .variant-thumb-card.active {
+        border-color: #f59e0b !important;
+        box-shadow: 0 0 10px rgba(245, 158, 11, 0.6) !important;
+    }
+
+    #wm-zoom-indicator {
+        transition: all 0.2s ease !important;
+    }
+
+    #wm-zoom-indicator:hover {
+        background: rgba(212,148,56,0.25) !important;
+        border-color: #d49438 !important;
+        color: #fff !important;
+    }
+
+    /* REVISI 107: KUAS MULUS KULIT & WORKSTATION UNDO / REDO ENGINE */
+    .skin-brush-mode #wm-stage-frame,
+    .skin-brush-mode #wm-photo-wrapper {
+        cursor: crosshair !important;
+    }
+
+    .variant-thumb-card img {
+        background-color: #1e293b;
+        transition: opacity 0.2s ease;
+    }
+
+    .evoto-btn-icon:disabled {
+        opacity: 0.35 !important;
+        cursor: not-allowed !important;
+        pointer-events: none !important;
+    }
+
+    .btn-brush-active {
+        background: linear-gradient(135deg, #d49438 0%, #f59e0b 100%) !important;
+        color: #ffffff !important;
+        border-color: #f59e0b !important;
+        box-shadow: 0 0 10px rgba(245, 158, 11, 0.5) !important;
     }

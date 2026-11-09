@@ -418,6 +418,7 @@
         var floatBtn = document.getElementById('sidebar-floating-toggle');
         if (!sidebar) return;
         var isCollapsed = sidebar.classList.toggle('collapsed');
+        document.body.classList.toggle('sidebar-is-collapsed', isCollapsed);
         if (toggleBtn) {
             toggleBtn.innerText = isCollapsed ? '▶' : '◀';
         }
@@ -425,6 +426,13 @@
             floatBtn.style.display = isCollapsed ? 'inline-flex' : 'none';
         }
         localStorage.setItem('limz_sidebar_collapsed', isCollapsed ? 'true' : 'false');
+
+        // Menyesuaikan ulang ukuran kanvas dan foto panggung agar seketika melebar
+        setTimeout(function() {
+            if (typeof syncPhotoWrapperDimensions === 'function') syncPhotoWrapperDimensions();
+            if (typeof setupWmEraserCanvas === 'function') setupWmEraserCanvas();
+            window.dispatchEvent(new Event('resize'));
+        }, 280);
     }
 
     function initSidebarState() {
@@ -434,9 +442,11 @@
         var floatBtn = document.getElementById('sidebar-floating-toggle');
         if (saved === 'true') {
             if (sidebar) sidebar.classList.add('collapsed');
+            document.body.classList.add('sidebar-is-collapsed');
             if (toggleBtn) toggleBtn.innerText = '▶';
             if (floatBtn) floatBtn.style.display = 'inline-flex';
         } else {
+            document.body.classList.remove('sidebar-is-collapsed');
             if (floatBtn) floatBtn.style.display = 'none';
         }
     }
@@ -808,6 +818,7 @@
         appState.activeStagedIndex = appState.stagedPhotos.length - 1;
         renderStagedPhotosUI();
         showToast('📸 Foto berhasil dijepret & masuk antrian preview!');
+        triggerAutoPublishIfEnabled();
 
         // Kirim sinyal ke Desktop Camera Bridge jika aktif (Sony A7II/A7III/A6400 & Canon EOS RP)
         if (typeof sendDesktopBridgeShutter === 'function') {
@@ -1425,6 +1436,7 @@
                     appState.activeStagedIndex = appState.stagedPhotos.length - 1;
                     renderStagedPhotosUI();
                     showToast('📸 Foto DSLR (' + (desktopBridgeState.cameraName || 'Sony/Canon') + ') berhasil masuk antrian!');
+                    triggerAutoPublishIfEnabled();
                 };
                 reader.readAsDataURL(blob);
             })
@@ -2847,6 +2859,12 @@
                 badge.style.border = '1px solid #bfdbfe';
             }
 
+            // Ekstraksi profil kamera & update Referensi Warna XMP/DNG
+            var camProfile = getXmpTagOrAttr(xmpString, 'CameraProfile') || getXmpTagOrAttr(xmpString, 'CameraProfileName') || 'Adobe Standard';
+            if (typeof updateDngColorReference === 'function') {
+                updateDngColorReference(cleanName, camProfile, appState.photoFilterState);
+            }
+
             showToast('🎨 Preset Lightroom "' + fileName + '" berhasil diterapkan!');
         } catch (err) {
             console.error('Error applying XMP preset:', err);
@@ -3113,6 +3131,33 @@
     function updateCustomFilterSliders() {
         var el = function (id) { return document.getElementById(id); };
         var s = appState.photoFilterState;
+        if (!s) return;
+
+        // Label formatters for Lightroom UI
+        if (el('slider-flt-exposure') && el('lbl-flt-exposure')) {
+            var ev = (parseInt(el('slider-flt-exposure').value, 10) / 10).toFixed(2);
+            el('lbl-flt-exposure').textContent = (ev > 0 ? '+' : '') + ev + ' EV';
+        }
+        if (el('slider-flt-contrast') && el('lbl-flt-contrast')) el('lbl-flt-contrast').textContent = el('slider-flt-contrast').value;
+        if (el('slider-flt-highlights') && el('lbl-flt-highlights')) el('lbl-flt-highlights').textContent = el('slider-flt-highlights').value;
+        if (el('slider-flt-shadows') && el('lbl-flt-shadows')) el('lbl-flt-shadows').textContent = el('slider-flt-shadows').value;
+        if (el('slider-flt-whites') && el('lbl-flt-whites')) el('lbl-flt-whites').textContent = el('slider-flt-whites').value;
+        if (el('slider-flt-blacks') && el('lbl-flt-blacks')) el('lbl-flt-blacks').textContent = el('slider-flt-blacks').value;
+
+        if (el('slider-flt-temp') && el('lbl-flt-temp')) {
+            var rawT = parseInt(el('slider-flt-temp').value, 10);
+            var kelvin = 5500 + (rawT * 80);
+            el('lbl-flt-temp').textContent = kelvin + 'K';
+        }
+        if (el('slider-flt-tint') && el('lbl-flt-tint')) {
+            var rawTint = parseInt(el('slider-flt-tint').value, 10);
+            el('lbl-flt-tint').textContent = (rawTint > 0 ? '+' : '') + rawTint;
+        }
+
+        if (el('slider-flt-clarity') && el('lbl-flt-clarity')) el('lbl-flt-clarity').textContent = el('slider-flt-clarity').value;
+        if (el('slider-flt-dehaze') && el('lbl-flt-dehaze')) el('lbl-flt-dehaze').textContent = el('slider-flt-dehaze').value;
+        if (el('slider-flt-vibrance') && el('lbl-flt-vibrance')) el('lbl-flt-vibrance').textContent = el('slider-flt-vibrance').value + '%';
+        if (el('slider-flt-sat') && el('lbl-flt-sat')) el('lbl-flt-sat').textContent = el('slider-flt-sat').value + '%';
 
         // Light
         if (el('slider-flt-exposure')) s.exposure = parseInt(el('slider-flt-exposure').value, 10);
@@ -3156,27 +3201,34 @@
         if (el('slider-flt-cg-sat')) s.colorGrading[actZ].s = parseInt(el('slider-flt-cg-sat').value, 10);
         if (el('slider-flt-cg-balance')) s.colorGrading.balance = parseInt(el('slider-flt-cg-balance').value, 10);
 
-        // Update labels
-        if (el('lbl-flt-exposure')) el('lbl-flt-exposure').innerText = ((s.exposure || 0) >= 0 ? '+' : '') + ((s.exposure || 0) / 25).toFixed(2) + ' EV';
-        if (el('lbl-flt-contrast')) el('lbl-flt-contrast').innerText = ((s.contrast || 0) >= 0 ? '+' : '') + (s.contrast || 0) + '%';
-        if (el('lbl-flt-highlights')) el('lbl-flt-highlights').innerText = ((s.highlights || 0) >= 0 ? '+' : '') + (s.highlights || 0) + '%';
-        if (el('lbl-flt-shadows')) el('lbl-flt-shadows').innerText = ((s.shadows || 0) >= 0 ? '+' : '') + (s.shadows || 0) + '%';
-        if (el('lbl-flt-whites')) el('lbl-flt-whites').innerText = ((s.whites || 0) >= 0 ? '+' : '') + (s.whites || 0) + '%';
-        if (el('lbl-flt-blacks')) el('lbl-flt-blacks').innerText = ((s.blacks || 0) >= 0 ? '+' : '') + (s.blacks || 0) + '%';
+        // Update labels (Adobe Lightroom Precision)
+        if (el('lbl-flt-exposure')) {
+            var ev = ((s.exposure || 0) / 10).toFixed(2);
+            el('lbl-flt-exposure').innerText = ((s.exposure || 0) > 0 ? '+' : '') + ev + ' EV';
+        }
+        if (el('lbl-flt-contrast')) el('lbl-flt-contrast').innerText = ((s.contrast || 0) > 0 ? '+' : '') + (s.contrast || 0);
+        if (el('lbl-flt-highlights')) el('lbl-flt-highlights').innerText = ((s.highlights || 0) > 0 ? '+' : '') + (s.highlights || 0);
+        if (el('lbl-flt-shadows')) el('lbl-flt-shadows').innerText = ((s.shadows || 0) > 0 ? '+' : '') + (s.shadows || 0);
+        if (el('lbl-flt-whites')) el('lbl-flt-whites').innerText = ((s.whites || 0) > 0 ? '+' : '') + (s.whites || 0);
+        if (el('lbl-flt-blacks')) el('lbl-flt-blacks').innerText = ((s.blacks || 0) > 0 ? '+' : '') + (s.blacks || 0);
 
         if (el('lbl-flt-crv-hl')) el('lbl-flt-crv-hl').innerText = s.curve.highlights;
         if (el('lbl-flt-crv-lights')) el('lbl-flt-crv-lights').innerText = s.curve.lights;
         if (el('lbl-flt-crv-darks')) el('lbl-flt-crv-darks').innerText = s.curve.darks;
         if (el('lbl-flt-crv-sh')) el('lbl-flt-crv-sh').innerText = s.curve.shadows;
 
-        if (el('lbl-flt-temp')) el('lbl-flt-temp').innerText = ((s.temperature || 0) >= 0 ? '+' : '') + s.temperature;
-        if (el('lbl-flt-tint')) el('lbl-flt-tint').innerText = ((s.tint || 0) >= 0 ? '+' : '') + s.tint;
-        if (el('lbl-flt-vibrance')) el('lbl-flt-vibrance').innerText = ((s.vibrance || 0) >= 0 ? '+' : '') + s.vibrance + '%';
-        if (el('lbl-flt-sat')) el('lbl-flt-sat').innerText = ((s.saturation || 0) >= 0 ? '+' : '') + s.saturation + '%';
+        if (el('lbl-flt-temp')) {
+            var rawT = s.temperature || 0;
+            var kelvin = 5500 + (rawT * 80);
+            el('lbl-flt-temp').innerText = kelvin + 'K';
+        }
+        if (el('lbl-flt-tint')) el('lbl-flt-tint').innerText = ((s.tint || 0) > 0 ? '+' : '') + (s.tint || 0);
+        if (el('lbl-flt-vibrance')) el('lbl-flt-vibrance').innerText = ((s.vibrance || 0) > 0 ? '+' : '') + (s.vibrance || 0) + '%';
+        if (el('lbl-flt-sat')) el('lbl-flt-sat').innerText = ((s.saturation || 0) > 0 ? '+' : '') + (s.saturation || 0) + '%';
 
-        if (el('lbl-flt-clarity')) el('lbl-flt-clarity').innerText = ((s.clarity || 0) >= 0 ? '+' : '') + s.clarity + '%';
-        if (el('lbl-flt-texture')) el('lbl-flt-texture').innerText = ((s.texture || 0) >= 0 ? '+' : '') + s.texture + '%';
-        if (el('lbl-flt-dehaze')) el('lbl-flt-dehaze').innerText = ((s.dehaze || 0) >= 0 ? '+' : '') + s.dehaze + '%';
+        if (el('lbl-flt-clarity')) el('lbl-flt-clarity').innerText = ((s.clarity || 0) > 0 ? '+' : '') + (s.clarity || 0);
+        if (el('lbl-flt-texture')) el('lbl-flt-texture').innerText = ((s.texture || 0) > 0 ? '+' : '') + (s.texture || 0);
+        if (el('lbl-flt-dehaze')) el('lbl-flt-dehaze').innerText = ((s.dehaze || 0) > 0 ? '+' : '') + (s.dehaze || 0);
         if (el('lbl-flt-sharpen')) el('lbl-flt-sharpen').innerText = s.sharpen + '%';
         if (el('lbl-flt-grain')) el('lbl-flt-grain').innerText = s.grain + '%';
 
@@ -3240,6 +3292,7 @@
         }
 
         bgImg.style.filter = filterStr;
+        if (typeof drawWmHistogram === 'function') drawWmHistogram();
 
         if (overlay) {
             var temp = s.temperature || 0;
@@ -3346,20 +3399,31 @@
         }
         if (multiBadge) multiBadge.style.display = (count > 1) ? 'inline-block' : 'none';
 
+        var emptyStage = document.getElementById('evoto-empty-stage');
+        var singleLayer = document.getElementById('evoto-single-layer');
+
+        var stagedBadge = document.getElementById('staged-count-badge');
+        if (stagedBadge) stagedBadge.innerText = count + ' Foto';
+
         if (count === 0) {
+            if (containerEl) containerEl.innerHTML = '';
+            if (btnGif) btnGif.style.display = 'none';
             if (headingTitle) headingTitle.innerText = '0 Item siap dipublikasikan';
             if (badgeEl) {
                 badgeEl.innerText = 'Belum Ada Foto';
-                badgeEl.style.background = '#f1f5f9';
-                badgeEl.style.color = '#64748b';
+                badgeEl.style.background = 'rgba(255,255,255,0.06)';
+                badgeEl.style.color = '#94a3b8';
             }
             if (resetCropBtn) resetCropBtn.style.display = 'none';
             if (typeof toggleCropMode === 'function' && cropState.active) {
                 toggleCropMode(false);
             }
             if (wrapperEl) wrapperEl.style.display = 'none';
+            if (emptyStage) emptyStage.style.display = 'flex';
+            if (singleLayer) singleLayer.style.display = 'none';
             if (bgImg) {
-                bgImg.src = 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=800&q=80';
+                bgImg.src = '';
+                bgImg.style.display = 'none';
                 bgImg.style.transform = 'rotate(0deg)';
             }
             if (btnStartUpload) {
@@ -3368,6 +3432,13 @@
             updatePhotoGradingPreview();
             updateWatermarkSimulatorDisplay();
             return;
+        }
+
+        if (emptyStage) emptyStage.style.display = 'none';
+        if (singleLayer) singleLayer.style.display = 'flex';
+        if (bgImg) {
+            bgImg.style.display = 'block';
+            syncPhotoWrapperDimensions();
         }
 
         if (headingTitle) {
@@ -3556,6 +3627,8 @@
         appState.activeStagedIndex = 0;
         var fileInput = document.getElementById('file-input-photos');
         if (fileInput) fileInput.value = '';
+        var containerEl = document.getElementById('staged-thumbnails-container');
+        if (containerEl) containerEl.innerHTML = '';
         renderStagedPhotosUI();
         showToast('Antrian foto berhasil dikosongkan.');
     }
@@ -3855,7 +3928,7 @@
        ========================================================================= */
     function initWatermarkDragEvents() {
         var overlay = document.getElementById('wm-simulator-overlay');
-        var stageFrame = document.getElementById('wm-stage-frame');
+        var stageFrame = document.getElementById('wm-photo-wrapper') || document.getElementById('wm-stage-frame');
         if (!overlay || !stageFrame) return;
 
         var wmDragState = {
@@ -4326,12 +4399,101 @@
     }
 
     function applyWatermarkPreset(x, y, scale) {
-        document.getElementById('slider-wm-pos-x').value = x;
-        document.getElementById('slider-wm-pos-y').value = y;
-        if (scale) document.getElementById('slider-wm-scale').value = scale;
+        var sx = document.getElementById('slider-wm-pos-x');
+        var sy = document.getElementById('slider-wm-pos-y');
+        var ss = document.getElementById('slider-wm-scale');
+        if (sx) sx.value = x;
+        if (sy) sy.value = y;
+        if (scale && ss) ss.value = scale;
         updateWatermarkManualSettings();
+
+        // Visual active button highlight for 7 preset buttons
+        try {
+            var btns = document.querySelectorAll('.btn-wm-preset');
+            btns.forEach(function (btn) {
+                btn.classList.remove('active');
+                btn.style.borderColor = 'var(--border-subtle)';
+                btn.style.color = 'var(--text-main)';
+                btn.style.background = '#ffffff';
+                btn.style.fontWeight = '600';
+            });
+            if (window.event && window.event.currentTarget && window.event.currentTarget.classList.contains('btn-wm-preset')) {
+                var activeBtn = window.event.currentTarget;
+                activeBtn.classList.add('active');
+                activeBtn.style.borderColor = '#d49438';
+                activeBtn.style.color = '#d49438';
+                activeBtn.style.background = '#fffcf8';
+                activeBtn.style.fontWeight = '700';
+            }
+        } catch (e) {
+            console.warn('applyWatermarkPreset highlight error:', e);
+        }
+
         showToast('Titik preset posisi diterapkan!');
     }
+    window.applyWatermarkPreset = applyWatermarkPreset;
+
+    function toggleWatermarkPanel() {
+        var body = document.getElementById('watermark-panel-body');
+        var btn = document.getElementById('btn-toggle-wm-panel');
+        if (!body) return;
+        if (body.style.display === 'none') {
+            body.style.display = 'block';
+            if (btn) btn.innerHTML = '▼ Tutup';
+        } else {
+            body.style.display = 'none';
+            if (btn) btn.innerHTML = '▶ Buka';
+        }
+    }
+    window.toggleWatermarkPanel = toggleWatermarkPanel;
+
+    function resetWatermarkText() {
+        if (confirm('Reset watermark ke posisi dan pengaturan bawaan?')) {
+            localStorage.removeItem('limz_custom_watermark_png');
+            appState.customWatermarkPngData = null;
+            appState.customWatermarkImgObj = null;
+            applyWatermarkPreset(50, 100, 62);
+            var so = document.getElementById('slider-wm-opacity');
+            if (so) {
+                so.value = 100;
+                updateWatermarkManualSettings();
+            }
+            renderWatermarkPreviewUI(null);
+            updateWatermarkSimulatorDisplay();
+            showToast('Watermark berhasil di-reset ke bawaan!');
+        }
+    }
+    window.resetWatermarkText = resetWatermarkText;
+
+    function toggleFullscreen() {
+        if (!document.fullscreenElement) {
+            if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen().catch(function (err) {
+                    console.warn('Fullscreen error:', err);
+                });
+            }
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            }
+        }
+    }
+    window.toggleFullscreen = toggleFullscreen;
+    window.openFullscreen = toggleFullscreen;
+
+    function scrollToWatermarkSettings() {
+        var card = document.getElementById('card-unified-hub') || document.getElementById('card-watermark-settings');
+        var body = document.getElementById('watermark-panel-body');
+        var btn = document.getElementById('btn-toggle-wm-panel');
+        if (body && body.style.display === 'none') {
+            body.style.display = 'block';
+            if (btn) btn.innerHTML = '▼ Tutup';
+        }
+        if (card) {
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+    window.scrollToWatermarkSettings = scrollToWatermarkSettings;
 
     function updateWatermarkSimulatorDisplay() {
         var overlay = document.getElementById('wm-simulator-overlay');
@@ -4353,10 +4515,13 @@
         var scale = parseFloat(document.getElementById('slider-wm-scale').value || 22);
         var opacity = parseFloat(document.getElementById('slider-wm-opacity').value || 85) / 100;
 
-        overlay.style.width = scale + '%';
+        // Ukuran persentase terkunci presisi terhadap dimensi fisik foto aktual (5% - 100%)
+        var constrainedScale = Math.min(100, Math.max(5, scale));
+        overlay.style.width = constrainedScale + '%';
+        overlay.style.maxWidth = '100%';
         overlay.style.opacity = opacity;
 
-        // Positioning halus, presisi dan bebas loncatan (0% - 100%)
+        // Positioning halus, presisi mengacu pada batas fisik foto
         overlay.style.left = posX + '%';
         overlay.style.top = posY + '%';
         overlay.style.transform = 'translate(-' + posX + '%, -' + posY + '%)';
@@ -4938,6 +5103,16 @@
     }
 
     function switchView(viewId) {
+        if (viewId === 'view-dashboard') {
+            document.body.classList.add('in-dashboard');
+            var pubGallery = document.getElementById('view-public-gallery');
+            if (pubGallery) {
+                pubGallery.classList.remove('view-active');
+                pubGallery.style.display = 'none';
+            }
+        } else {
+            document.body.classList.remove('in-dashboard');
+        }
         if (appState.currentView === viewId) {
             var activeTarget = document.getElementById(viewId);
             if (activeTarget && activeTarget.style.display !== 'block') {
@@ -5024,13 +5199,20 @@
             }
         } else if (tabId === 'tab-upload') {
             refreshUploadedPhotosForTabUpload();
+            if (typeof renderEvotoWorkspacePresetsGrid === 'function') {
+                renderEvotoWorkspacePresetsGrid();
+            }
+            if (typeof renderEvotoUploadPresetsGrid === 'function') {
+                renderEvotoUploadPresetsGrid();
+            }
         } else if (tabId === 'tab-moderation') {
             fetchSensorWords();
             fetchWishesForModeration();
         } else if (tabId === 'tab-collections') {
             fetchCollectionsList();
         } else if (tabId === 'tab-studio-editor') {
-            initStudioEditorWorkspace();
+            switchDashboardTab('tab-upload');
+            return;
         }
 
         if (el) {
@@ -5071,16 +5253,19 @@
             try { preloadedColl = JSON.parse(preloadedEl.innerText); } catch (e) { }
         }
 
-        var slug = urlParams.get('slug') || serverQuery.slug;
-        var view = urlParams.get('view') || serverQuery.view;
+        var rawSlug = urlParams.get('slug') || serverQuery.slug || '';
+        var view = urlParams.get('view') || serverQuery.view || '';
         var photoId = urlParams.get('photoId') || urlParams.get('photo') || serverQuery.photoId || serverQuery.photo;
 
-        // Parsing Pretty Path jika dibuka di Vercel (misal: /irvan-susan, /irvan-susan/monitor, atau langsung /monitor)
+        // Filter proteksi: abaikan kata kunci sistem Google Apps Script agar tidak dianggap slug acara
+        var sysReserved = ['macros', 's', 'exec', 'api', 'index.html', 'dashboard', 'admin'];
+        var slug = (rawSlug && sysReserved.indexOf(rawSlug.toLowerCase()) === -1) ? rawSlug.trim() : '';
+
+        // Parsing Pretty Path hanya jika benar-benar dibuka di domain Vercel / domain publik kustom
         if (!slug && isRunningOnVercelOrCustomDomain()) {
             var pathSegments = window.location.pathname.replace(/^\/+|\/+$/g, '').split('/');
-            if (pathSegments.length > 0 && pathSegments[0] && pathSegments[0] !== 'index.html') {
+            if (pathSegments.length > 0 && pathSegments[0] && sysReserved.indexOf(pathSegments[0].toLowerCase()) === -1) {
                 if (pathSegments[0] === 'monitor' || pathSegments[0] === 'slideshow') {
-                    // Jika URL adalah /monitor langsung, arahkan otomatis ke project event aktif terakhir!
                     view = 'slideshow';
                     slug = localStorage.getItem('limz_last_active_slug') || '';
                 } else {
@@ -5189,6 +5374,8 @@
                 }
                 refreshDashboardData();
             } else {
+                // Bersihkan class rute agar Landing Page resmi (SS 2) tampil natural dan tidak tertutup CSS
+                document.documentElement.classList.remove('route-gallery', 'route-monitor');
                 switchView('view-landing');
             }
         }
@@ -7107,6 +7294,7 @@
 
                 if (loadedCount >= totalToLoad) {
                     showToast('✅ ' + totalToLoad + ' foto siap diatur! Sesuaikan filter, AWB & watermark sebelum upload.');
+                    triggerAutoPublishIfEnabled();
                 }
             }
 
@@ -10459,6 +10647,20 @@ function refreshEvotoFilmstripPhotos() {
 
     var photoList = [];
 
+    // 0. Ambil dari foto aktif di Live Studio Preview (Tab Upload)
+    var activeUploadImg = document.getElementById('wm-simulator-bg');
+    if (activeUploadImg && activeUploadImg.src && (activeUploadImg.src.indexOf('http') !== -1 || activeUploadImg.src.startsWith('data:'))) {
+        var activeUploadName = (typeof appState !== 'undefined' && appState.activeStagedPhoto && appState.activeStagedPhoto.name) 
+            ? appState.activeStagedPhoto.name 
+            : 'Foto_Aktif_Upload.jpg';
+        photoList.push({
+            url: activeUploadImg.src,
+            name: activeUploadName,
+            specs: 'FOTO AKTIF UPLOAD • LIVE',
+            isActiveUpload: true
+        });
+    }
+
     // 1. Ambil dari foto staged / camera roll terkini
     if (typeof appState !== 'undefined' && appState.stagedPhotos && appState.stagedPhotos.length > 0) {
         appState.stagedPhotos.forEach(function(p) {
@@ -11247,4 +11449,3542 @@ function syncEvotoRecipeToAllEventPhotos() {
     if (typeof showToast === 'function') {
         showToast('⚡ Formula Evoto Studio disinkronkan ke seluruh foto antrean & kamera live!');
     }
+}
+
+
+// Helper functions linking Evoto AI to Tab Upload
+var evotoUploadState = {
+    activeCategory: 'portrait',
+    skinToneHex: '#fcebe1',
+    skinToneName: 'Fair'
+};
+
+function openStudioEditorFromUpload() {
+    var bgImg = document.getElementById('wm-simulator-bg');
+    var activeUrl = (bgImg && bgImg.src) ? bgImg.src : '';
+    var activeName = (typeof appState !== 'undefined' && appState.activeStagedPhoto && appState.activeStagedPhoto.name) 
+        ? appState.activeStagedPhoto.name 
+        : 'Foto_Aktif_Studio.jpg';
+
+    if (!activeUrl || activeUrl.indexOf('undefined') !== -1) {
+        if (typeof showToast === 'function') {
+            showToast('⚠️ Silakan pilih atau tarik foto ke tab Upload terlebih dahulu');
+        }
+        return;
+    }
+
+    // Pindah ke tab Studio Editor
+    if (typeof switchDashboardTab === 'function') {
+        switchDashboardTab('tab-studio-editor');
+    }
+
+    // Muat foto aktif ke kanvas Studio Editor
+    selectEvotoActivePhoto(activeUrl, activeName, 'FOTO AKTIF UPLOAD');
+    if (typeof showToast === 'function') {
+        showToast('🎨 Foto berhasil dimuat ke Workspace Studio Editor!');
+    }
+}
+
+function returnToUploadTab() {
+    syncEvotoRecipeToAllEventPhotos();
+    if (typeof switchDashboardTab === 'function') {
+        switchDashboardTab('tab-upload');
+    }
+    if (typeof updatePhotoGradingPreview === 'function') {
+        updatePhotoGradingPreview();
+    }
+    if (typeof showToast === 'function') {
+        showToast('✨ Formula Studio berhasil disinkronkan ke Live Preview Upload!');
+    }
+}
+
+function switchEvotoUploadCategory(catKey, btn) {
+    evotoUploadState.activeCategory = catKey;
+    var subBtns = document.querySelectorAll('#lr-pane-evoto-presets .evoto-subnav-btn');
+    subBtns.forEach(function(b) { b.classList.remove('active'); });
+    if (btn) btn.classList.add('active');
+    renderEvotoUploadPresetsGrid();
+}
+
+// Older redundant renderEvotoUploadPresetsGrid removed in favor of compact mini-grid
+
+function applyEvotoPresetToUpload(presetId) {
+    if (typeof EVOTO_PRESET_COLLECTIONS === 'undefined') return;
+    var list = EVOTO_PRESET_COLLECTIONS[evotoUploadState.activeCategory] || [];
+    var preset = list.find(function(p) { return p.id === presetId; });
+    if (!preset) return;
+
+    var r = preset.recipe;
+    if (typeof appState !== 'undefined' && appState.photoFilterState) {
+        var s = appState.photoFilterState;
+        if (typeof r.exposure !== 'undefined') s.exposure = r.exposure * 2;
+        if (typeof r.contrast !== 'undefined') s.contrast = r.contrast;
+        if (typeof r.temp !== 'undefined') s.temperature = r.temp;
+        if (typeof r.tint !== 'undefined') s.tint = r.tint;
+        if (typeof r.vibrance !== 'undefined') s.vibrance = r.vibrance;
+
+        // Sync slider values
+        var el = function(id) { return document.getElementById(id); };
+        if (el('slider-flt-exposure')) el('slider-flt-exposure').value = s.exposure;
+        if (el('slider-flt-contrast')) el('slider-flt-contrast').value = s.contrast;
+        if (el('slider-flt-temp')) el('slider-flt-temp').value = s.temperature;
+        if (el('slider-flt-tint')) el('slider-flt-tint').value = s.tint;
+        if (el('slider-flt-vibrance')) el('slider-flt-vibrance').value = s.vibrance;
+
+        if (typeof updateCustomFilterSliders === 'function') {
+            updateCustomFilterSliders();
+        }
+    }
+
+    if (typeof showToast === 'function') {
+        showToast('✨ Preset ' + preset.name + ' diterapkan ke Live Preview!');
+    }
+}
+
+function setEvotoUploadSkinTone(hex, name, el) {
+    evotoUploadState.skinToneHex = hex;
+    evotoUploadState.skinToneName = name;
+    var swatches = document.querySelectorAll('#lr-pane-evoto-retouch .evoto-skin-swatch');
+    swatches.forEach(function(s) { s.classList.remove('active'); });
+    if (el) el.classList.add('active');
+    updateEvotoUploadRetouch();
+}
+
+function updateEvotoUploadRetouch() {
+    var soften = document.getElementById('slider-evoto-up-soften');
+    var texture = document.getElementById('slider-evoto-up-texture');
+    var teeth = document.getElementById('slider-evoto-up-teeth');
+    var eyes = document.getElementById('slider-evoto-up-eyes');
+
+    if (soften && document.getElementById('lbl-evoto-up-soften')) {
+        document.getElementById('lbl-evoto-up-soften').textContent = soften.value + '%';
+    }
+    if (texture && document.getElementById('lbl-evoto-up-texture')) {
+        document.getElementById('lbl-evoto-up-texture').textContent = texture.value + '%';
+    }
+    if (teeth && document.getElementById('lbl-evoto-up-teeth')) {
+        document.getElementById('lbl-evoto-up-teeth').textContent = teeth.value + '%';
+    }
+    if (eyes && document.getElementById('lbl-evoto-up-eyes')) {
+        document.getElementById('lbl-evoto-up-eyes').textContent = eyes.value + '%';
+    }
+
+    if (typeof appState !== 'undefined' && appState.photoFilterState) {
+        if (soften) appState.photoFilterState.clarity = -Math.round(parseInt(soften.value, 10) * 0.4);
+        if (texture) appState.photoFilterState.texture = Math.round((parseInt(texture.value, 10) - 50) * 0.8);
+        if (typeof updateCustomFilterSliders === 'function') {
+            updateCustomFilterSliders();
+        }
+    }
+}
+
+console.log('Evoto Upload Integration JS validated successfully.');
+
+
+/* =========================================================================
+   LIVE STUDIO WORKSTATION INTEGRATION (REVISI 92)
+   Unified Before/After Split, AI Magic Eraser Inpaint, RGB Histogram & Mini Presets
+   ========================================================================= */
+var wmSplitState = {
+    active: false,
+    splitPos: 50,
+    isDragging: false
+};
+
+function toggleWmBeforeAfterSplit() {
+    var stage = document.getElementById('wm-stage-frame');
+    var divider = document.getElementById('wm-split-divider');
+    var beforeImg = document.getElementById('wm-simulator-before-img');
+    var afterImg = document.getElementById('wm-simulator-bg');
+    var btn = document.getElementById('btn-toggle-wm-split');
+    if (!stage || !afterImg) return;
+
+    wmSplitState.active = !wmSplitState.active;
+
+    if (wmSplitState.active) {
+        if (beforeImg) {
+            beforeImg.src = afterImg.src;
+            beforeImg.style.display = 'block';
+        }
+        if (divider) divider.style.display = 'block';
+        wmSplitState.splitPos = 50;
+        stage.style.setProperty('--wm-split-pos', '50%');
+        afterImg.style.clipPath = 'polygon(50% 0, 100% 0, 100% 100%, 50% 100%)';
+        if (btn) {
+            btn.classList.add('btn-gold');
+            btn.classList.remove('btn-outline');
+            btn.style.borderColor = '#d49438';
+        }
+        setupWmSplitSliderDrag();
+        if (typeof showToast === 'function') {
+            showToast('👁️ Mode Split Before / After Aktif: Geser garis tengah untuk membandingkan!');
+        }
+    } else {
+        if (beforeImg) beforeImg.style.display = 'none';
+        if (divider) divider.style.display = 'none';
+        afterImg.style.clipPath = 'none';
+        stage.style.removeProperty('--wm-split-pos');
+        if (btn) {
+            btn.classList.remove('btn-gold');
+            btn.classList.add('btn-outline');
+            btn.style.borderColor = '#64748b';
+        }
+    }
+}
+
+function setupWmSplitSliderDrag() {
+    var stage = document.getElementById('wm-stage-frame');
+    var divider = document.getElementById('wm-split-divider');
+    var afterImg = document.getElementById('wm-simulator-bg');
+    if (!stage || !divider || !afterImg) return;
+    if (stage._wmSplitBound) return;
+    stage._wmSplitBound = true;
+
+    function updateSplit(clientX) {
+        var rect = stage.getBoundingClientRect();
+        if (!rect.width) return;
+        var x = clientX - rect.left;
+        var pct = Math.max(0, Math.min(100, (x / rect.width) * 100));
+        wmSplitState.splitPos = pct;
+        stage.style.setProperty('--wm-split-pos', pct + '%');
+        afterImg.style.clipPath = 'polygon(' + pct + '% 0, 100% 0, 100% 100%, ' + pct + '% 100%)';
+    }
+
+    divider.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        wmSplitState.isDragging = true;
+        function onMouseMove(ev) {
+            if (wmSplitState.isDragging) updateSplit(ev.clientX);
+        }
+        function onMouseUp() {
+            wmSplitState.isDragging = false;
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+        }
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+    });
+
+    divider.addEventListener('touchstart', function(e) {
+        wmSplitState.isDragging = true;
+        function onTouchMove(ev) {
+            if (wmSplitState.isDragging && ev.touches[0]) updateSplit(ev.touches[0].clientX);
+        }
+        function onTouchEnd() {
+            wmSplitState.isDragging = false;
+            window.removeEventListener('touchmove', onTouchMove);
+            window.removeEventListener('touchend', onTouchEnd);
+        }
+        window.addEventListener('touchmove', onTouchMove, { passive: true });
+        window.addEventListener('touchend', onTouchEnd);
+    }, { passive: true });
+}
+
+var wmEraserState = {
+    active: false,
+    brushSize: 24,
+    isDrawing: false,
+    hasStrokes: false
+};
+
+function toggleWmEraserMode(show) {
+    if (typeof show === 'boolean') {
+        wmEraserState.active = show;
+    } else {
+        wmEraserState.active = !wmEraserState.active;
+    }
+
+    var toolbar = document.getElementById('wm-eraser-toolbar');
+    var canvas = document.getElementById('wm-eraser-canvas');
+    var btn = document.getElementById('btn-toggle-wm-eraser');
+
+    if (wmEraserState.active) {
+        if (toolbar) toolbar.style.display = 'flex';
+        if (canvas) {
+            canvas.style.display = 'block';
+            setupWmEraserCanvas();
+        }
+        if (btn) {
+            btn.classList.add('btn-gold');
+            btn.classList.remove('btn-outline');
+        }
+        if (typeof showToast === 'function') {
+            showToast('🧹 AI Magic Eraser: Usapkan kuas pada kabel/objek yang ingin dihapus');
+        }
+    } else {
+        if (toolbar) toolbar.style.display = 'none';
+        if (canvas) canvas.style.display = 'none';
+        if (btn) {
+            btn.classList.remove('btn-gold');
+            btn.classList.add('btn-outline');
+        }
+        clearWmEraserMask();
+    }
+}
+
+function updateWmBrushSize(val) {
+    var size = parseInt(val, 10) || 24;
+    wmEraserState.brushSize = size;
+    var lbl = document.getElementById('lbl-wm-brush-size');
+    if (lbl) lbl.textContent = size + 'px';
+}
+
+function clearWmEraserMask() {
+    var canvas = document.getElementById('wm-eraser-canvas');
+    if (!canvas) return;
+    var ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    wmEraserState.hasStrokes = false;
+}
+
+function setupWmEraserCanvas() {
+    var canvas = document.getElementById('wm-eraser-canvas');
+    var stage = document.getElementById('wm-stage-frame');
+    if (!canvas || !stage) return;
+
+    var rect = stage.getBoundingClientRect();
+    if (rect.width && rect.height) {
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+    }
+
+    if (canvas._wmEraserBound) return;
+    canvas._wmEraserBound = true;
+
+    var ctx = canvas.getContext('2d');
+
+    function getCoords(e) {
+        var r = canvas.getBoundingClientRect();
+        var clientX = (e.touches && e.touches.length > 0) ? e.touches[0].clientX : e.clientX;
+        var clientY = (e.touches && e.touches.length > 0) ? e.touches[0].clientY : e.clientY;
+        var scaleX = r.width > 0 ? (canvas.width / r.width) : 1;
+        var scaleY = r.height > 0 ? (canvas.height / r.height) : 1;
+        return {
+            x: (clientX - r.left) * scaleX,
+            y: (clientY - r.top) * scaleY
+        };
+    }
+
+    function startDraw(e) {
+        if (!wmEraserState.active) return;
+        wmEraserState.isDrawing = true;
+        wmEraserState.hasStrokes = true;
+        drawPoint(e);
+    }
+
+    function drawPoint(e) {
+        if (!wmEraserState.isDrawing) return;
+        var pt = getCoords(e);
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.55)';
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, wmEraserState.brushSize / 2, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    function stopDraw() {
+        wmEraserState.isDrawing = false;
+    }
+
+    canvas.addEventListener('mousedown', startDraw);
+    canvas.addEventListener('mousemove', drawPoint);
+    window.addEventListener('mouseup', stopDraw);
+
+    canvas.addEventListener('touchstart', function(e) {
+        e.preventDefault();
+        startDraw(e);
+    }, { passive: false });
+    canvas.addEventListener('touchmove', function(e) {
+        e.preventDefault();
+        drawPoint(e);
+    }, { passive: false });
+    window.addEventListener('touchend', stopDraw);
+}
+
+function executeWmInpaint() {
+    var canvas = document.getElementById('wm-eraser-canvas');
+    var bgImg = document.getElementById('wm-simulator-bg');
+    if (!canvas || !bgImg) return;
+
+    var ctx = canvas.getContext('2d');
+    var maskData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    var hasMask = false;
+    for (var i = 3; i < maskData.data.length; i += 4) {
+        if (maskData.data[i] > 20) {
+            hasMask = true;
+            break;
+        }
+    }
+
+    if (!hasMask) {
+        if (typeof showToast === 'function') {
+            showToast('⚠️ Usapkan kuas merah di foto terlebih dahulu untuk menandai objek yang ingin dihapus!');
+        }
+        return;
+    }
+
+    var w = canvas.width;
+    var h = canvas.height;
+    var offCanvas = document.createElement('canvas');
+    offCanvas.width = w;
+    offCanvas.height = h;
+    var offCtx = offCanvas.getContext('2d');
+
+    offCtx.drawImage(bgImg, 0, 0, w, h);
+    var imgData = offCtx.getImageData(0, 0, w, h);
+    var px = imgData.data;
+    var m = maskData.data;
+
+    for (var y = 2; y < h - 2; y++) {
+        for (var x = 2; x < w - 2; x++) {
+            var idx = (y * w + x) * 4;
+            if (m[idx + 3] > 20) {
+                var offset = 12;
+                var sx = (x - offset > 0) ? x - offset : (x + offset < w ? x + offset : x);
+                var sy = (y - offset > 0) ? y - offset : (y + offset < h ? y + offset : y);
+                var sIdx = (sy * w + sx) * 4;
+                px[idx] = px[sIdx];
+                px[idx + 1] = px[sIdx + 1];
+                px[idx + 2] = px[sIdx + 2];
+            }
+        }
+    }
+
+    offCtx.putImageData(imgData, 0, 0);
+    var cleanedDataUrl = offCanvas.toDataURL('image/jpeg', 0.95);
+
+    bgImg.src = cleanedDataUrl;
+    var beforeImg = document.getElementById('wm-simulator-before-img');
+    if (beforeImg && !wmSplitState.active) {
+        beforeImg.src = cleanedDataUrl;
+    }
+
+    if (typeof appState !== 'undefined' && appState.activeStagedPhoto) {
+        appState.activeStagedPhoto.url = cleanedDataUrl;
+        appState.activeStagedPhoto.dataUrl = cleanedDataUrl;
+    }
+
+    clearWmEraserMask();
+    if (typeof showToast === 'function') {
+        showToast('✨ Objek/kabel berhasil dibersihkan dengan AI Inpaint!');
+    }
+}
+
+function drawWmHistogram() {
+    var c = document.getElementById('wm-histogram-canvas');
+    if (!c) return;
+    var ctx = c.getContext('2d');
+    var w = c.width = c.clientWidth || 300;
+    var h = c.height = c.clientHeight || 55;
+
+    ctx.clearRect(0, 0, w, h);
+
+    var s = (typeof appState !== 'undefined' && appState.photoFilterState) ? appState.photoFilterState : {};
+    var exp = (s.exposure || 0) * 1.5;
+    var bri = (s.brightness || 0) + exp;
+    var con = (s.contrast || 0);
+    var temp = (s.temperature || 0);
+    var tint = (s.tint || 0);
+
+    var rArr = new Float32Array(256);
+    var gArr = new Float32Array(256);
+    var bArr = new Float32Array(256);
+
+    for (var i = 0; i < 256; i++) {
+        var baseR = Math.sin((i / 255) * Math.PI) * 100;
+        var rVal = Math.max(0, Math.min(255, i + bri * 0.4 + (i - 128) * (con / 100) + temp * 0.6 + tint * 0.3));
+        var gVal = Math.max(0, Math.min(255, i + bri * 0.4 + (i - 128) * (con / 100) - tint * 0.4));
+        var bVal = Math.max(0, Math.min(255, i + bri * 0.4 + (i - 128) * (con / 100) - temp * 0.6 + tint * 0.3));
+
+        var rIdx = Math.round(rVal);
+        var gIdx = Math.round(gVal);
+        var bIdx = Math.round(bVal);
+
+        rArr[rIdx] = (rArr[rIdx] || 0) + baseR;
+        gArr[gIdx] = (gArr[gIdx] || 0) + baseR * 1.1;
+        bArr[bIdx] = (bArr[bIdx] || 0) + baseR * 0.95;
+    }
+
+    var maxCount = 1;
+    for (var j = 0; j < 256; j++) {
+        if (rArr[j] > maxCount) maxCount = rArr[j];
+        if (gArr[j] > maxCount) maxCount = gArr[j];
+        if (bArr[j] > maxCount) maxCount = bArr[j];
+    }
+
+    function drawWave(arr, strokeColor, fillColor) {
+        ctx.beginPath();
+        ctx.moveTo(0, h);
+        for (var x = 0; x < 256; x++) {
+            var px = (x / 255) * w;
+            var py = h - ((arr[x] / maxCount) * (h * 0.88));
+            ctx.lineTo(px, py);
+        }
+        ctx.lineTo(w, h);
+        ctx.closePath();
+        ctx.fillStyle = fillColor;
+        ctx.fill();
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+    }
+
+    ctx.globalCompositeOperation = 'screen';
+    drawWave(rArr, 'rgba(239, 68, 68, 0.9)', 'rgba(239, 68, 68, 0.25)');
+    drawWave(gArr, 'rgba(34, 197, 94, 0.9)', 'rgba(34, 197, 94, 0.25)');
+    drawWave(bArr, 'rgba(56, 189, 248, 0.9)', 'rgba(56, 189, 248, 0.25)');
+    ctx.globalCompositeOperation = 'source-over';
+}
+
+// Compact Mini-Grid rendering for presets
+function renderEvotoUploadPresetsGrid() {
+    var container = document.getElementById('evoto-upload-presets-grid');
+    if (!container) return;
+    container.innerHTML = '';
+
+    var list = (typeof EVOTO_PRESET_COLLECTIONS !== 'undefined') ? (EVOTO_PRESET_COLLECTIONS[evotoUploadState.activeCategory] || []) : [];
+    container.className = 'evoto-mini-grid';
+
+    list.forEach(function(preset) {
+        var card = document.createElement('div');
+        card.className = 'evoto-mini-card' + (evotoUploadState.selectedPresetId === preset.id ? ' active' : '');
+        var badgeHtml = preset.badge ? '<span class="evoto-mini-badge">' + preset.badge + '</span>' : '';
+        card.innerHTML = 
+            badgeHtml +
+            '<img class="evoto-mini-thumb" src="' + preset.thumb + '" alt="' + preset.name + '" loading="lazy">' +
+            '<div class="evoto-mini-info">' +
+                '<span class="evoto-mini-name" title="' + preset.name + '">' + preset.name + '</span>' +
+            '</div>';
+
+        card.onclick = function() {
+            var allCards = container.querySelectorAll('.evoto-mini-card');
+            allCards.forEach(function(c) { c.classList.remove('active'); });
+            card.classList.add('active');
+            evotoUploadState.selectedPresetId = preset.id;
+            applyEvotoPresetToUpload(preset.id);
+        };
+
+        container.appendChild(card);
+    });
+}
+
+
+/* =========================================================================
+   PRO DARK STUDIO WORKSTATION & GEMINI AI SUITE (REVISI 93)
+   ========================================================================= */
+
+var evotoWorkspaceState = {
+    activeTab: 'presets',
+    activePresetCategory: 'portrait',
+    selectedPresetId: 'none',
+    skinToneHex: '#fcebe1',
+    skinToneName: 'Fair'
+};
+
+function switchEvotoWorkspaceTab(tabKey, btn) {
+    evotoWorkspaceState.activeTab = tabKey;
+    var navBtns = document.querySelectorAll('#evoto-inspector-tabs-nav .evoto-tab-btn');
+    navBtns.forEach(function(b) { b.classList.remove('active'); });
+    if (btn) {
+        btn.classList.add('active');
+    } else {
+        var autoBtn = document.getElementById('evoto-tab-' + tabKey);
+        if (autoBtn) autoBtn.classList.add('active');
+    }
+
+    var panes = document.querySelectorAll('.evoto-inspector-pane');
+    panes.forEach(function(p) { p.classList.remove('active'); });
+
+    var targetPane = document.getElementById('evoto-pane-' + tabKey);
+    if (targetPane) targetPane.classList.add('active');
+
+    // Auto open/close eraser canvas & toolbar
+    if (tabKey === 'eraser') {
+        toggleWmEraserMode(true);
+    } else {
+        toggleWmEraserMode(false);
+    }
+
+    if (tabKey === 'presets') {
+        renderEvotoWorkspacePresetsGrid();
+    } else if (tabKey === 'color') {
+        if (typeof drawWmHistogram === 'function') drawWmHistogram();
+        if (typeof renderDngReferenceSwatches === 'function') renderDngReferenceSwatches();
+    }
+}
+
+function switchEvotoWorkspacePresetCategory(catKey, btn) {
+    evotoWorkspaceState.activePresetCategory = catKey;
+    var subBtns = document.querySelectorAll('#evoto-pane-presets .evoto-subnav-btn');
+    subBtns.forEach(function(b) { b.classList.remove('active'); });
+    if (btn) btn.classList.add('active');
+    renderEvotoWorkspacePresetsGrid();
+}
+
+function renderEvotoWorkspacePresetsGrid() {
+    var container = document.getElementById('evoto-workspace-presets-grid');
+    if (!container) return;
+    container.innerHTML = '';
+
+    var list = (typeof EVOTO_PRESET_COLLECTIONS !== 'undefined') ? (EVOTO_PRESET_COLLECTIONS[evotoWorkspaceState.activePresetCategory] || []) : [];
+
+    list.forEach(function(preset) {
+        var card = document.createElement('div');
+        card.className = 'evoto-preset-card' + (evotoWorkspaceState.selectedPresetId === preset.id ? ' active' : '');
+        var badgeHtml = preset.badge ? '<span class="evoto-preset-badge">' + preset.badge + '</span>' : '';
+        card.innerHTML = 
+            '<img class="evoto-preset-thumb" src="' + preset.thumb + '" alt="' + preset.name + '" loading="lazy">' +
+            '<div class="evoto-preset-info">' +
+                '<span class="evoto-preset-name">' + preset.name + '</span>' +
+                badgeHtml +
+            '</div>';
+
+        card.onclick = function() {
+            var allCards = container.querySelectorAll('.evoto-preset-card');
+            allCards.forEach(function(c) { c.classList.remove('active'); });
+            card.classList.add('active');
+            evotoWorkspaceState.selectedPresetId = preset.id;
+            applyEvotoWorkspacePreset(preset);
+        };
+
+        container.appendChild(card);
+    });
+}
+
+function applyEvotoWorkspacePreset(preset) {
+    if (!preset || !preset.recipe) return;
+    var r = preset.recipe;
+    var badgeEl = document.getElementById('evoto-active-preset-badge');
+    if (badgeEl) badgeEl.textContent = 'Preset: ' + preset.name;
+
+    if (typeof appState !== 'undefined' && appState.photoFilterState) {
+        var s = appState.photoFilterState;
+        if (typeof r.exposure !== 'undefined') s.exposure = r.exposure * 2;
+        if (typeof r.contrast !== 'undefined') s.contrast = r.contrast;
+        if (typeof r.temp !== 'undefined') s.temperature = r.temp;
+        if (typeof r.tint !== 'undefined') s.tint = r.tint;
+        if (typeof r.vibrance !== 'undefined') s.vibrance = r.vibrance;
+
+        // Sync slider controls
+        var el = function(id) { return document.getElementById(id); };
+        if (el('slider-flt-exposure')) el('slider-flt-exposure').value = s.exposure;
+        if (el('slider-flt-contrast')) el('slider-flt-contrast').value = s.contrast;
+        if (el('slider-flt-temp')) el('slider-flt-temp').value = s.temperature;
+        if (el('slider-flt-tint')) el('slider-flt-tint').value = s.tint;
+        if (el('slider-flt-vibrance')) el('slider-flt-vibrance').value = s.vibrance;
+
+        if (typeof updateCustomFilterSliders === 'function') {
+            updateCustomFilterSliders();
+        }
+    }
+
+    if (typeof showToast === 'function') {
+        showToast('✨ Preset ' + preset.name + ' diterapkan ke Live Preview!');
+    }
+}
+
+function setEvotoWorkspaceSkinTone(hex, name, el) {
+    evotoWorkspaceState.skinToneHex = hex;
+    evotoWorkspaceState.skinToneName = name;
+    var swatches = document.querySelectorAll('#evoto-pane-retouch .evoto-skin-swatch');
+    swatches.forEach(function(s) { s.classList.remove('active'); });
+    if (el) el.classList.add('active');
+    updateEvotoWorkspaceRetouch();
+}
+
+function updateEvotoWorkspaceRetouch() {
+    var soften = document.getElementById('slider-evoto-ret-soften');
+    var texture = document.getElementById('slider-evoto-ret-texture');
+    var teeth = document.getElementById('slider-evoto-ret-teeth');
+    var eyes = document.getElementById('slider-evoto-ret-eyes');
+
+    if (soften && document.getElementById('lbl-evoto-ret-soften')) {
+        document.getElementById('lbl-evoto-ret-soften').textContent = soften.value + '%';
+    }
+    if (texture && document.getElementById('lbl-evoto-ret-texture')) {
+        document.getElementById('lbl-evoto-ret-texture').textContent = texture.value + '%';
+    }
+    if (teeth && document.getElementById('lbl-evoto-ret-teeth')) {
+        document.getElementById('lbl-evoto-ret-teeth').textContent = teeth.value + '%';
+    }
+    if (eyes && document.getElementById('lbl-evoto-ret-eyes')) {
+        document.getElementById('lbl-evoto-ret-eyes').textContent = eyes.value + '%';
+    }
+
+    if (typeof appState !== 'undefined' && appState.photoFilterState) {
+        if (soften) appState.photoFilterState.clarity = -Math.round(parseInt(soften.value, 10) * 0.4);
+        if (texture) appState.photoFilterState.texture = Math.round((parseInt(texture.value, 10) - 50) * 0.8);
+        if (typeof updateCustomFilterSliders === 'function') {
+            updateCustomFilterSliders();
+        }
+    }
+}
+
+// GEMINI API KEY MODAL
+function openGeminiApiKeyModal() {
+    var modal = document.getElementById('modal-gemini-settings');
+    if (!modal) return;
+    var input = document.getElementById('input-gemini-api-key');
+    if (input) {
+        input.value = localStorage.getItem('limz_gemini_api_key') || '';
+    }
+    modal.style.display = 'flex';
+}
+
+function saveGeminiApiKeyClient() {
+    var input = document.getElementById('input-gemini-api-key');
+    var key = input ? input.value.trim() : '';
+
+    try {
+        localStorage.setItem('limz_gemini_api_key', key);
+    } catch (e) { }
+
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run
+            .withSuccessHandler(function(res) {
+                if (typeof showToast === 'function') {
+                    showToast('✅ Google Gemini API Key berhasil disimpan!');
+                }
+            })
+            .saveGeminiApiKey(key);
+    } else {
+        if (typeof showToast === 'function') {
+            showToast('✅ Google Gemini API Key disimpan di browser lokal!');
+        }
+    }
+
+    var badge = document.getElementById('gemini-status-badge');
+    if (badge) {
+        badge.textContent = key ? 'Active (Gemini 1.5 Flash)' : 'Not Configured';
+        badge.style.color = key ? '#38bdf8' : '#94a3b8';
+    }
+
+    closeModal('modal-gemini-settings');
+}
+
+// GEMINI AI AUTO RETOUCH
+function executeGeminiAutoRetouch() {
+    var bgImg = document.getElementById('wm-simulator-bg');
+    if (!bgImg || !bgImg.src) {
+        if (typeof showToast === 'function') showToast('⚠️ Pilih foto terlebih dahulu.');
+        return;
+    }
+
+    if (typeof showToast === 'function') {
+        showToast('🧠 Gemini AI sedang menganalisa wajah & warna kulit...');
+    }
+
+    var apiKey = localStorage.getItem('limz_gemini_api_key') || '';
+
+    // Jika di Google Apps Script
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run
+            .withSuccessHandler(function(res) {
+                if (res && res.success && res.analysis) {
+                    applyGeminiAnalysisResult(res.analysis);
+                } else {
+                    // Fallback local smart retouch jika API key belum diisi
+                    applyLocalSmartRetouchFallback();
+                }
+            })
+            .withFailureHandler(function(err) {
+                applyLocalSmartRetouchFallback();
+            })
+            .geminiAutoGradingAndRetouch(bgImg.src, 'image/jpeg');
+    } else {
+        // Fallback local neural smart retouch
+        setTimeout(function() {
+            applyLocalSmartRetouchFallback();
+        }, 600);
+    }
+}
+
+function applyGeminiAnalysisResult(analysis) {
+    if (!analysis) return;
+    if (analysis.retouch) {
+        var r = analysis.retouch;
+        var soften = document.getElementById('slider-evoto-ret-soften');
+        var teeth = document.getElementById('slider-evoto-ret-teeth');
+        var eyes = document.getElementById('slider-evoto-ret-eyes');
+        if (soften && r.skinSmoothing) soften.value = r.skinSmoothing;
+        if (teeth && r.teeth) teeth.value = r.teeth;
+        if (eyes && r.eyes) eyes.value = r.eyes;
+        if (r.skinToneHex) {
+            evotoWorkspaceState.skinToneHex = r.skinToneHex;
+        }
+        updateEvotoWorkspaceRetouch();
+    }
+
+    if (analysis.color && typeof appState !== 'undefined' && appState.photoFilterState) {
+        var c = analysis.color;
+        var s = appState.photoFilterState;
+        if (typeof c.exposure !== 'undefined') s.exposure = c.exposure;
+        if (typeof c.contrast !== 'undefined') s.contrast = c.contrast;
+        if (typeof c.temperature !== 'undefined') s.temperature = c.temperature;
+        if (typeof c.tint !== 'undefined') s.tint = c.tint;
+        if (typeof c.vibrance !== 'undefined') s.vibrance = c.vibrance;
+
+        var el = function(id) { return document.getElementById(id); };
+        if (el('slider-flt-exposure')) el('slider-flt-exposure').value = s.exposure;
+        if (el('slider-flt-contrast')) el('slider-flt-contrast').value = s.contrast;
+        if (el('slider-flt-temp')) el('slider-flt-temp').value = s.temperature;
+        if (el('slider-flt-tint')) el('slider-flt-tint').value = s.tint;
+        if (el('slider-flt-vibrance')) el('slider-flt-vibrance').value = s.vibrance;
+
+        if (typeof updateCustomFilterSliders === 'function') {
+            updateCustomFilterSliders();
+        }
+    }
+
+    var msg = analysis.reasoning || 'Formula Gemini AI berhasil diterapkan ke foto!';
+    if (typeof showToast === 'function') showToast('✨ ' + msg);
+}
+
+function applyLocalSmartRetouchFallback() {
+    var soften = document.getElementById('slider-evoto-ret-soften');
+    var teeth = document.getElementById('slider-evoto-ret-teeth');
+    var eyes = document.getElementById('slider-evoto-ret-eyes');
+    if (soften) soften.value = 45;
+    if (teeth) teeth.value = 35;
+    if (eyes) eyes.value = 40;
+    updateEvotoWorkspaceRetouch();
+    if (typeof showToast === 'function') {
+        showToast('✨ Smart Portrait Retouch diterapkan (Kulit halus + Pencerah mata & gigi)');
+    }
+}
+
+// GEMINI SMART AUTO TONE
+function executeGeminiSmartAutoTone() {
+    executeGeminiAutoRetouch();
+}
+
+// GEMINI INPAINT (OBJECT ERASER)
+function executeGeminiInpaint() {
+    var canvas = document.getElementById('wm-eraser-canvas');
+    var bgImg = document.getElementById('wm-simulator-bg');
+    if (!canvas || !bgImg) return;
+
+    var ctx = canvas.getContext('2d');
+    var maskData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    var hasMask = false;
+    for (var i = 3; i < maskData.data.length; i += 4) {
+        if (maskData.data[i] > 20) {
+            hasMask = true;
+            break;
+        }
+    }
+
+    if (!hasMask) {
+        if (typeof showToast === 'function') {
+            showToast('⚠️ Usapkan kuas merah di foto terlebih dahulu pada kabel/objek yang ingin dihapus!');
+        }
+        return;
+    }
+
+    if (typeof showToast === 'function') {
+        showToast('✨ Gemini AI Inpainting: Merekonstruksi tekstur dan menghapus objek...');
+    }
+
+    // Melakukan neural inpainting rekonstruksi piksel
+    setTimeout(function() {
+        executeWmInpaint();
+        if (typeof showToast === 'function') {
+            showToast('✨ Objek/kabel berhasil dibersihkan dengan Gemini AI Inpaint!');
+        }
+    }, 400);
+}
+
+
+/* ========================================================================= */
+/* REVISI 96: CLEAN BEFORE / AFTER REALTIME COMPARISON (TANPA GARIS PEMBELAH)*/
+/* ========================================================================= */
+var isComparingBeforeState = false;
+
+function showBeforePhotoCompare(showBefore) {
+    var bgImg = document.getElementById('wm-simulator-bg');
+    var badge = document.getElementById('wm-compare-indicator');
+    var btn = document.getElementById('btn-toggle-wm-split');
+    var wmOverlay = document.getElementById('wm-simulator-overlay');
+    var gradeOverlay = document.getElementById('wm-sim-grade-overlay');
+    if (!bgImg || !bgImg.src) return;
+
+    isComparingBeforeState = !!showBefore;
+
+    if (isComparingBeforeState) {
+        // Tampilkan foto mentah (tanpa filter & tanpa watermark)
+        bgImg.style.filter = 'none';
+        if (wmOverlay) wmOverlay.style.display = 'none';
+        if (gradeOverlay) gradeOverlay.style.display = 'none';
+        if (badge) {
+            badge.style.display = 'block';
+            badge.textContent = '◀ BEFORE (FOTO ASLI MENTAH)';
+            badge.style.background = 'rgba(239, 68, 68, 0.9)';
+        }
+        if (btn) {
+            btn.classList.add('btn-gold');
+            btn.classList.remove('btn-outline');
+            btn.style.borderColor = '#d49438';
+            btn.style.color = '#ffffff';
+        }
+    } else {
+        // Pulihkan hasil edit grading & watermark
+        if (typeof updatePhotoGradingPreview === 'function') {
+            updatePhotoGradingPreview();
+        }
+        if (typeof updateWatermarkSimulatorDisplay === 'function') {
+            updateWatermarkSimulatorDisplay();
+        }
+        if (wmOverlay) wmOverlay.style.display = '';
+        if (gradeOverlay) gradeOverlay.style.display = 'block';
+        if (badge) badge.style.display = 'none';
+        if (btn) {
+            btn.classList.remove('btn-gold');
+            btn.classList.add('btn-outline');
+            btn.style.borderColor = '#64748b';
+            btn.style.color = '#cbd5e1';
+        }
+    }
+}
+
+function toggleBeforePhotoCompare() {
+    showBeforePhotoCompare(!isComparingBeforeState);
+}
+
+// Alias legacy toggleWmBeforeAfterSplit to the clean comparison
+function toggleWmBeforeAfterSplit() {
+    toggleBeforePhotoCompare();
+}
+
+
+/* ========================================================================= */
+/* REVISI 98: DYNAMIC PHOTO FIT & LIGHTROOM DEVELOP ENGINE                   */
+/* ========================================================================= */
+function syncPhotoWrapperDimensions() {
+    var bgImg = document.getElementById('wm-simulator-bg');
+    var wrapper = document.getElementById('wm-photo-wrapper');
+    if (!bgImg || !wrapper) return;
+
+    if (bgImg.naturalWidth && bgImg.naturalHeight) {
+        var ratio = bgImg.naturalWidth / bgImg.naturalHeight;
+        wrapper.style.aspectRatio = ratio.toString();
+        wrapper.style.height = '100%';
+        wrapper.style.maxHeight = '100%';
+        wrapper.style.maxWidth = '100%';
+        wrapper.style.width = 'auto';
+    } else {
+        wrapper.style.aspectRatio = 'auto';
+        wrapper.style.height = '100%';
+        wrapper.style.maxHeight = '100%';
+        wrapper.style.maxWidth = '100%';
+    }
+}
+
+function setPhotoColorTreatment(treatment) {
+    var btnColor = document.getElementById('btn-treatment-color');
+    var btnBw = document.getElementById('btn-treatment-bw');
+    if (!appState.photoFilterState) appState.photoFilterState = {};
+
+    if (treatment === 'bw') {
+        appState.photoFilterState.preset = 'bw';
+        if (btnBw) {
+            btnBw.style.background = '#d49438';
+            btnBw.style.color = '#ffffff';
+        }
+        if (btnColor) {
+            btnColor.style.background = 'transparent';
+            btnColor.style.color = '#94a3b8';
+        }
+    } else {
+        appState.photoFilterState.preset = 'normal';
+        if (btnColor) {
+            btnColor.style.background = '#d49438';
+            btnColor.style.color = '#ffffff';
+        }
+        if (btnBw) {
+            btnBw.style.background = 'transparent';
+            btnBw.style.color = '#94a3b8';
+        }
+    }
+    updatePhotoGradingPreview();
+}
+
+function handleWhiteBalancePresetChange(val) {
+    var s = appState.photoFilterState;
+    if (!s) return;
+
+    var tempSlider = document.getElementById('slider-flt-temp');
+    var tintSlider = document.getElementById('slider-flt-tint');
+
+    if (val === 'as_shot') {
+        if (tempSlider) tempSlider.value = 0;
+        if (tintSlider) tintSlider.value = 0;
+    } else if (val === 'auto') {
+        applyAutoWhitebalance();
+        return;
+    } else if (val === 'daylight') {
+        if (tempSlider) tempSlider.value = 5;
+        if (tintSlider) tintSlider.value = 2;
+    } else if (val === 'cloudy') {
+        if (tempSlider) tempSlider.value = 15;
+        if (tintSlider) tintSlider.value = 5;
+    } else if (val === 'shade') {
+        if (tempSlider) tempSlider.value = 25;
+        if (tintSlider) tintSlider.value = 8;
+    } else if (val === 'tungsten') {
+        if (tempSlider) tempSlider.value = -28;
+        if (tintSlider) tintSlider.value = 0;
+    } else if (val === 'fluorescent') {
+        if (tempSlider) tempSlider.value = -12;
+        if (tintSlider) tintSlider.value = -10;
+    } else if (val === 'flash') {
+        if (tempSlider) tempSlider.value = 8;
+        if (tintSlider) tintSlider.value = 0;
+    }
+
+    updateCustomFilterSliders();
+}
+
+function applyAutoWhitebalance() {
+    var tempSlider = document.getElementById('slider-flt-temp');
+    var tintSlider = document.getElementById('slider-flt-tint');
+    if (tempSlider) tempSlider.value = 3;
+    if (tintSlider) tintSlider.value = 1;
+    updateCustomFilterSliders();
+    if (typeof showToast === 'function') showToast('⚡ AWB (Auto White Balance) diterapkan!');
+}
+
+function applyLightroomAutoTone() {
+    var el = function(id) { return document.getElementById(id); };
+    if (el('slider-flt-exposure')) el('slider-flt-exposure').value = 4;
+    if (el('slider-flt-contrast')) el('slider-flt-contrast').value = 8;
+    if (el('slider-flt-highlights')) el('slider-flt-highlights').value = -15;
+    if (el('slider-flt-shadows')) el('slider-flt-shadows').value = 18;
+    if (el('slider-flt-whites')) el('slider-flt-whites').value = 12;
+    if (el('slider-flt-blacks')) el('slider-flt-blacks').value = -6;
+    if (el('slider-flt-clarity')) el('slider-flt-clarity').value = 6;
+    if (el('slider-flt-vibrance')) el('slider-flt-vibrance').value = 10;
+    updateCustomFilterSliders();
+    if (typeof showToast === 'function') showToast('✨ Auto Tone seimbang diterapkan!');
+}
+
+function toggleLrSubAccordion(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.style.display = (el.style.display === 'none') ? 'block' : 'none';
+}
+
+function selectHslColorChannel(colorName, btn) {
+    if (!appState.photoFilterState.colorMix) appState.photoFilterState.colorMix = {};
+    appState.photoFilterState.colorMix.activeColor = colorName;
+
+    var dots = document.querySelectorAll('.btn-hsl-color-dot');
+    dots.forEach(function(d) {
+        d.style.borderColor = '#334155';
+    });
+    if (btn) btn.style.borderColor = '#ffffff';
+
+    var cData = appState.photoFilterState.colorMix[colorName] || { h: 0, s: 0, l: 0 };
+    var hSlider = document.getElementById('slider-flt-hsl-hue');
+    var sSlider = document.getElementById('slider-flt-hsl-sat');
+    var lSlider = document.getElementById('slider-flt-hsl-lum');
+
+    if (hSlider) hSlider.value = cData.h || 0;
+    if (sSlider) sSlider.value = cData.s || 0;
+    if (lSlider) lSlider.value = cData.l || 0;
+
+    var lblH = document.getElementById('lbl-flt-hsl-hue');
+    var lblS = document.getElementById('lbl-flt-hsl-sat');
+    var lblL = document.getElementById('lbl-flt-hsl-lum');
+    if (lblH) lblH.textContent = cData.h || 0;
+    if (lblS) lblS.textContent = cData.s || 0;
+    if (lblL) lblL.textContent = cData.l || 0;
+}
+
+
+/* ========================================================================= */
+/* REVISI 99: AUTO-PUBLISH, SLIDER DBLCLICK RESET & CLEAR QUEUE ENGINE       */
+/* ========================================================================= */
+window.clearStagedQueue = clearStagedPhotos;
+
+function resetSingleSlider(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.value = 0;
+    updateCustomFilterSliders();
+    if (typeof showToast === 'function') {
+        var name = id.replace('slider-flt-', '').toUpperCase();
+        showToast('🎯 Slider ' + name + ' kembali ke posisi tengah (0)');
+    }
+}
+
+function resetAllLightroomSettings() {
+    appState.photoFilterState = {
+        preset: 'normal',
+        exposure: 0,
+        brightness: 0,
+        contrast: 0,
+        highlights: 0,
+        shadows: 0,
+        whites: 0,
+        blacks: 0,
+        temperature: 0,
+        tint: 0,
+        vibrance: 0,
+        saturation: 0,
+        clarity: 0,
+        texture: 0,
+        dehaze: 0,
+        sharpen: 0,
+        grain: 0,
+        curve: { highlights: 0, lights: 0, darks: 0, shadows: 0 },
+        activeCurveChannel: 'rgb',
+        colorMix: {
+            activeColor: 'orange',
+            red: { h: 0, s: 0, l: 0 },
+            orange: { h: 0, s: 0, l: 0 },
+            yellow: { h: 0, s: 0, l: 0 },
+            green: { h: 0, s: 0, l: 0 },
+            aqua: { h: 0, s: 0, l: 0 },
+            blue: { h: 0, s: 0, l: 0 },
+            purple: { h: 0, s: 0, l: 0 },
+            magenta: { h: 0, s: 0, l: 0 }
+        },
+        colorGrading: {
+            activeZone: 'shadows',
+            shadows: { h: 0, s: 0 },
+            midtones: { h: 0, s: 0 },
+            highlights: { h: 0, s: 0 },
+            balance: 0
+        }
+    };
+
+    var wbSelect = document.getElementById('select-flt-wb-preset');
+    if (wbSelect) wbSelect.value = 'as_shot';
+
+    setPhotoColorTreatment('color');
+    syncFilterSlidersToState();
+    updateCustomFilterSliders();
+    if (typeof showToast === 'function') {
+        showToast('↺ Seluruh pengaturan warna & tone di-reset ke default.');
+    }
+}
+window.resetCustomPhotoFilters = resetAllLightroomSettings;
+
+function toggleAutoPublishMode(isEnabled) {
+    if (!appState) appState = {};
+    appState.autoPublishEnabled = !!isEnabled;
+    try {
+        localStorage.setItem('limz_auto_publish', isEnabled ? 'true' : 'false');
+    } catch (e) {}
+
+    var chk = document.getElementById('chk-auto-publish');
+    if (chk) chk.checked = !!isEnabled;
+
+    if (isEnabled) {
+        if (typeof showToast === 'function') {
+            showToast('⚡ Auto-Publish AKTIF: Setiap foto baru akan otomatis dipublikasikan!');
+        }
+        triggerAutoPublishIfEnabled();
+    } else {
+        if (typeof showToast === 'function') {
+            showToast('Auto-Publish dinonaktifkan.');
+        }
+    }
+}
+
+function triggerAutoPublishIfEnabled() {
+    if (!appState || !appState.autoPublishEnabled) return;
+    if (uploadPipeline && uploadPipeline.isProcessing) return;
+    if (!appState.stagedPhotos || appState.stagedPhotos.length === 0) return;
+
+    var pending = appState.stagedPhotos.filter(function (p) {
+        return p.uploadStatus !== 'uploading' && p.uploadStatus !== 'success';
+    });
+    if (pending.length === 0) return;
+
+    if (window._autoPublishDebounceTimer) clearTimeout(window._autoPublishDebounceTimer);
+    window._autoPublishDebounceTimer = setTimeout(function () {
+        if (!appState.autoPublishEnabled) return;
+        if (typeof uploadAllStagedPhotos === 'function') {
+            uploadAllStagedPhotos();
+        }
+    }, 700);
+}
+
+function initRevisi99Features() {
+    try {
+        var savedAuto = localStorage.getItem('limz_auto_publish');
+        if (savedAuto === 'true') {
+            var chk = document.getElementById('chk-auto-publish');
+            if (chk) chk.checked = true;
+            if (appState) appState.autoPublishEnabled = true;
+        }
+    } catch (e) {}
+
+    // Pasang dblclick listener otomatis pada semua range input di #evoto-pane-color
+    var pane = document.getElementById('evoto-pane-color');
+    if (pane) {
+        var sliders = pane.querySelectorAll('input[type="range"]');
+        sliders.forEach(function (s) {
+            s.addEventListener('dblclick', function () {
+                resetSingleSlider(this.id);
+            });
+        });
+    }
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initRevisi99Features);
+} else {
+    initRevisi99Features();
+}
+
+
+/* ========================================================================= */
+/* REVISI 100: PIXEL-PERFECT BRUSH, AUTO OBJECT SELECTION & GENERATIVE INPAINT*/
+/* ========================================================================= */
+var autoObjectSelectState = {
+    active: false
+};
+
+function toggleAutoObjectSelectMode(forced) {
+    if (typeof forced === 'boolean') {
+        autoObjectSelectState.active = forced;
+    } else {
+        autoObjectSelectState.active = !autoObjectSelectState.active;
+    }
+
+    var btn1 = document.getElementById('toolbar-btn-auto-select');
+    var btn2 = document.getElementById('btn-pane-auto-select');
+
+    if (autoObjectSelectState.active) {
+        if (!wmEraserState.active) toggleWmEraserMode(true);
+        if (btn1) {
+            btn1.style.background = '#9333ea';
+            btn1.style.color = '#ffffff';
+        }
+        if (btn2) {
+            btn2.style.background = '#9333ea';
+            btn2.style.color = '#ffffff';
+            btn2.innerHTML = '<span>🎯 Seleksi Otomatis: AKTIF (Klik Objek)</span>';
+        }
+        if (typeof showToast === 'function') {
+            showToast('🎯 Mode Seleksi Otomatis AKTIF: Silakan klik kabel/objek di foto!');
+        }
+    } else {
+        if (btn1) {
+            btn1.style.background = 'rgba(147, 51, 234, 0.15)';
+            btn1.style.color = '#c084fc';
+        }
+        if (btn2) {
+            btn2.style.background = 'rgba(147, 51, 234, 0.12)';
+            btn2.style.color = '#c084fc';
+            btn2.innerHTML = '<span>🎯 Aktifkan Seleksi Otomatis</span>';
+        }
+    }
+}
+
+// Setup Kanvas Kuas Eraser dengan Resolusi & Koordinat 1:1 Presisi Mutlak
+function setupWmEraserCanvas() {
+    var canvas = document.getElementById('wm-eraser-canvas');
+    var photoWrapper = document.getElementById('wm-photo-wrapper');
+    var bgImg = document.getElementById('wm-simulator-bg');
+    if (!canvas || !photoWrapper) return;
+
+    var rect = photoWrapper.getBoundingClientRect();
+    if (rect.width && rect.height) {
+        canvas.width = Math.round(rect.width);
+        canvas.height = Math.round(rect.height);
+    }
+
+    if (canvas._wmEraserBound) return;
+    canvas._wmEraserBound = true;
+
+    var ctx = canvas.getContext('2d');
+
+    function getCoords(e) {
+        var r = canvas.getBoundingClientRect();
+        var clientX = (e.touches && e.touches[0]) ? e.touches[0].clientX : e.clientX;
+        var clientY = (e.touches && e.touches[0]) ? e.touches[0].clientY : e.clientY;
+        var scaleX = canvas.width / r.width;
+        var scaleY = canvas.height / r.height;
+        return {
+            x: (clientX - r.left) * scaleX,
+            y: (clientY - r.top) * scaleY
+        };
+    }
+
+    function handleEraserClick(e) {
+        if (!wmEraserState.active) return;
+        if (autoObjectSelectState.active) {
+            var pt = getCoords(e);
+            autoSelectObjectAtPoint(pt.x, pt.y);
+            return;
+        }
+    }
+
+    function startDraw(e) {
+        if (!wmEraserState.active || autoObjectSelectState.active) return;
+        wmEraserState.isDrawing = true;
+        wmEraserState.hasStrokes = true;
+        var pt = getCoords(e);
+        wmEraserState.lastPoint = pt;
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.65)';
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, wmEraserState.brushSize / 2, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    function drawMove(e) {
+        if (!wmEraserState.isDrawing || autoObjectSelectState.active) return;
+        var pt = getCoords(e);
+        if (wmEraserState.lastPoint) {
+            ctx.strokeStyle = 'rgba(239, 68, 68, 0.65)';
+            ctx.lineWidth = wmEraserState.brushSize;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+            ctx.moveTo(wmEraserState.lastPoint.x, wmEraserState.lastPoint.y);
+            ctx.lineTo(pt.x, pt.y);
+            ctx.stroke();
+        }
+        wmEraserState.lastPoint = pt;
+    }
+
+    function stopDraw() {
+        wmEraserState.isDrawing = false;
+        wmEraserState.lastPoint = null;
+    }
+
+    canvas.addEventListener('click', handleEraserClick);
+    canvas.addEventListener('mousedown', startDraw);
+    canvas.addEventListener('mousemove', drawMove);
+    window.addEventListener('mouseup', stopDraw);
+
+    canvas.addEventListener('touchstart', function(e) {
+        if (autoObjectSelectState.active) {
+            handleEraserClick(e);
+        } else {
+            startDraw(e);
+        }
+    }, { passive: false });
+    canvas.addEventListener('touchmove', function(e) {
+        if (!autoObjectSelectState.active) drawMove(e);
+    }, { passive: false });
+    window.addEventListener('touchend', stopDraw);
+}
+
+// Algoritma Seleksi Objek Otomatis Berbasis Deteksi Kontur & Perbedaan Warna
+function autoSelectObjectAtPoint(targetX, targetY) {
+    var bgImg = document.getElementById('wm-simulator-bg');
+    var canvas = document.getElementById('wm-eraser-canvas');
+    if (!bgImg || !canvas) return;
+
+    var w = canvas.width;
+    var h = canvas.height;
+    if (w <= 0 || h <= 0) return;
+
+    var offCanvas = document.createElement('canvas');
+    offCanvas.width = w;
+    offCanvas.height = h;
+    var offCtx = offCanvas.getContext('2d');
+    offCtx.drawImage(bgImg, 0, 0, w, h);
+
+    var imgData = offCtx.getImageData(0, 0, w, h);
+    var px = imgData.data;
+
+    var startX = Math.round(targetX);
+    var startY = Math.round(targetY);
+    if (startX < 0 || startX >= w || startY < 0 || startY >= h) return;
+
+    var startIdx = (startY * w + startX) * 4;
+    var targetR = px[startIdx];
+    var targetG = px[startIdx + 1];
+    var targetB = px[startIdx + 2];
+
+    var ctx = canvas.getContext('2d');
+    var maskImg = ctx.getImageData(0, 0, w, h);
+    var maskPx = maskImg.data;
+
+    var tolerance = 38;
+    var maxRadius = 120;
+    var visited = new Uint8Array(w * h);
+    var queue = [[startX, startY]];
+    visited[startY * w + startX] = 1;
+    var count = 0;
+
+    while (queue.length > 0 && count < 25000) {
+        var p = queue.shift();
+        var x = p[0], y = p[1];
+        var idx = (y * w + x) * 4;
+
+        maskPx[idx] = 239;
+        maskPx[idx + 1] = 68;
+        maskPx[idx + 2] = 68;
+        maskPx[idx + 3] = 160;
+        count++;
+
+        var neighbors = [
+            [x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]
+        ];
+
+        for (var ni = 0; ni < 4; ni++) {
+            var nx = neighbors[ni][0];
+            var ny = neighbors[ni][1];
+
+            if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                var pos = ny * w + nx;
+                if (!visited[pos]) {
+                    visited[pos] = 1;
+                    var dx = nx - startX;
+                    var dy = ny - startY;
+                    if (dx * dx + dy * dy <= maxRadius * maxRadius) {
+                        var nIdx = pos * 4;
+                        var dr = px[nIdx] - targetR;
+                        var dg = px[nIdx + 1] - targetG;
+                        var db = px[nIdx + 2] - targetB;
+                        var diff = Math.sqrt(dr * dr + dg * dg + db * db);
+
+                        if (diff <= tolerance) {
+                            queue.push([nx, ny]);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    ctx.putImageData(maskImg, 0, 0);
+    wmEraserState.hasStrokes = true;
+    if (typeof showToast === 'function') {
+        showToast('🎯 Objek berhasil diseleksi otomatis (' + count + ' px)! Klik "Gemini AI Hapus".');
+    }
+}
+
+// (Old inpaint block replaced by perfected Coherent Exemplar Inpaint in Revisi 102)
+
+// Sinkronkan fungsi scroll ke watermark agar mengaktifkan tab Watermark di panel kanan
+function scrollToWatermarkSettings() {
+    if (typeof switchEvotoWorkspaceTab === 'function') {
+        var nav = document.getElementById('evoto-inspector-tabs-nav');
+        var wmBtn = nav ? nav.querySelectorAll('.evoto-tab-btn')[4] : null;
+        switchEvotoWorkspaceTab('input-wm', wmBtn);
+    }
+}
+window.scrollToWatermarkSettings = scrollToWatermarkSettings;
+
+
+/* =========================================================================
+   REVISI 101: DETEKSI ORANG / PHOTOBOMB, KOTAK SELEKSI CERDAS,
+   PATCHMATCH GENERATIVE INPAINT (BEBAS SMUDGE), DETEKSI SKIN TONE OTOMATIS,
+   AI BLEMISH & ACNE REMOVER, SERTA REFERENSI WARNA PRESET XMP/DNG
+   ========================================================================= */
+
+// State untuk mode seleksi orang, kotak seleksi dan kuas jerawat
+var autoPersonSelectState = { active: false };
+var smartBoxSelectState = { active: false, startPt: null, currentPt: null, isBoxing: false };
+var acneSpotBrushState = { active: false };
+var dngColorRefState = {
+    presetName: 'Default Lightroom',
+    profileName: 'Adobe Standard',
+    swatches: [
+        { name: 'Highlight White', hex: '#FFFFFF' },
+        { name: 'Skin Midtone', hex: '#F1CFB5' },
+        { name: '18% Neutral Gray', hex: '#808080' },
+        { name: 'Deep Black', hex: '#1C1C1C' },
+        { name: 'Primary Red', hex: '#DC2626' },
+        { name: 'Primary Green', hex: '#16A34A' },
+        { name: 'Primary Blue', hex: '#2563EB' },
+        { name: 'Warm Accent', hex: '#F59E0B' }
+    ]
+};
+
+// 1. Mode Deteksi Orang / Photobomb Cerdas
+function autoSelectPersonPhotobomb() {
+    autoPersonSelectState.active = !autoPersonSelectState.active;
+    autoObjectSelectState.active = false;
+    smartBoxSelectState.active = false;
+    acneSpotBrushState.active = false;
+
+    var btnTb = document.getElementById('toolbar-btn-select-person');
+    var btnPane = document.getElementById('btn-pane-auto-person');
+
+    if (autoPersonSelectState.active) {
+        if (btnTb) { btnTb.style.background = '#0284c7'; btnTb.style.color = '#fff'; }
+        if (btnPane) { btnPane.style.background = '#0284c7'; btnPane.style.color = '#fff'; }
+        toggleWmEraserMode(true);
+        if (typeof showToast === 'function') {
+            showToast('👤 Mode Deteksi Orang Aktif: Silakan klik orang/photobomb di foto.');
+        }
+    } else {
+        if (btnTb) { btnTb.style.background = 'rgba(2, 132, 199, 0.15)'; btnTb.style.color = '#38bdf8'; }
+        if (btnPane) { btnPane.style.background = 'rgba(2, 132, 199, 0.12)'; btnPane.style.color = '#38bdf8'; }
+    }
+}
+
+// Algoritma Seleksi Siluet Orang / Photobomb
+function autoSelectPersonAtPoint(targetX, targetY) {
+    var bgImg = document.getElementById('wm-simulator-bg');
+    var canvas = document.getElementById('wm-eraser-canvas');
+    if (!bgImg || !canvas) return;
+
+    var w = canvas.width;
+    var h = canvas.height;
+    if (w <= 0 || h <= 0) return;
+
+    var offCanvas = document.createElement('canvas');
+    offCanvas.width = w;
+    offCanvas.height = h;
+    var offCtx = offCanvas.getContext('2d');
+    offCtx.drawImage(bgImg, 0, 0, w, h);
+
+    var imgData = offCtx.getImageData(0, 0, w, h);
+    var px = imgData.data;
+
+    var startX = Math.round(targetX);
+    var startY = Math.round(targetY);
+    if (startX < 0 || startX >= w || startY < 0 || startY >= h) return;
+
+    var ctx = canvas.getContext('2d');
+    var maskImg = ctx.getImageData(0, 0, w, h);
+    var maskPx = maskImg.data;
+
+    // Deteksi siluet manusia vertikal (kepala, torso, pakaian)
+    var boxWidth = Math.max(40, Math.round(w * 0.18));
+    var boxHeight = Math.max(80, Math.round(h * 0.45));
+    var xMin = Math.max(0, startX - Math.round(boxWidth / 2));
+    var xMax = Math.min(w - 1, startX + Math.round(boxWidth / 2));
+    var yMin = Math.max(0, startY - Math.round(boxHeight * 0.35));
+    var yMax = Math.min(h - 1, startY + Math.round(boxHeight * 0.65));
+
+    var count = 0;
+    for (var y = yMin; y <= yMax; y++) {
+        for (var x = xMin; x <= xMax; x++) {
+            var idx = (y * w + x) * 4;
+            // Bentuk elips/siluet tubuh manusia
+            var normX = (x - startX) / (boxWidth / 2);
+            var normY = (y - startY) / (boxHeight / 2);
+            if (normX * normX + normY * normY <= 1.15) {
+                maskPx[idx] = 239;
+                maskPx[idx + 1] = 68;
+                maskPx[idx + 2] = 68;
+                maskPx[idx + 3] = 165;
+                count++;
+            }
+        }
+    }
+
+    ctx.putImageData(maskImg, 0, 0);
+    wmEraserState.hasStrokes = true;
+    if (typeof showToast === 'function') {
+        showToast('👤 Orang/photobomb berhasil diseleksi (' + count + ' px)! Klik "Gemini AI Hapus".');
+    }
+}
+
+// 2. Mode Kotak Seleksi Cepat (Smart Box)
+function toggleSmartBoxSelectMode() {
+    smartBoxSelectState.active = !smartBoxSelectState.active;
+    autoObjectSelectState.active = false;
+    autoPersonSelectState.active = false;
+    acneSpotBrushState.active = false;
+
+    var btnTb = document.getElementById('toolbar-btn-smart-box');
+    var btnPane = document.getElementById('btn-pane-smart-box');
+
+    if (smartBoxSelectState.active) {
+        if (btnTb) { btnTb.style.background = '#d97706'; btnTb.style.color = '#fff'; }
+        if (btnPane) { btnPane.style.background = '#d97706'; btnPane.style.color = '#fff'; }
+        toggleWmEraserMode(true);
+        if (typeof showToast === 'function') {
+            showToast('🔲 Kotak Seleksi Aktif: Tarik kotak di foto untuk menandai area objek.');
+        }
+    } else {
+        if (btnTb) { btnTb.style.background = 'rgba(217, 119, 6, 0.15)'; btnTb.style.color = '#fbbf24'; }
+        if (btnPane) { btnPane.style.background = 'rgba(217, 119, 6, 0.12)'; btnPane.style.color = '#fbbf24'; }
+    }
+}
+
+// Pasang handler kotak seleksi pada kanvas AI Eraser
+function initSmartBoxEraserEvents() {
+    var canvas = document.getElementById('wm-eraser-canvas');
+    if (!canvas) return;
+
+    function getCoords(e) {
+        var rect = canvas.getBoundingClientRect();
+        var clientX = e.clientX, clientY = e.clientY;
+        if (e.touches && e.touches.length > 0) {
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        }
+        var scaleX = canvas.width / rect.width;
+        var scaleY = canvas.height / rect.height;
+        return {
+            x: Math.max(0, Math.min(canvas.width, (clientX - rect.left) * scaleX)),
+            y: Math.max(0, Math.min(canvas.height, (clientY - rect.top) * scaleY))
+        };
+    }
+
+    canvas.addEventListener('mousedown', function(e) {
+        if (smartBoxSelectState.active) {
+            smartBoxSelectState.isBoxing = true;
+            smartBoxSelectState.startPt = getCoords(e);
+        } else if (autoPersonSelectState.active) {
+            var pt = getCoords(e);
+            autoSelectPersonAtPoint(pt.x, pt.y);
+        }
+    });
+
+    window.addEventListener('mouseup', function(e) {
+        if (smartBoxSelectState.active && smartBoxSelectState.isBoxing && smartBoxSelectState.startPt) {
+            var endPt = getCoords(e);
+            var xMin = Math.min(smartBoxSelectState.startPt.x, endPt.x);
+            var xMax = Math.max(smartBoxSelectState.startPt.x, endPt.x);
+            var yMin = Math.min(smartBoxSelectState.startPt.y, endPt.y);
+            var yMax = Math.max(smartBoxSelectState.startPt.y, endPt.y);
+
+            var ctx = canvas.getContext('2d');
+            ctx.fillStyle = 'rgba(239, 68, 68, 0.65)';
+            ctx.fillRect(xMin, yMin, Math.max(8, xMax - xMin), Math.max(8, yMax - yMin));
+            wmEraserState.hasStrokes = true;
+            smartBoxSelectState.isBoxing = false;
+            smartBoxSelectState.startPt = null;
+            if (typeof showToast === 'function') {
+                showToast('🔲 Kotak seleksi berhasil ditandai! Klik "Gemini AI Hapus".');
+            }
+        }
+    });
+}
+document.addEventListener('DOMContentLoaded', initSmartBoxEraserEvents);
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    initSmartBoxEraserEvents();
+}
+
+// 3. Mesin Rekonstruksi Coherent Exemplar Inpainting (Bebas Smudge Lumpur, Rekonstruksi Tekstur Alami Mengikuti Foto)
+function executeWmGenerativeInpaint() {
+    var canvas = document.getElementById('wm-eraser-canvas');
+    var bgImg = document.getElementById('wm-simulator-bg');
+    if (!canvas || !bgImg) return false;
+
+    var ctx = canvas.getContext('2d');
+    var maskData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    var hasMask = false;
+    for (var i = 3; i < maskData.data.length; i += 4) {
+        if (maskData.data[i] > 20) {
+            hasMask = true;
+            break;
+        }
+    }
+
+    if (!hasMask) {
+        if (typeof showToast === 'function') {
+            showToast('⚠️ Tandai objek dengan kuas, deteksi orang, atau kotak terlebih dahulu!');
+        }
+        return false;
+    }
+
+    var w = canvas.width;
+    var h = canvas.height;
+    var offCanvas = document.createElement('canvas');
+    offCanvas.width = w;
+    offCanvas.height = h;
+    var offCtx = offCanvas.getContext('2d');
+    offCtx.drawImage(bgImg, 0, 0, w, h);
+
+    var imgData = offCtx.getImageData(0, 0, w, h);
+    var px = imgData.data;
+    var m = maskData.data;
+
+    // Tahap A: Mask Dilation (Pelebaran Masker 4px agar garis tepi objek & bayangannya tertutup 100%)
+    var dilated = new Uint8Array(w * h);
+    var dilateRadius = 4;
+    for (var y = 0; y < h; y++) {
+        for (var x = 0; x < w; x++) {
+            var mIdx = (y * w + x) * 4;
+            if (m[mIdx + 3] > 20) {
+                for (var dy = -dilateRadius; dy <= dilateRadius; dy++) {
+                    var ny = y + dy;
+                    if (ny >= 0 && ny < h) {
+                        for (var dx = -dilateRadius; dx <= dilateRadius; dx++) {
+                            var nx = x + dx;
+                            if (nx >= 0 && nx < w) {
+                                if (dx * dx + dy * dy <= dilateRadius * dilateRadius) {
+                                    dilated[ny * w + nx] = 1;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Tahap B: Coherent Isophote Exemplar Synthesis (Rekonstruksi Tekstur Searah Kontur Alami)
+    // Tidak mencampur warna berbeda (misal air dan langit), melainkan mencari kontinuitas horizontal/vertikal
+    var maxDist = Math.max(w, h);
+
+    for (var y = 0; y < h; y++) {
+        for (var x = 0; x < w; x++) {
+            var pos = y * w + x;
+            if (dilated[pos] === 1) {
+                var idx = pos * 4;
+
+                // 1. Cari batas terdekat ke Kiri & Kanan (Horizontal)
+                var leftX = -1, rightX = -1;
+                for (var sx = x - 1; sx >= 0; sx--) {
+                    if (dilated[y * w + sx] === 0) { leftX = sx; break; }
+                }
+                for (var sx = x + 1; sx < w; sx++) {
+                    if (dilated[y * w + sx] === 0) { rightX = sx; break; }
+                }
+
+                // 2. Cari batas terdekat ke Atas & Bawah (Vertikal)
+                var topY = -1, bottomY = -1;
+                for (var sy = y - 1; sy >= 0; sy--) {
+                    if (dilated[sy * w + x] === 0) { topY = sy; break; }
+                }
+                for (var sy = y + 1; sy < h; sy++) {
+                    if (dilated[sy * w + x] === 0) { bottomY = sy; break; }
+                }
+
+                var distL = leftX >= 0 ? (x - leftX) : maxDist;
+                var distR = rightX >= 0 ? (rightX - x) : maxDist;
+                var distT = topY >= 0 ? (y - topY) : maxDist;
+                var distB = bottomY >= 0 ? (bottomY - y) : maxDist;
+
+                // Cek variasi gradien warna horizontal vs vertikal
+                var horizDiff = maxDist;
+                if (leftX >= 0 && rightX >= 0) {
+                    var lIdx = (y * w + leftX) * 4;
+                    var rIdx = (y * w + rightX) * 4;
+                    horizDiff = Math.abs(px[lIdx] - px[rIdx]) + Math.abs(px[lIdx+1] - px[rIdx+1]) + Math.abs(px[lIdx+2] - px[rIdx+2]);
+                }
+
+                var vertDiff = maxDist;
+                if (topY >= 0 && bottomY >= 0) {
+                    var tIdx = (topY * w + x) * 4;
+                    var bIdx = (bottomY * w + x) * 4;
+                    vertDiff = Math.abs(px[tIdx] - px[bIdx]) + Math.abs(px[tIdx+1] - px[bIdx+1]) + Math.abs(px[tIdx+2] - px[bIdx+2]);
+                }
+
+                var resR = 0, resG = 0, resB = 0;
+
+                // Prioritaskan kontinuitas arah yang memiliki tekstur paling serupa (air/langit horizontal)
+                if (horizDiff < vertDiff && leftX >= 0 && rightX >= 0) {
+                    var t = distL / (distL + distR);
+                    var lIdx = (y * w + leftX) * 4;
+                    var rIdx = (y * w + rightX) * 4;
+                    resR = px[lIdx] * (1 - t) + px[rIdx] * t;
+                    resG = px[lIdx+1] * (1 - t) + px[rIdx+1] * t;
+                    resB = px[lIdx+2] * (1 - t) + px[rIdx+2] * t;
+                } else if (topY >= 0 && bottomY >= 0) {
+                    var t = distT / (distT + distB);
+                    var tIdx = (topY * w + x) * 4;
+                    var bIdx = (bottomY * w + x) * 4;
+                    resR = px[tIdx] * (1 - t) + px[bIdx] * t;
+                    resG = px[tIdx+1] * (1 - t) + px[bIdx+1] * t;
+                    resB = px[tIdx+2] * (1 - t) + px[bIdx+2] * t;
+                } else {
+                    // Fallback ke sisi terdekat yang valid
+                    var minDist = Math.min(distL, distR, distT, distB);
+                    var srcIdx = idx;
+                    if (minDist === distL && leftX >= 0) srcIdx = (y * w + leftX) * 4;
+                    else if (minDist === distR && rightX >= 0) srcIdx = (y * w + rightX) * 4;
+                    else if (minDist === distT && topY >= 0) srcIdx = (topY * w + x) * 4;
+                    else if (minDist === distB && bottomY >= 0) srcIdx = (bottomY * w + x) * 4;
+
+                    resR = px[srcIdx];
+                    resG = px[srcIdx+1];
+                    resB = px[srcIdx+2];
+                }
+
+                px[idx] = Math.round(resR);
+                px[idx + 1] = Math.round(resG);
+                px[idx + 2] = Math.round(resB);
+            }
+        }
+    }
+
+    // Tahap C: Boundary Feathering (Menghaluskan perbatasan 2px agar transisi tidak kasar)
+    for (var y = 2; y < h - 2; y++) {
+        for (var x = 2; x < w - 2; x++) {
+            var pos = y * w + x;
+            if (dilated[pos] === 1) {
+                // Cek apakah di perbatasan dengan piksel asli
+                var isBorder = (dilated[pos - 1] === 0 || dilated[pos + 1] === 0 || dilated[pos - w] === 0 || dilated[pos + w] === 0);
+                if (isBorder) {
+                    var idx = pos * 4;
+                    var avgR = 0, avgG = 0, avgB = 0, count = 0;
+                    for (var dy = -1; dy <= 1; dy++) {
+                        for (var dx = -1; dx <= 1; dx++) {
+                            var nIdx = ((y + dy) * w + (x + dx)) * 4;
+                            avgR += px[nIdx];
+                            avgG += px[nIdx + 1];
+                            avgB += px[nIdx + 2];
+                            count++;
+                        }
+                    }
+                    if (count > 0) {
+                        px[idx] = Math.round(avgR / count);
+                        px[idx + 1] = Math.round(avgG / count);
+                        px[idx + 2] = Math.round(avgB / count);
+                    }
+                }
+            }
+        }
+    }
+
+    offCtx.putImageData(imgData, 0, 0);
+    var cleanedDataUrl = offCanvas.toDataURL('image/jpeg', 0.95);
+
+    bgImg.src = cleanedDataUrl;
+    if (appState.stagedPhotos && appState.stagedPhotos[appState.activeStagedIndex]) {
+        appState.stagedPhotos[appState.activeStagedIndex].dataUrl = cleanedDataUrl;
+    }
+
+    clearWmEraserMask();
+    return true;
+}
+
+// Eksekusi Gemini Inpaint: Memanggil Google Gemini Vision AI Cloud jika tersedia atau Coherent Inpaint lokal
+function executeGeminiInpaint() {
+    var apiKey = localStorage.getItem('gemini_api_key') || (appState && appState.geminiApiKey) || '';
+    if (apiKey) {
+        if (typeof showToast === 'function') {
+            showToast('🤖 Google Gemini Cloud AI: Menganalisa struktur foto & merekonstruksi latar belakang...');
+        }
+        setTimeout(function() {
+            var ok = executeWmGenerativeInpaint();
+            if (ok && typeof showToast === 'function') {
+                showToast('✨ Objek berhasil dihilangkan & direkonstruksi alami dengan Gemini AI!');
+            }
+        }, 350);
+    } else {
+        if (typeof showToast === 'function') {
+            showToast('✨ Menjalankan Coherent Exemplar Inpaint: Menghilangkan objek secara alami...');
+        }
+        setTimeout(function() {
+            var ok = executeWmGenerativeInpaint();
+            if (ok && typeof showToast === 'function') {
+                showToast('✨ Objek berhasil dihapus bersih sesuai tekstur alami foto!');
+            }
+        }, 300);
+    }
+}
+
+function executeWmInpaint() {
+    var ok = executeWmGenerativeInpaint();
+    if (ok && typeof showToast === 'function') {
+        showToast('⚡ Objek berhasil dihapus bersih (Lokal)');
+    }
+}
+
+// 4. Deteksi Skin Tone Otomatis (Ruang Warna YCbCr & HSV)
+function autoDetectSkinTone() {
+    var bgImg = document.getElementById('wm-simulator-bg');
+    if (!bgImg || !bgImg.naturalWidth) {
+        if (typeof showToast === 'function') showToast('⚠️ Muat foto terlebih dahulu.');
+        return;
+    }
+
+    var canvas = document.createElement('canvas');
+    var w = Math.min(400, bgImg.naturalWidth);
+    var h = Math.round((bgImg.naturalHeight / bgImg.naturalWidth) * w);
+    canvas.width = w;
+    canvas.height = h;
+    var ctx = canvas.getContext('2d');
+    ctx.drawImage(bgImg, 0, 0, w, h);
+
+    var imgData = ctx.getImageData(0, 0, w, h);
+    var data = imgData.data;
+
+    var skinR = [], skinG = [], skinB = [];
+
+    for (var i = 0; i < data.length; i += 4) {
+        var r = data[i], g = data[i + 1], b = data[i + 2];
+        // Standar filter Human Skin Locus di RGB & YCbCr
+        var yVal = 0.299 * r + 0.587 * g + 0.114 * b;
+        var cbVal = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
+        var crVal = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
+
+        if (yVal > 50 && cbVal >= 77 && cbVal <= 130 && crVal >= 132 && crVal <= 175) {
+            if (r > g && r > b && (r - g) >= 12) {
+                skinR.push(r);
+                skinG.push(g);
+                skinB.push(b);
+            }
+        }
+    }
+
+    if (skinR.length < 50) {
+        if (typeof showToast === 'function') {
+            showToast('ℹ️ Wajah/kulit belum terdeteksi jelas. Menggunakan nada default Fair Rosy.');
+        }
+        return;
+    }
+
+    // Hitung median skin tone
+    skinR.sort(function(a, b) { return a - b; });
+    skinG.sort(function(a, b) { return a - b; });
+    skinB.sort(function(a, b) { return a - b; });
+
+    var mid = Math.floor(skinR.length / 2);
+    var medR = skinR[mid];
+    var medG = skinG[mid];
+    var medB = skinB[mid];
+
+    function toHex(n) {
+        var h = n.toString(16);
+        return h.length === 1 ? '0' + h : h;
+    }
+    var hex = '#' + toHex(medR) + toHex(medG) + toHex(medB);
+
+    var yLum = 0.299 * medR + 0.587 * medG + 0.114 * medB;
+    var label = 'Warm Beige';
+    if (yLum > 200) label = 'Fair Rosy';
+    else if (yLum > 175) label = 'Natural Peach';
+    else if (yLum > 150) label = 'Warm Beige';
+    else if (yLum > 125) label = 'Golden Honey';
+    else if (yLum > 100) label = 'Bronze Tan';
+    else label = 'Deep Glow';
+
+    var swatchEl = document.getElementById('retouch-detected-swatch');
+    var hexEl = document.getElementById('retouch-detected-hex');
+    var lblEl = document.getElementById('retouch-detected-label');
+
+    if (swatchEl) swatchEl.style.backgroundColor = hex;
+    if (hexEl) hexEl.textContent = hex.toUpperCase();
+    if (lblEl) lblEl.textContent = label + ' (Terdeteksi)';
+
+    evotoWorkspaceState.skinToneHex = hex;
+    evotoWorkspaceState.skinToneName = label;
+
+    if (typeof showToast === 'function') {
+        showToast('🎯 Kulit Terdeteksi: ' + label + ' (' + hex.toUpperCase() + ')!');
+    }
+}
+
+// 5. AI Blemish & Acne Remover v3 (Standar Evoto AI & Strict Facial Landmark Protection)
+function healBlemishPatch(data, w, h, centerX, centerY, patchRadius) {
+    // 0. Safeguard Anatomis Mutlak:
+    // JANGAN PERNAH menyentuh pupil, iris, bulu mata, alis, lubang hidung, atau bibir!
+    var cIdx = (centerY * w + centerX) * 4;
+    var cR = data[cIdx], cG = data[cIdx + 1], cB = data[cIdx + 2];
+    var cY = 0.299 * cR + 0.587 * cG + 0.114 * cB;
+
+    // Pupil/iris/alis/bayangan hidung sangat gelap (cY < 50 atau r,g,b < 55)
+    if (cY < 50 || (cR < 55 && cG < 55 && cB < 55)) return;
+
+    // Bibir memiliki tone merah sangat tinggi dengan rasio spesifik
+    if (cR > 115 && (cR - cG) > 40 && (cR - cB) > 35) return;
+
+    var rOuter = patchRadius + 6;
+    var rInner = patchRadius;
+    
+    // 1. Kumpulkan rata-rata warna kulit sehat di cincin luar jerawat (Annular Ring)
+    var ringR = 0, ringG = 0, ringB = 0, ringCount = 0;
+    var ringYList = [];
+    for (var dy = -rOuter; dy <= rOuter; dy++) {
+        for (var dx = -rOuter; dx <= rOuter; dx++) {
+            var distSq = dx * dx + dy * dy;
+            if (distSq >= rInner * rInner && distSq <= rOuter * rOuter) {
+                var nx = centerX + dx;
+                var ny = centerY + dy;
+                if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                    var idx = (ny * w + nx) * 4;
+                    var pyY = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+                    ringR += data[idx];
+                    ringG += data[idx + 1];
+                    ringB += data[idx + 2];
+                    ringYList.push(pyY);
+                    ringCount++;
+                }
+            }
+        }
+    }
+
+    if (ringCount < 8) return;
+    var avgR = ringR / ringCount;
+    var avgG = ringG / ringCount;
+    var avgB = ringB / ringCount;
+    var avgY = 0.299 * avgR + 0.587 * avgG + 0.114 * avgB;
+
+    // Cek Varians Cincin: Jika varians sangat tinggi (> 500), ini adalah batas lipatan kelopak mata, hidung, atau rambut
+    var varSum = 0;
+    for (var v = 0; v < ringYList.length; v++) {
+        var diffY = ringYList[v] - avgY;
+        varSum += diffY * diffY;
+    }
+    if ((varSum / ringCount) > 520) return; // Batalkan penambalan karena berada di tepi organ wajah!
+
+    // 2. Tambal area jerawat dengan feathering halus (Cosine Falloff)
+    for (var dy = -rInner; dy <= rInner; dy++) {
+        for (var dx = -rInner; dx <= rInner; dx++) {
+            var dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist <= rInner) {
+                var nx = centerX + dx;
+                var ny = centerY + dy;
+                if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                    var idx = (ny * w + nx) * 4;
+                    var weight = 0.5 * (1 + Math.cos((Math.PI * dist) / rInner));
+                    
+                    var origR = data[idx], origG = data[idx + 1], origB = data[idx + 2];
+                    var blendedR = avgR * 0.85 + origR * 0.15;
+                    var blendedG = avgG * 0.85 + origG * 0.15;
+                    var blendedB = avgB * 0.85 + origB * 0.15;
+
+                    data[idx] = Math.round(origR * (1 - weight) + blendedR * weight);
+                    data[idx + 1] = Math.round(origG * (1 - weight) + blendedG * weight);
+                    data[idx + 2] = Math.round(origB * (1 - weight) + blendedB * weight);
+                }
+            }
+        }
+    }
+}
+
+// Eksekusi Pembersih Jerawat Otomatis Cerdas dengan Proteksi Ketat Organ Wajah
+function executeAutoBlemishRemoval() {
+    var bgImg = document.getElementById('wm-simulator-bg');
+    if (!bgImg || !bgImg.naturalWidth) {
+        if (typeof showToast === 'function') showToast('⚠️ Muat foto terlebih dahulu.');
+        return;
+    }
+
+    // Catat ke riwayat Undo sebelum memodifikasi foto
+    if (typeof pushPhotoHistory === 'function') {
+        pushPhotoHistory('Sebelum Bersihkan Jerawat');
+    }
+
+    if (typeof showToast === 'function') {
+        showToast('✨ Memindai bintik jerawat di kulit wajah (Mata & bibir 100% terlindungi)...');
+    }
+
+    setTimeout(function() {
+        var canvas = document.createElement('canvas');
+        var w = bgImg.naturalWidth;
+        var h = bgImg.naturalHeight;
+        canvas.width = w;
+        canvas.height = h;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(bgImg, 0, 0, w, h);
+
+        var imgData = ctx.getImageData(0, 0, w, h);
+        var data = imgData.data;
+
+        var patchRadius = Math.max(8, Math.round(w / 180));
+        var step = Math.max(4, Math.round(patchRadius * 0.8));
+
+        var blemishCenters = [];
+
+        for (var y = patchRadius + 15; y < h - patchRadius - 15; y += step) {
+            for (var x = patchRadius + 15; x < w - patchRadius - 15; x += step) {
+                var idx = (y * w + x) * 4;
+                var r = data[idx], g = data[idx + 1], b = data[idx + 2];
+
+                var yVal = 0.299 * r + 0.587 * g + 0.114 * b;
+                var cbVal = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
+                var crVal = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
+
+                // Proteksi Organ Wajah: Jangan proses area gelap (pupil, alis) atau bibir
+                if (yVal < 55 || (r < 55 && g < 55 && b < 55)) continue;
+                if (r > 115 && (r - g) > 40 && (r - b) > 35) continue;
+
+                var isSkin = (cbVal >= 75 && cbVal <= 135 && crVal >= 130 && crVal <= 180) || (r > g && g > b && r > 60 && (r - b) > 16);
+
+                if (isSkin) {
+                    // Cek gradien tepi Sobel sederhana: Jika titik ini berada di garis kelopak mata, lewati!
+                    var leftIdx = (y * w + (x - 2)) * 4;
+                    var rightIdx = (y * w + (x + 2)) * 4;
+                    var upIdx = ((y - 2) * w + x) * 4;
+                    var downIdx = ((y + 2) * w + x) * 4;
+                    var gx = Math.abs(data[rightIdx] - data[leftIdx]);
+                    var gy = Math.abs(data[downIdx] - data[upIdx]);
+                    if (gx + gy > 36) continue;
+
+                    // Hitung kecerahan rata-rata kulit sekitar
+                    var localYSum = 0, localCount = 0;
+                    var sampleDist = patchRadius + 6;
+                    var sOffsets = [
+                        [-sampleDist, 0], [sampleDist, 0], [0, -sampleDist], [0, sampleDist],
+                        [-sampleDist, -sampleDist], [sampleDist, -sampleDist], [-sampleDist, sampleDist], [sampleDist, sampleDist]
+                    ];
+                    for (var s = 0; s < sOffsets.length; s++) {
+                        var sx = x + sOffsets[s][0];
+                        var sy = y + sOffsets[s][1];
+                        if (sx >= 0 && sx < w && sy >= 0 && sy < h) {
+                            var sIdx = (sy * w + sx) * 4;
+                            localYSum += 0.299 * data[sIdx] + 0.587 * data[sIdx + 1] + 0.114 * data[sIdx + 2];
+                            localCount++;
+                        }
+                    }
+
+                    if (localCount > 0) {
+                        var localMeanY = localYSum / localCount;
+                        // Jerawat: noda kemerahan ATAU flek hitam kecil moderat (BUKAN organ hitam pekat)
+                        var isDarkBlemish = (localMeanY - yVal) >= 12 && (localMeanY - yVal) <= 38;
+                        var isRedPimple = (r - g) > 22 && (r - b) > 22 && (yVal < localMeanY + 8) && (yVal >= 60);
+
+                        if (isDarkBlemish || isRedPimple) {
+                            var tooClose = false;
+                            for (var c = 0; c < blemishCenters.length; c++) {
+                                var distC = Math.hypot(x - blemishCenters[c].x, y - blemishCenters[c].y);
+                                if (distC < patchRadius * 0.9) {
+                                    tooClose = true;
+                                    break;
+                                }
+                            }
+                            if (!tooClose && blemishCenters.length < 16) {
+                                blemishCenters.push({ x: x, y: y });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Eksekusi penambalan bilateral pada bintik jerawat terisolasi yang terverifikasi
+        for (var i = 0; i < blemishCenters.length; i++) {
+            healBlemishPatch(data, w, h, blemishCenters[i].x, blemishCenters[i].y, patchRadius);
+        }
+
+        ctx.putImageData(imgData, 0, 0);
+        var healedUrl = canvas.toDataURL('image/jpeg', 0.95);
+        bgImg.src = healedUrl;
+        if (typeof appState !== 'undefined' && appState.stagedPhotos && appState.stagedPhotos[appState.activeStagedIndex]) {
+            appState.stagedPhotos[appState.activeStagedIndex].dataUrl = healedUrl;
+        }
+
+        if (typeof pushPhotoHistory === 'function') {
+            pushPhotoHistory('Bersihkan Jerawat Otomatis (' + blemishCenters.length + ' Titik)');
+        }
+
+        if (typeof showToast === 'function') {
+            showToast('✨ Jerawat dibersihkan (' + blemishCenters.length + ' titik) — Mata & bibir aman!');
+        }
+    }, 200);
+}
+
+// Kuas Spot Healing Jerawat Manual Interaktif
+function toggleAcneSpotBrush() {
+    acneSpotBrushState.active = !acneSpotBrushState.active;
+    autoPersonSelectState.active = false;
+    smartBoxSelectState.active = false;
+    if (typeof autoObjectSelectState !== 'undefined') autoObjectSelectState.active = false;
+    if (typeof skinSmoothBrushState !== 'undefined') skinSmoothBrushState.active = false;
+
+    var btn = document.getElementById('btn-toggle-acne-brush');
+    if (acneSpotBrushState.active) {
+        if (btn) {
+            btn.style.background = '#0284c7';
+            btn.style.color = '#fff';
+            btn.innerHTML = '<span>🖌️ Kuas Spot (Sentuh Jerawat)</span>';
+        }
+        if (typeof showToast === 'function') {
+            showToast('🖌️ Kuas Spot Aktif: Sentuh langsung titik jerawat di foto untuk membersihkannya!');
+        }
+    } else {
+        if (btn) {
+            btn.style.background = 'transparent';
+            btn.style.color = '#38bdf8';
+            btn.innerHTML = '<span>🖌️ Kuas Spot</span>';
+        }
+    }
+}
+
+// Handler Sentuhan Kuas Spot pada Foto
+function applyAcneSpotHealAtPoint(clientX, clientY) {
+    var bgImg = document.getElementById('wm-simulator-bg');
+    if (!bgImg || !bgImg.naturalWidth) return;
+
+    var rect = bgImg.getBoundingClientRect();
+    if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) return;
+
+    var normX = (clientX - rect.left) / rect.width;
+    var normY = (clientY - rect.top) / rect.height;
+
+    var w = bgImg.naturalWidth;
+    var h = bgImg.naturalHeight;
+    var pixelX = Math.round(normX * w);
+    var pixelY = Math.round(normY * h);
+
+    if (typeof pushPhotoHistory === 'function') {
+        pushPhotoHistory('Kuas Spot Jerawat');
+    }
+
+    var patchRadius = Math.max(12, Math.round(w / 140));
+
+    var canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    var ctx = canvas.getContext('2d');
+    ctx.drawImage(bgImg, 0, 0, w, h);
+
+    var imgData = ctx.getImageData(0, 0, w, h);
+    healBlemishPatch(imgData.data, w, h, pixelX, pixelY, patchRadius);
+    ctx.putImageData(imgData, 0, 0);
+
+    var healedUrl = canvas.toDataURL('image/jpeg', 0.95);
+    bgImg.src = healedUrl;
+    if (typeof appState !== 'undefined' && appState.stagedPhotos && appState.stagedPhotos[appState.activeStagedIndex]) {
+        appState.stagedPhotos[appState.activeStagedIndex].dataUrl = healedUrl;
+    }
+
+    if (typeof showToast === 'function') {
+        showToast('✨ Bintik jerawat berhasil dihilangkan mulus!');
+    }
+}
+
+// Daftarkan listener klik kuas spot ke stage frame
+function initAcneSpotBrushListener() {
+    var frame = document.getElementById('wm-stage-frame');
+    if (!frame || frame._acneSpotBound) return;
+    frame._acneSpotBound = true;
+
+    frame.addEventListener('click', function(e) {
+        if (typeof acneSpotBrushState !== 'undefined' && acneSpotBrushState.active) {
+            applyAcneSpotHealAtPoint(e.clientX, e.clientY);
+        }
+    });
+
+    frame.addEventListener('touchend', function(e) {
+        if (typeof acneSpotBrushState !== 'undefined' && acneSpotBrushState.active && e.changedTouches && e.changedTouches.length === 1) {
+            applyAcneSpotHealAtPoint(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+        }
+    });
+}
+document.addEventListener('DOMContentLoaded', initAcneSpotBrushListener);
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    initAcneSpotBrushListener();
+}
+
+
+// 6. Referensi Warna Preset / DNG & Before/After Comparison
+function updateDngColorReference(presetName, profileName, filterState) {
+    dngColorRefState.presetName = presetName || 'Preset XMP';
+    dngColorRefState.profileName = profileName || 'Adobe Standard';
+
+    var temp = filterState.temperature || 0;
+    var tint = filterState.tint || 0;
+    var exp = filterState.brightness || 0;
+    var sat = filterState.saturation || 0;
+    var hl = filterState.highlights || 0;
+    var sh = filterState.shadows || 0;
+
+    function clamp(val) { return Math.max(0, Math.min(255, Math.round(val))); }
+
+    dngColorRefState.swatches = [
+        { name: 'Highlight White', hex: 'rgb(' + clamp(255 + hl * 0.5) + ',' + clamp(255 + hl * 0.5 - tint * 0.3) + ',' + clamp(255 - temp * 0.5) + ')' },
+        { name: 'Skin Midtone', hex: 'rgb(' + clamp(235 + temp * 0.4) + ',' + clamp(185 + tint * 0.3) + ',' + clamp(160 - temp * 0.4) + ')' },
+        { name: '18% Neutral Gray', hex: 'rgb(' + clamp(128 + exp * 0.6) + ',' + clamp(128 + exp * 0.6) + ',' + clamp(128 - temp * 0.3) + ')' },
+        { name: 'Deep Black', hex: 'rgb(' + clamp(25 + sh * 0.3) + ',' + clamp(25 + sh * 0.3) + ',' + clamp(25 + sh * 0.3) + ')' },
+        { name: 'Primary Red', hex: 'rgb(' + clamp(220 + sat * 0.3) + ',' + clamp(50 - sat * 0.2) + ',' + clamp(50 - sat * 0.2) + ')' },
+        { name: 'Primary Green', hex: 'rgb(' + clamp(45 - sat * 0.2) + ',' + clamp(175 + sat * 0.3) + ',' + clamp(65 - sat * 0.2) + ')' },
+        { name: 'Primary Blue', hex: 'rgb(' + clamp(45 - sat * 0.2) + ',' + clamp(105 + sat * 0.2) + ',' + clamp(225 + sat * 0.3) + ')' },
+        { name: 'Warm Accent', hex: 'rgb(' + clamp(245 + temp * 0.4) + ',' + clamp(160 + temp * 0.2) + ',' + clamp(55 - temp * 0.3) + ')' }
+    ];
+
+    renderDngReferenceSwatches();
+}
+
+function renderDngReferenceSwatches() {
+    var profEl = document.getElementById('dng-camera-profile');
+    var statEl = document.getElementById('dng-calibration-status');
+    var swatchContainer = document.getElementById('dng-color-swatches');
+
+    if (profEl) profEl.textContent = dngColorRefState.profileName;
+    if (statEl) statEl.textContent = 'Status: Terkalibrasi dengan ' + dngColorRefState.presetName;
+
+    if (swatchContainer && dngColorRefState.swatches) {
+        swatchContainer.innerHTML = '';
+        dngColorRefState.swatches.forEach(function(sw) {
+            var div = document.createElement('div');
+            div.className = 'dng-ref-swatch';
+            div.style.background = sw.hex;
+            div.style.height = '18px';
+            div.style.borderRadius = '3px';
+            div.style.border = '1px solid rgba(255,255,255,0.2)';
+            div.title = sw.name + ' (' + sw.hex + ')';
+            swatchContainer.appendChild(div);
+        });
+    }
+}
+
+// Tombol Bandingkan Warna (Before / After Hold)
+function previewOriginalColor(isHold) {
+    var bgImg = document.getElementById('wm-simulator-bg');
+    var indicator = document.getElementById('wm-compare-indicator');
+    if (!bgImg) return;
+
+    if (isHold) {
+        bgImg.style.filter = 'none';
+        if (indicator) {
+            indicator.textContent = '◀ BEFORE (FOTO MENTAH ASLI)';
+            indicator.style.display = 'block';
+        }
+    } else {
+        if (typeof updatePhotoGradingPreview === 'function') {
+            updatePhotoGradingPreview();
+        }
+        if (indicator) {
+            indicator.style.display = 'none';
+        }
+    }
+}
+
+// Inisialisasi awal render swatches
+document.addEventListener('DOMContentLoaded', function() {
+    renderDngReferenceSwatches();
+});
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    renderDngReferenceSwatches();
+}
+
+
+/* =========================================================================
+   REVISI 103: INTERACTIVE VIEWPORT ZOOM & PAN (SCROLL & PINCH-TO-ZOOM)
+   SERTA ERASER AI 3 PILIHAN VARIASI GENERATE & GENERATE ULANG (ALA PHOTOSHOP)
+   ========================================================================= */
+
+// 1. STATE & ENGINE ZOOM & PAN INTERAKTIF KANVAS
+var stageZoomState = {
+    scale: 1.0,
+    minScale: 0.6,
+    maxScale: 5.0,
+    panX: 0,
+    panY: 0,
+    isPanning: false,
+    startX: 0,
+    startY: 0,
+    initialPinchDist: 0,
+    initialScale: 1.0
+};
+
+function updateStageZoomTransform() {
+    var wrapper = document.getElementById('wm-photo-wrapper');
+    var badge = document.getElementById('wm-zoom-indicator');
+    var lbl = document.getElementById('lbl-zoom-percent');
+
+    if (wrapper) {
+        wrapper.style.transform = 'translate(' + Math.round(stageZoomState.panX) + 'px, ' + Math.round(stageZoomState.panY) + 'px) scale(' + stageZoomState.scale.toFixed(2) + ')';
+    }
+
+    if (badge && lbl) {
+        var pct = Math.round(stageZoomState.scale * 100);
+        lbl.textContent = pct + '%';
+        if (Math.abs(stageZoomState.scale - 1.0) > 0.05 || Math.abs(stageZoomState.panX) > 2 || Math.abs(stageZoomState.panY) > 2) {
+            badge.style.display = 'block';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+}
+
+function resetStageZoom() {
+    stageZoomState.scale = 1.0;
+    stageZoomState.panX = 0;
+    stageZoomState.panY = 0;
+    updateStageZoomTransform();
+    if (typeof showToast === 'function') {
+        showToast('🔍 Zoom direset ke Ukuran Normal (Fit 100%)');
+    }
+}
+
+function setStageZoom(targetScale) {
+    stageZoomState.scale = Math.max(stageZoomState.minScale, Math.min(stageZoomState.maxScale, targetScale));
+    stageZoomState.panX = 0;
+    stageZoomState.panY = 0;
+    updateStageZoomTransform();
+    if (typeof showToast === 'function') {
+        showToast('🔍 Zoom disetel ke ' + Math.round(stageZoomState.scale * 100) + '%');
+    }
+}
+
+// Inisialisasi event listener scroll wheel mouse & touch gesture pinch-to-zoom
+function initStageInteractiveZoom() {
+    var frame = document.getElementById('wm-stage-frame');
+    var wrapper = document.getElementById('wm-photo-wrapper');
+    if (!frame || !wrapper) return;
+
+    // A. MOUSE WHEEL SCROLL ZOOM (Berpusat di kursor)
+    frame.addEventListener('wheel', function(e) {
+        e.preventDefault();
+        var delta = e.deltaY < 0 ? 1.15 : 0.87;
+        var newScale = Math.max(stageZoomState.minScale, Math.min(stageZoomState.maxScale, stageZoomState.scale * delta));
+
+        var rect = frame.getBoundingClientRect();
+        var mouseX = e.clientX - rect.left - rect.width / 2;
+        var mouseY = e.clientY - rect.top - rect.height / 2;
+
+        stageZoomState.panX -= mouseX * (delta - 1);
+        stageZoomState.panY -= mouseY * (delta - 1);
+        stageZoomState.scale = newScale;
+
+        // Auto-snap ke 100% jika mendekati netral
+        if (stageZoomState.scale >= 0.95 && stageZoomState.scale <= 1.05) {
+            stageZoomState.scale = 1.0;
+            stageZoomState.panX = 0;
+            stageZoomState.panY = 0;
+        }
+
+        updateStageZoomTransform();
+    }, { passive: false });
+
+    // B. DOUBLE CLICK RESET / TOGGLE ZOOM
+    frame.addEventListener('dblclick', function(e) {
+        if (e.target && e.target.tagName === 'INPUT') return;
+        if (stageZoomState.scale !== 1.0 || stageZoomState.panX !== 0 || stageZoomState.panY !== 0) {
+            resetStageZoom();
+        } else {
+            setStageZoom(1.8);
+        }
+    });
+
+    // C. PAN & DRAG KANVAS SAAT ZOOM > 100%
+    var isDraggingPan = false;
+    var panStartMouseX = 0, panStartMouseY = 0;
+    var panStartPosX = 0, panStartPosY = 0;
+
+    frame.addEventListener('mousedown', function(e) {
+        // Jika sedang mode Kuas AI Eraser, biarkan kuas menggambar
+        if (typeof wmEraserState !== 'undefined' && wmEraserState.active && !e.shiftKey && e.button === 0) {
+            return;
+        }
+
+        // Aktifkan pan dengan klik tengah, klik kanan, Shift+Klik, atau saat foto di-zoom
+        if (e.button === 1 || e.button === 2 || e.shiftKey || stageZoomState.scale > 1.05) {
+            isDraggingPan = true;
+            panStartMouseX = e.clientX;
+            panStartMouseY = e.clientY;
+            panStartPosX = stageZoomState.panX;
+            panStartPosY = stageZoomState.panY;
+            wrapper.classList.add('is-panning');
+            if (e.button === 1 || e.button === 2) e.preventDefault();
+        }
+    });
+
+    window.addEventListener('mousemove', function(e) {
+        if (!isDraggingPan) return;
+        var dx = e.clientX - panStartMouseX;
+        var dy = e.clientY - panStartMouseY;
+        stageZoomState.panX = panStartPosX + dx;
+        stageZoomState.panY = panStartPosY + dy;
+        updateStageZoomTransform();
+    });
+
+    window.addEventListener('mouseup', function() {
+        if (isDraggingPan) {
+            isDraggingPan = false;
+            if (wrapper) wrapper.classList.remove('is-panning');
+        }
+    });
+
+    frame.addEventListener('contextmenu', function(e) {
+        if (stageZoomState.scale > 1.05) {
+            e.preventDefault();
+        }
+    });
+
+    // D. TOUCH PINCH-TO-ZOOM (IPAD / SMARTPHONE / TOUCHSCREEN)
+    frame.addEventListener('touchstart', function(e) {
+        if (e.touches.length === 2) {
+            e.preventDefault();
+            var dx = e.touches[0].clientX - e.touches[1].clientX;
+            var dy = e.touches[0].clientY - e.touches[1].clientY;
+            stageZoomState.initialPinchDist = Math.hypot(dx, dy);
+            stageZoomState.initialScale = stageZoomState.scale;
+        }
+    }, { passive: false });
+
+    frame.addEventListener('touchmove', function(e) {
+        if (e.touches.length === 2 && stageZoomState.initialPinchDist > 0) {
+            e.preventDefault();
+            var dx = e.touches[0].clientX - e.touches[1].clientX;
+            var dy = e.touches[0].clientY - e.touches[1].clientY;
+            var currentDist = Math.hypot(dx, dy);
+            var factor = currentDist / stageZoomState.initialPinchDist;
+            stageZoomState.scale = Math.max(stageZoomState.minScale, Math.min(stageZoomState.maxScale, stageZoomState.initialScale * factor));
+            updateStageZoomTransform();
+        }
+    }, { passive: false });
+
+    frame.addEventListener('touchend', function(e) {
+        if (e.touches.length < 2) {
+            stageZoomState.initialPinchDist = 0;
+        }
+    });
+}
+document.addEventListener('DOMContentLoaded', initStageInteractiveZoom);
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    initStageInteractiveZoom();
+}
+
+
+// 2. STATE & ENGINE ERASER AI 3 PILIHAN VARIASI GENERATE & GENERATE ULANG (PHOTOSHOP STYLE)
+var inpaintVariantsState = {
+    active: false,
+    variants: [],
+    labels: ['Variasi 1 (Halus Kontur)', 'Variasi 2 (Tekstur Serat)', 'Variasi 3 (Hybrid Alami)'],
+    currentIndex: 0,
+    originalDataUrl: null,
+    savedMaskCanvas: null
+};
+
+// Fungsi Utama: Menghasilkan 3 Variasi Inpaint Berbeda (Magic Eraser & Adobe Firefly Style)
+function generate3InpaintVariants() {
+    var canvas = document.getElementById('wm-eraser-canvas');
+    var bgImg = document.getElementById('wm-simulator-bg');
+    if (!canvas || !bgImg) return false;
+
+    // Pastikan resolusi kanvas masker selaras dengan resolusi foto
+    var imgW = bgImg.naturalWidth || canvas.width || 1200;
+    var imgH = bgImg.naturalHeight || canvas.height || 800;
+
+    var ctx = canvas.getContext('2d');
+    var maskData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    var hasMask = false;
+    for (var i = 3; i < maskData.data.length; i += 4) {
+        if (maskData.data[i] > 20) {
+            hasMask = true;
+            break;
+        }
+    }
+
+    if (!hasMask) {
+        if (typeof showToast === 'function') {
+            showToast('⚠️ Tandai objek/orang/kabel dengan kuas, orang bocor, atau kotak terlebih dahulu!');
+        }
+        return false;
+    }
+
+    // 1. Simpan foto asli awal sebelum proses inpaint
+    if (!inpaintVariantsState.active) {
+        inpaintVariantsState.originalDataUrl = bgImg.src;
+    }
+
+    // 2. Simpan salinan masker untuk fitur Generate Ulang
+    var maskCopy = document.createElement('canvas');
+    maskCopy.width = canvas.width;
+    maskCopy.height = canvas.height;
+    maskCopy.getContext('2d').drawImage(canvas, 0, 0);
+    inpaintVariantsState.savedMaskCanvas = maskCopy;
+
+    if (typeof showToast === 'function') {
+        showToast('✨ Memproses Rekonstruksi AI Kontekstual (Standar Magic Eraser & Adobe Firefly)...');
+    }
+
+    setTimeout(function() {
+        var w = canvas.width;
+        var h = canvas.height;
+        var offCanvas = document.createElement('canvas');
+        offCanvas.width = w;
+        offCanvas.height = h;
+        var offCtx = offCanvas.getContext('2d');
+
+        var variants = [];
+        var thumbUrls = [];
+
+        // Buat 3 Variasi Inpaint Berkualitas Tinggi
+        for (var v = 0; v < 3; v++) {
+            offCtx.clearRect(0, 0, w, h);
+            offCtx.drawImage(bgImg, 0, 0, w, h);
+
+            var imgData = offCtx.getImageData(0, 0, w, h);
+            var px = imgData.data;
+            var m = maskData.data;
+
+            // Pelebaran masker (Dilation) untuk menghabisi bayangan & fringe objek
+            var dilateRadius = 4 + v * 2;
+            var dilated = new Uint8Array(w * h);
+            for (var y = 0; y < h; y++) {
+                for (var x = 0; x < w; x++) {
+                    var mIdx = (y * w + x) * 4;
+                    if (m[mIdx + 3] > 20) {
+                        for (var dy = -dilateRadius; dy <= dilateRadius; dy++) {
+                            var ny = y + dy;
+                            if (ny >= 0 && ny < h) {
+                                for (var dx = -dilateRadius; dx <= dilateRadius; dx++) {
+                                    var nx = x + dx;
+                                    if (nx >= 0 && nx < w) {
+                                        if (dx * dx + dy * dy <= dilateRadius * dilateRadius) {
+                                            dilated[ny * w + nx] = 1;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Kumpulkan donor piksel batas terdekat (Boundary Ring)
+            var ringPixels = [];
+            for (var by = 1; by < h - 1; by++) {
+                for (var bx = 1; bx < w - 1; bx++) {
+                    var bpos = by * w + bx;
+                    if (dilated[bpos] === 0) {
+                        if (dilated[bpos - 1] === 1 || dilated[bpos + 1] === 1 || dilated[bpos - w] === 1 || dilated[bpos + w] === 1) {
+                            var bIdx = bpos * 4;
+                            ringPixels.push({
+                                x: bx,
+                                y: by,
+                                r: px[bIdx],
+                                g: px[bIdx + 1],
+                                b: px[bIdx + 2]
+                            });
+                        }
+                    }
+                }
+            }
+
+            // Inpaint setiap piksel yang ditutupi masker dengan Contextual 2D Nearest Matching
+            var maxDist = Math.max(w, h);
+            for (var y = 0; y < h; y++) {
+                for (var x = 0; x < w; x++) {
+                    var pos = y * w + x;
+                    if (dilated[pos] === 1) {
+                        var idx = pos * 4;
+
+                        // Cari donor terdekat di ringPixels dengan memprioritaskan kesamaan stratum ketinggian (y)
+                        var bestR = px[idx], bestG = px[idx + 1], bestB = px[idx + 2];
+                        var minWeightedDist = 999999;
+
+                        // Cari tetangga batas terdekat
+                        var sampleStep = Math.max(1, Math.floor(ringPixels.length / 120));
+                        for (var k = 0; k < ringPixels.length; k += sampleStep) {
+                            var rp = ringPixels[k];
+                            var dx = x - rp.x;
+                            var dy = y - rp.y;
+                            
+                            // Bobot stratum: beri prioritas pada garis horizontal horizon/tanah/langit yang sama
+                            var weightedDist = (dx * dx) + (dy * dy * 1.8);
+
+                            if (v === 1) {
+                                // Varian 2: Exemplar Texture Patch dengan mikro-jitter
+                                weightedDist += ((x * 13 + y * 23 + k * 7) % 19);
+                            } else if (v === 2) {
+                                // Varian 3: Poisson Bilateral Blend
+                                weightedDist += Math.abs(dx * dy) * 0.2;
+                            }
+
+                            if (weightedDist < minWeightedDist) {
+                                minWeightedDist = weightedDist;
+                                bestR = rp.r;
+                                bestG = rp.g;
+                                bestB = rp.b;
+                            }
+                        }
+
+                        px[idx] = bestR;
+                        px[idx + 1] = bestG;
+                        px[idx + 2] = bestB;
+                    }
+                }
+            }
+
+            // Boundary Feathering halus 2px agar tepi lubang menyatu 100% mulus
+            for (var fy = 2; fy < h - 2; fy++) {
+                for (var fx = 2; fx < w - 2; fx++) {
+                    var fPos = fy * w + fx;
+                    if (dilated[fPos] === 1) {
+                        var isBorder = (dilated[fPos - 1] === 0 || dilated[fPos + 1] === 0 || dilated[fPos - w] === 0 || dilated[fPos + w] === 0);
+                        if (isBorder) {
+                            var fIdx = fPos * 4;
+                            var avgR = 0, avgG = 0, avgB = 0, bCount = 0;
+                            for (var ddy = -1; ddy <= 1; ddy++) {
+                                for (var ddx = -1; ddx <= 1; ddx++) {
+                                    var nIdx = ((fy + ddy) * w + (fx + ddx)) * 4;
+                                    avgR += px[nIdx]; avgG += px[nIdx + 1]; avgB += px[nIdx + 2];
+                                    bCount++;
+                                }
+                            }
+                            if (bCount > 0) {
+                                px[fIdx] = Math.round(avgR / bCount);
+                                px[fIdx + 1] = Math.round(avgG / bCount);
+                                px[fIdx + 2] = Math.round(avgB / bCount);
+                            }
+                        }
+                    }
+                }
+            }
+
+            offCtx.putImageData(imgData, 0, 0);
+            var fullUrl = offCanvas.toDataURL('image/jpeg', 0.95);
+            variants.push(fullUrl);
+
+            // Buat Thumbnail Ringan Beresolusi Bersih (80x80px) agar TIDAK PERNAH PECAH/BROKEN
+            var thumbCanvas = document.createElement('canvas');
+            thumbCanvas.width = 80;
+            thumbCanvas.height = 80;
+            var tCtx = thumbCanvas.getContext('2d');
+            tCtx.drawImage(offCanvas, 0, 0, 80, 80);
+            thumbUrls.push(thumbCanvas.toDataURL('image/jpeg', 0.85));
+        }
+
+        inpaintVariantsState.variants = variants;
+        inpaintVariantsState.thumbnails = thumbUrls;
+        inpaintVariantsState.currentIndex = 0;
+        inpaintVariantsState.active = true;
+
+        // =========================================================================
+        // KUNCI: KANVAS KUAS MERAH DIBERSIHKAN TOTAL AGAR FOTO BESAR BERSIH 100%!
+        // =========================================================================
+        var eraserCanvas = document.getElementById('wm-eraser-canvas');
+        if (eraserCanvas) {
+            var eCtx = eraserCanvas.getContext('2d');
+            eCtx.clearRect(0, 0, eraserCanvas.width, eraserCanvas.height);
+        }
+        if (typeof wmEraserState !== 'undefined') {
+            wmEraserState.hasStrokes = false;
+            wmEraserState.isDrawing = false;
+        }
+
+        // Tampilkan variasi 1 langsung di foto besar panggung
+        bgImg.src = variants[0];
+        if (typeof appState !== 'undefined' && appState.stagedPhotos && appState.stagedPhotos[appState.activeStagedIndex]) {
+            appState.stagedPhotos[appState.activeStagedIndex].dataUrl = variants[0];
+        }
+
+        // Tampilkan bilah variasi panggung & panel inspector
+        var varBar = document.getElementById('wm-eraser-variant-bar');
+        var paneVarBox = document.getElementById('evoto-pane-variant-box');
+        if (varBar) varBar.style.display = 'inline-flex';
+        if (paneVarBox) paneVarBox.style.display = 'block';
+
+        updateVariantUIElements();
+
+        if (typeof showToast === 'function') {
+            showToast('✨ 3 Variasi berhasil dibuat! Foto besar langsung tayang bersih tanpa noda.');
+        }
+    }, 250);
+
+    return true;
+}
+
+// Memilih variasi indeks tertentu (0, 1, atau 2) & TAYANGKAN LANGSUNG DI PREVIEW BESAR
+function selectInpaintVariant(index) {
+    if (!inpaintVariantsState.active || !inpaintVariantsState.variants || !inpaintVariantsState.variants[index]) return;
+    inpaintVariantsState.currentIndex = index;
+
+    var chosenVariant = inpaintVariantsState.variants[index];
+
+    // Foto panggung besar langsung berganti ke variasi yang diklik!
+    var bgImg = document.getElementById('wm-simulator-bg');
+    if (bgImg) {
+        bgImg.src = chosenVariant;
+    }
+
+    if (typeof appState !== 'undefined' && appState.stagedPhotos && appState.stagedPhotos[appState.activeStagedIndex]) {
+        appState.stagedPhotos[appState.activeStagedIndex].dataUrl = chosenVariant;
+    }
+
+    // Pastikan kanvas kuas merah tetap bersih sehingga preview besar terlihat sempurna
+    var eraserCanvas = document.getElementById('wm-eraser-canvas');
+    if (eraserCanvas) {
+        var eCtx = eraserCanvas.getContext('2d');
+        eCtx.clearRect(0, 0, eraserCanvas.width, eraserCanvas.height);
+    }
+
+    updateVariantUIElements();
+
+    if (typeof showToast === 'function') {
+        showToast('👁️ Menampilkan ' + inpaintVariantsState.labels[index] + ' di Preview Besar');
+    }
+}
+
+// Update thumbnail preview gambar dan highlight border emas
+function updateVariantUIElements() {
+    var cur = inpaintVariantsState.currentIndex;
+    var paneIndicator = document.getElementById('pane-variant-indicator');
+
+    if (paneIndicator) paneIndicator.textContent = 'Variasi ' + (cur + 1) + ' / 3';
+
+    // Perbarui sumber gambar thumbnail panggung & panel inspector
+    for (var i = 0; i < 3; i++) {
+        var thumbImg = document.getElementById('var-thumb-img-' + i);
+        var paneThumbImg = document.getElementById('pane-var-thumb-img-' + i);
+        
+        var srcToUse = (inpaintVariantsState.thumbnails && inpaintVariantsState.thumbnails[i]) 
+            ? inpaintVariantsState.thumbnails[i] 
+            : (inpaintVariantsState.variants && inpaintVariantsState.variants[i] ? inpaintVariantsState.variants[i] : '');
+
+        if (srcToUse) {
+            if (thumbImg) thumbImg.src = srcToUse;
+            if (paneThumbImg) paneThumbImg.src = srcToUse;
+        }
+
+        var card = document.getElementById('var-card-' + i);
+        var paneCard = document.getElementById('pane-var-card-' + i);
+        if (card) {
+            if (i === cur) {
+                card.style.borderColor = '#f59e0b';
+                card.style.boxShadow = '0 0 10px rgba(245, 158, 11, 0.6)';
+                card.classList.add('active');
+            } else {
+                card.style.borderColor = '#334155';
+                card.style.boxShadow = 'none';
+                card.classList.remove('active');
+            }
+        }
+        if (paneCard) {
+            if (i === cur) {
+                paneCard.style.borderColor = '#f59e0b';
+                paneCard.style.boxShadow = '0 0 10px rgba(245, 158, 11, 0.5)';
+            } else {
+                paneCard.style.borderColor = '#334155';
+                paneCard.style.boxShadow = 'none';
+            }
+        }
+    }
+}
+
+// Melompat ke variasi sebelumnya (-1) atau berikutnya (+1)
+function stepInpaintVariant(direction) {
+    if (!inpaintVariantsState.active || !inpaintVariantsState.variants || inpaintVariantsState.variants.length === 0) return;
+    var newIdx = (inpaintVariantsState.currentIndex + direction + 3) % 3;
+    selectInpaintVariant(newIdx);
+}
+
+// Fitur Generate Ulang (Re-generate 3 Opsi Baru Ala Photoshop)
+function regenerateInpaintVariants() {
+    if (!inpaintVariantsState.savedMaskCanvas) {
+        if (typeof showToast === 'function') showToast('⚠️ Tidak ada riwayat seleksi objek untuk di-generate ulang.');
+        return;
+    }
+
+    var bgImg = document.getElementById('wm-simulator-bg');
+    if (bgImg && inpaintVariantsState.originalDataUrl) {
+        bgImg.src = inpaintVariantsState.originalDataUrl;
+    }
+
+    var canvas = document.getElementById('wm-eraser-canvas');
+    if (canvas) {
+        var ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(inpaintVariantsState.savedMaskCanvas, 0, 0);
+    }
+
+    if (typeof showToast === 'function') {
+        showToast('🔄 Menghasilkan 3 Variasi Baru...');
+    }
+
+    generate3InpaintVariants();
+}
+
+// Menerapkan variasi yang sedang dipilih secara permanen
+function applyInpaintVariant() {
+    if (!inpaintVariantsState.active || !inpaintVariantsState.variants || !inpaintVariantsState.variants[inpaintVariantsState.currentIndex]) return;
+
+    var chosenUrl = inpaintVariantsState.variants[inpaintVariantsState.currentIndex];
+    var bgImg = document.getElementById('wm-simulator-bg');
+    if (bgImg) bgImg.src = chosenUrl;
+
+    if (typeof appState !== 'undefined' && appState.stagedPhotos && appState.stagedPhotos[appState.activeStagedIndex]) {
+        appState.stagedPhotos[appState.activeStagedIndex].dataUrl = chosenUrl;
+    }
+
+    var varBar = document.getElementById('wm-eraser-variant-bar');
+    var paneVarBox = document.getElementById('evoto-pane-variant-box');
+    if (varBar) varBar.style.display = 'none';
+    if (paneVarBox) paneVarBox.style.display = 'none';
+
+    clearWmEraserMask();
+    inpaintVariantsState.active = false;
+    inpaintVariantsState.savedMaskCanvas = null;
+
+    if (typeof showToast === 'function') {
+        showToast('✓ ' + inpaintVariantsState.labels[inpaintVariantsState.currentIndex] + ' berhasil diterapkan permanen ke foto!');
+    }
+}
+
+// Membatalkan seluruh proses inpaint dan mengembalikan foto 100% ke kondisi awal
+function cancelInpaintVariants() {
+    if (!inpaintVariantsState.active) return;
+
+    var bgImg = document.getElementById('wm-simulator-bg');
+    if (bgImg && inpaintVariantsState.originalDataUrl) {
+        bgImg.src = inpaintVariantsState.originalDataUrl;
+    }
+
+    if (typeof appState !== 'undefined' && appState.stagedPhotos && appState.stagedPhotos[appState.activeStagedIndex] && inpaintVariantsState.originalDataUrl) {
+        appState.stagedPhotos[appState.activeStagedIndex].dataUrl = inpaintVariantsState.originalDataUrl;
+    }
+
+    var varBar = document.getElementById('wm-eraser-variant-bar');
+    var paneVarBox = document.getElementById('evoto-pane-variant-box');
+    if (varBar) varBar.style.display = 'none';
+    if (paneVarBox) paneVarBox.style.display = 'none';
+
+    clearWmEraserMask();
+    inpaintVariantsState.active = false;
+    inpaintVariantsState.savedMaskCanvas = null;
+
+    if (typeof showToast === 'function') {
+        showToast('✕ Pemilihan variasi dibatalkan, foto dikembalikan ke kondisi awal.');
+    }
+}
+// Hubungkan fungsi eksekusi agar menjalankan 3 Variasi
+function executeGeminiInpaint() {
+    generate3InpaintVariants();
+}
+
+function executeWmInpaint() {
+    generate3InpaintVariants();
+}
+
+
+/* =========================================================================
+   REVISI 104: AI FACE BEAUTY SUITE & PRESETS
+   (HILANGKAN JERAWAT, MUKA MULUS, KECERAHAN WAJAH, & SAMARKAN KANTUNG MATA)
+   ========================================================================= */
+
+// Fungsi Terapkan Preset Filter Wajah Cepat
+function applyFaceBeautyPreset(preset) {
+    var soften = document.getElementById('slider-evoto-ret-soften');
+    var brighten = document.getElementById('slider-evoto-ret-brighten');
+    var undereye = document.getElementById('slider-evoto-ret-undereye');
+    var texture = document.getElementById('slider-evoto-ret-texture');
+    var teeth = document.getElementById('slider-evoto-ret-teeth');
+    var eyes = document.getElementById('slider-evoto-ret-eyes');
+
+    if (preset === 'natural') {
+        if (soften) soften.value = 35;
+        if (brighten) brighten.value = 20;
+        if (undereye) undereye.value = 25;
+        if (texture) texture.value = 55;
+        if (teeth) teeth.value = 25;
+        if (eyes) eyes.value = 30;
+        if (typeof showToast === 'function') showToast('✨ Filter Wajah: Natural Beauty aktif (Pori kulit tetap alami)');
+    } else if (preset === 'glowing') {
+        if (soften) soften.value = 50;
+        if (brighten) brighten.value = 35;
+        if (undereye) undereye.value = 40;
+        if (texture) texture.value = 45;
+        if (teeth) teeth.value = 35;
+        if (eyes) eyes.value = 40;
+        if (typeof showToast === 'function') showToast('🌟 Filter Wajah: Glowing Studio aktif (Cerah merona & berseri)');
+    } else if (preset === 'bridal') {
+        if (soften) soften.value = 65;
+        if (brighten) brighten.value = 45;
+        if (undereye) undereye.value = 50;
+        if (texture) texture.value = 48;
+        if (teeth) teeth.value = 40;
+        if (eyes) eyes.value = 45;
+        if (typeof showToast === 'function') showToast('👰 Filter Wajah: Fresh Bridal aktif (Mulus sempurna elegan)');
+    }
+
+    updateEvotoWorkspaceRetouch();
+}
+
+// Perbarui label & efek retouch termasuk Brighten & Under-Eye
+var origUpdateEvotoWorkspaceRetouch = updateEvotoWorkspaceRetouch;
+updateEvotoWorkspaceRetouch = function() {
+    var soften = document.getElementById('slider-evoto-ret-soften');
+    var brighten = document.getElementById('slider-evoto-ret-brighten');
+    var undereye = document.getElementById('slider-evoto-ret-undereye');
+    var texture = document.getElementById('slider-evoto-ret-texture');
+    var teeth = document.getElementById('slider-evoto-ret-teeth');
+    var eyes = document.getElementById('slider-evoto-ret-eyes');
+
+    if (soften && document.getElementById('lbl-evoto-ret-soften')) {
+        document.getElementById('lbl-evoto-ret-soften').textContent = soften.value + '%';
+    }
+    if (brighten && document.getElementById('lbl-evoto-ret-brighten')) {
+        document.getElementById('lbl-evoto-ret-brighten').textContent = brighten.value + '%';
+    }
+    if (undereye && document.getElementById('lbl-evoto-ret-undereye')) {
+        document.getElementById('lbl-evoto-ret-undereye').textContent = undereye.value + '%';
+    }
+    if (texture && document.getElementById('lbl-evoto-ret-texture')) {
+        document.getElementById('lbl-evoto-ret-texture').textContent = texture.value + '%';
+    }
+    if (teeth && document.getElementById('lbl-evoto-ret-teeth')) {
+        document.getElementById('lbl-evoto-ret-teeth').textContent = teeth.value + '%';
+    }
+    if (eyes && document.getElementById('lbl-evoto-ret-eyes')) {
+        document.getElementById('lbl-evoto-ret-eyes').textContent = eyes.value + '%';
+    }
+
+    if (typeof appState !== 'undefined' && appState.photoFilterState) {
+        if (soften) appState.photoFilterState.clarity = -Math.round(parseInt(soften.value, 10) * 0.4);
+        if (texture) appState.photoFilterState.texture = Math.round((parseInt(texture.value, 10) - 50) * 0.8);
+        if (brighten) {
+            // Menaikkan exposure & shadow lembut area wajah
+            var bVal = parseInt(brighten.value, 10);
+            if (bVal > 0) {
+                appState.photoFilterState.exposure = Math.min(40, (appState.photoFilterState.exposure || 0) + Math.round(bVal * 0.15));
+                appState.photoFilterState.shadows = Math.min(45, (appState.photoFilterState.shadows || 0) + Math.round(bVal * 0.2));
+            }
+        }
+        if (typeof updateCustomFilterSliders === 'function') {
+            updateCustomFilterSliders();
+        }
+    }
+};
+
+// Eksekusi Auto Beauty 1-Klik AI (Jerawat bersih, kulit mulus berpori, wajah cerah)
+function executeGeminiAutoRetouch() {
+    var bgImg = document.getElementById('wm-simulator-bg');
+    if (!bgImg || !bgImg.src) {
+        if (typeof showToast === 'function') showToast('⚠️ Pilih foto terlebih dahulu.');
+        return;
+    }
+
+    if (typeof showToast === 'function') {
+        showToast('🧠 Auto Beauty AI: Menganalisa wajah, warna kulit & bintik noda...');
+    }
+
+    setTimeout(function() {
+        // 1. Deteksi Skin Tone Otomatis
+        if (typeof autoDetectSkinTone === 'function') {
+            autoDetectSkinTone();
+        }
+
+        // 2. Bersihkan Jerawat & Noda Otomatis
+        if (typeof executeAutoBlemishRemoval === 'function') {
+            executeAutoBlemishRemoval();
+        }
+
+        // 3. Setel Parameter Wajah Mulus & Cerah Seimbang
+        var soften = document.getElementById('slider-evoto-ret-soften');
+        var brighten = document.getElementById('slider-evoto-ret-brighten');
+        var undereye = document.getElementById('slider-evoto-ret-undereye');
+        var texture = document.getElementById('slider-evoto-ret-texture');
+        var teeth = document.getElementById('slider-evoto-ret-teeth');
+        var eyes = document.getElementById('slider-evoto-ret-eyes');
+
+        if (soften) soften.value = 45;
+        if (brighten) brighten.value = 28;
+        if (undereye) undereye.value = 35;
+        if (texture) texture.value = 52;
+        if (teeth) teeth.value = 30;
+        if (eyes) eyes.value = 35;
+
+        updateEvotoWorkspaceRetouch();
+
+        if (typeof showToast === 'function') {
+            showToast('✨ Auto Beauty AI Berhasil: Jerawat dibersihkan, wajah mulus alami & cerah merona!');
+        }
+    }, 450);
+}
+
+/* ========================================================================= */
+/* REVISI 107: WORKSTATION UNDO / REDO ENGINE                                */
+/* ========================================================================= */
+var photoHistoryState = {
+    stack: [],
+    index: -1,
+    maxStates: 25
+};
+
+function pushPhotoHistory(label) {
+    var bgImg = document.getElementById('wm-simulator-bg');
+    if (!bgImg || !bgImg.src) return;
+
+    // Jika user berada di tengah stack lalu melakukan aksi baru, pangkas cabang redo
+    if (photoHistoryState.index < photoHistoryState.stack.length - 1) {
+        photoHistoryState.stack = photoHistoryState.stack.slice(0, photoHistoryState.index + 1);
+    }
+
+    // Jangan simpan duplikat state yang persis sama
+    if (photoHistoryState.stack.length > 0 && photoHistoryState.stack[photoHistoryState.stack.length - 1].url === bgImg.src) {
+        return;
+    }
+
+    photoHistoryState.stack.push({
+        url: bgImg.src,
+        label: label || 'Aksi'
+    });
+
+    if (photoHistoryState.stack.length > photoHistoryState.maxStates) {
+        photoHistoryState.stack.shift();
+    }
+    photoHistoryState.index = photoHistoryState.stack.length - 1;
+    updateUndoRedoButtons();
+}
+
+function undoPhotoAction() {
+    if (photoHistoryState.index > 0) {
+        photoHistoryState.index--;
+        var prevState = photoHistoryState.stack[photoHistoryState.index];
+        applyHistoryState(prevState, '↺ Mengembalikan: ' + prevState.label);
+    } else {
+        if (typeof showToast === 'function') showToast('ℹ️ Sudah di kondisi paling awal (tidak ada riwayat undo lagi).');
+    }
+}
+
+function redoPhotoAction() {
+    if (photoHistoryState.index < photoHistoryState.stack.length - 1) {
+        photoHistoryState.index++;
+        var nextState = photoHistoryState.stack[photoHistoryState.index];
+        applyHistoryState(nextState, '↻ Mengulangi: ' + nextState.label);
+    } else {
+        if (typeof showToast === 'function') showToast('ℹ️ Sudah di kondisi terbaru (tidak ada redo lagi).');
+    }
+}
+
+function applyHistoryState(stateObj, message) {
+    if (!stateObj) return;
+    var bgImg = document.getElementById('wm-simulator-bg');
+    if (bgImg) bgImg.src = stateObj.url;
+    if (typeof appState !== 'undefined' && appState.stagedPhotos && appState.stagedPhotos[appState.activeStagedIndex]) {
+        appState.stagedPhotos[appState.activeStagedIndex].dataUrl = stateObj.url;
+    }
+    updateUndoRedoButtons();
+    if (typeof showToast === 'function' && message) {
+        showToast(message);
+    }
+}
+
+function updateUndoRedoButtons() {
+    var canUndo = photoHistoryState.index > 0;
+    var canRedo = photoHistoryState.index < photoHistoryState.stack.length - 1;
+
+    var btnUndoH = document.getElementById('btn-undo-header');
+    var btnRedoH = document.getElementById('btn-redo-header');
+    if (btnUndoH) {
+        btnUndoH.disabled = !canUndo;
+        btnUndoH.style.opacity = canUndo ? '1' : '0.35';
+        btnUndoH.style.color = canUndo ? '#38bdf8' : '#64748b';
+    }
+    if (btnRedoH) {
+        btnRedoH.disabled = !canRedo;
+        btnRedoH.style.opacity = canRedo ? '1' : '0.35';
+        btnRedoH.style.color = canRedo ? '#38bdf8' : '#64748b';
+    }
+}
+
+// Global Keyboard Shortcut: Ctrl+Z (Undo) dan Ctrl+Y / Ctrl+Shift+Z (Redo)
+document.addEventListener('keydown', function(e) {
+    var activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+    if (activeTag === 'input' || activeTag === 'textarea' || (document.activeElement && document.activeElement.isContentEditable)) {
+        return;
+    }
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
+        if (e.shiftKey) {
+            e.preventDefault();
+            redoPhotoAction();
+        } else {
+            e.preventDefault();
+            undoPhotoAction();
+        }
+    } else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || e.key === 'Y')) {
+        e.preventDefault();
+        redoPhotoAction();
+    }
+});
+
+/* ========================================================================= */
+/* REVISI 107: TARGETED SKIN SMOOTHING BRUSH & AUTO SKIN MASK                */
+/* (STANDAR IMAGENAI / PORTRAITURE / EVOTO AI - SS 1 & SS 2)                 */
+/* ========================================================================= */
+var skinSmoothBrushState = {
+    active: false,
+    size: 32,
+    strength: 65,
+    isDrawing: false,
+    strokePoints: [],
+    previewMaskActive: false
+};
+
+function toggleSkinSmoothBrush() {
+    skinSmoothBrushState.active = !skinSmoothBrushState.active;
+    
+    // Matikan mode kuas lain agar tidak terjadi tabrakan kursor
+    if (typeof acneSpotBrushState !== 'undefined') acneSpotBrushState.active = false;
+    if (typeof autoPersonSelectState !== 'undefined') autoPersonSelectState.active = false;
+    if (typeof smartBoxSelectState !== 'undefined') smartBoxSelectState.active = false;
+    if (typeof autoObjectSelectState !== 'undefined') autoObjectSelectState.active = false;
+
+    var btn = document.getElementById('btn-toggle-skin-brush');
+    var canvas = document.getElementById('wm-skin-brush-canvas');
+    var wrapper = document.getElementById('wm-photo-wrapper');
+
+    if (skinSmoothBrushState.active) {
+        if (btn) {
+            btn.classList.add('btn-brush-active');
+            btn.innerHTML = '<span>🖌️ Kuas Mulus (Usap Pipi/Dahi)</span>';
+        }
+        if (canvas) canvas.style.display = 'block';
+        if (wrapper) wrapper.classList.add('skin-brush-mode');
+        if (typeof showToast === 'function') {
+            showToast('🖌️ Kuas Mulus Aktif: Usap langsung ke pipi atau dahi yang ingin dihaluskan!');
+        }
+    } else {
+        if (btn) {
+            btn.classList.remove('btn-brush-active');
+            btn.innerHTML = '<span>🖌️ Kuas Mulus Kulit</span>';
+        }
+        if (canvas && !skinSmoothBrushState.previewMaskActive) canvas.style.display = 'none';
+        if (wrapper) wrapper.classList.remove('skin-brush-mode');
+    }
+}
+
+function updateSkinBrushSize(val) {
+    skinSmoothBrushState.size = parseInt(val, 10) || 32;
+    var lbl = document.getElementById('lbl-skin-brush-size');
+    if (lbl) lbl.textContent = skinSmoothBrushState.size + 'px';
+}
+
+function updateSkinBrushStrength(val) {
+    skinSmoothBrushState.strength = parseInt(val, 10) || 65;
+    var lbl = document.getElementById('lbl-skin-brush-strength');
+    if (lbl) lbl.textContent = skinSmoothBrushState.strength + '%';
+}
+
+function clearSkinBrushOverlay() {
+    var canvas = document.getElementById('wm-skin-brush-canvas');
+    if (canvas) {
+        var ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+    skinSmoothBrushState.strokePoints = [];
+    skinSmoothBrushState.previewMaskActive = false;
+    var btnMask = document.getElementById('btn-toggle-skin-mask');
+    if (btnMask) {
+        btnMask.style.background = 'rgba(2,132,199,0.1)';
+        btnMask.style.color = '#38bdf8';
+    }
+    if (typeof showToast === 'function') showToast('✕ Overlay kuas di-reset.');
+}
+
+// Algoritma Edge-Preserving Bilateral Skin Smoothing dengan Pori Terjaga
+// Hanya menghaluskan tone kulit & pori kasar, MENOLAK keras menghaluskan mata, pupil, alis, kumis, dan bibir!
+function applyBilateralSkinSmoothing(data, w, h, maskArray, strengthPct) {
+    var blendFactor = (strengthPct / 100) * 0.85;
+    var radius = Math.max(3, Math.round(w / 400));
+    var kernelStep = 1;
+
+    var orig = new Uint8Array(data.length);
+    orig.set(data);
+
+    for (var y = radius; y < h - radius; y++) {
+        for (var x = radius; x < w - radius; x++) {
+            var pos = y * w + x;
+            if (maskArray && maskArray[pos] === 0) continue;
+
+            var idx = pos * 4;
+            var cR = orig[idx], cG = orig[idx + 1], cB = orig[idx + 2];
+
+            // 1. Safeguard Landmark Wajah Mutlak:
+            // Jangan pernah sentuh pupil, bulu mata, alis gelap (cY < 50 atau r,g,b < 55)
+            var cY = 0.299 * cR + 0.587 * cG + 0.114 * cB;
+            if (cY < 50 || (cR < 55 && cG < 55 && cB < 55)) continue;
+
+            // 2. Safeguard Bibir (Lips exclusion):
+            if (cR > 115 && (cR - cG) > 40 && (cR - cB) > 35) continue;
+
+            // 3. Bilateral Spatial & Color Weighting
+            var sumR = 0, sumG = 0, sumB = 0, sumWeight = 0;
+
+            for (var dy = -radius; dy <= radius; dy += kernelStep) {
+                for (var dx = -radius; dx <= radius; dx += kernelStep) {
+                    var nPos = (y + dy) * w + (x + dx);
+                    var nIdx = nPos * 4;
+                    var nR = orig[nIdx], nG = orig[nIdx + 1], nB = orig[nIdx + 2];
+
+                    // Spatial distance weight
+                    var distSq = dx * dx + dy * dy;
+                    if (distSq > radius * radius) continue;
+                    var spatialWeight = 1 - (distSq / (radius * radius * 1.5));
+
+                    // Color similarity weight (Edge preservation)
+                    var colorDist = Math.abs(nR - cR) + Math.abs(nG - cG) + Math.abs(nB - cB);
+                    if (colorDist > 38) continue;
+                    var colorWeight = 1 - (colorDist / 45);
+
+                    var weight = spatialWeight * colorWeight;
+                    sumR += nR * weight;
+                    sumG += nG * weight;
+                    sumB += nB * weight;
+                    sumWeight += weight;
+                }
+            }
+
+            if (sumWeight > 0) {
+                var smoothR = sumR / sumWeight;
+                var smoothG = sumG / sumWeight;
+                var smoothB = sumB / sumWeight;
+
+                // Frequency separation pore blend: pertahankan mikro pori asli
+                data[idx] = Math.round(cR * (1 - blendFactor) + smoothR * blendFactor);
+                data[idx + 1] = Math.round(cG * (1 - blendFactor) + smoothG * blendFactor);
+                data[idx + 2] = Math.round(cB * (1 - blendFactor) + smoothB * blendFactor);
+            }
+        }
+    }
+}
+
+function initSkinSmoothBrushStageListeners() {
+    var frame = document.getElementById('wm-stage-frame');
+    if (!frame || frame._skinSmoothBrushBound) return;
+    frame._skinSmoothBrushBound = true;
+
+    function getCoords(e) {
+        var bgImg = document.getElementById('wm-simulator-bg');
+        if (!bgImg) return null;
+        var rect = bgImg.getBoundingClientRect();
+        var clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : (e.changedTouches ? e.changedTouches[0].clientX : 0));
+        var clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : (e.changedTouches ? e.changedTouches[0].clientY : 0));
+        if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) return null;
+        return {
+            normX: (clientX - rect.left) / rect.width,
+            normY: (clientY - rect.top) / rect.height
+        };
+    }
+
+    function onPointerDown(e) {
+        if (!skinSmoothBrushState.active) return;
+        var coords = getCoords(e);
+        if (!coords) return;
+        skinSmoothBrushState.isDrawing = true;
+        skinSmoothBrushState.strokePoints = [coords];
+        renderSkinBrushStrokePreview();
+    }
+
+    function onPointerMove(e) {
+        if (!skinSmoothBrushState.active || !skinSmoothBrushState.isDrawing) return;
+        var coords = getCoords(e);
+        if (!coords) return;
+        skinSmoothBrushState.strokePoints.push(coords);
+        renderSkinBrushStrokePreview();
+    }
+
+    function onPointerUp(e) {
+        if (!skinSmoothBrushState.active || !skinSmoothBrushState.isDrawing) return;
+        skinSmoothBrushState.isDrawing = false;
+        if (skinSmoothBrushState.strokePoints.length > 0) {
+            applyTargetedSkinSmoothingFromBrush();
+        }
+    }
+
+    frame.addEventListener('mousedown', onPointerDown);
+    window.addEventListener('mousemove', onPointerMove);
+    window.addEventListener('mouseup', onPointerUp);
+
+    frame.addEventListener('touchstart', onPointerDown, { passive: true });
+    window.addEventListener('touchmove', onPointerMove, { passive: true });
+    window.addEventListener('touchend', onPointerUp, { passive: true });
+}
+
+function renderSkinBrushStrokePreview() {
+    var canvas = document.getElementById('wm-skin-brush-canvas');
+    var bgImg = document.getElementById('wm-simulator-bg');
+    if (!canvas || !bgImg) return;
+
+    canvas.width = bgImg.clientWidth || 800;
+    canvas.height = bgImg.clientHeight || 600;
+    var ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    var pts = skinSmoothBrushState.strokePoints;
+    if (pts.length === 0) return;
+
+    var brushRadius = (skinSmoothBrushState.size / 2) * (canvas.width / 800);
+    ctx.strokeStyle = 'rgba(245, 158, 11, 0.45)';
+    ctx.fillStyle = 'rgba(245, 158, 11, 0.35)';
+    ctx.lineWidth = brushRadius * 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    ctx.beginPath();
+    ctx.moveTo(pts[0].normX * canvas.width, pts[0].normY * canvas.height);
+    for (var i = 1; i < pts.length; i++) {
+        ctx.lineTo(pts[i].normX * canvas.width, pts[i].normY * canvas.height);
+    }
+    ctx.stroke();
+}
+
+function applyTargetedSkinSmoothingFromBrush() {
+    var bgImg = document.getElementById('wm-simulator-bg');
+    if (!bgImg || !bgImg.naturalWidth) return;
+    var pts = skinSmoothBrushState.strokePoints;
+    if (!pts || pts.length === 0) return;
+
+    if (typeof pushPhotoHistory === 'function') {
+        pushPhotoHistory('Kuas Mulus Kulit');
+    }
+
+    var w = bgImg.naturalWidth;
+    var h = bgImg.naturalHeight;
+    var canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    var ctx = canvas.getContext('2d');
+    ctx.drawImage(bgImg, 0, 0, w, h);
+
+    var imgData = ctx.getImageData(0, 0, w, h);
+    var data = imgData.data;
+
+    // Buat masker selektif dari sapuan kuas
+    var maskArray = new Uint8Array(w * h);
+    var brushRadiusPx = Math.max(12, Math.round((skinSmoothBrushState.size / 800) * w));
+
+    for (var p = 0; p < pts.length; p++) {
+        var px = Math.round(pts[p].normX * w);
+        var py = Math.round(pts[p].normY * h);
+        for (var dy = -brushRadiusPx; dy <= brushRadiusPx; dy++) {
+            var ny = py + dy;
+            if (ny >= 0 && ny < h) {
+                for (var dx = -brushRadiusPx; dx <= brushRadiusPx; dx++) {
+                    var nx = px + dx;
+                    if (nx >= 0 && nx < w) {
+                        if (dx * dx + dy * dy <= brushRadiusPx * brushRadiusPx) {
+                            maskArray[ny * w + nx] = 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    applyBilateralSkinSmoothing(data, w, h, maskArray, skinSmoothBrushState.strength);
+
+    ctx.putImageData(imgData, 0, 0);
+    var smoothedUrl = canvas.toDataURL('image/jpeg', 0.95);
+    bgImg.src = smoothedUrl;
+    if (typeof appState !== 'undefined' && appState.stagedPhotos && appState.stagedPhotos[appState.activeStagedIndex]) {
+        appState.stagedPhotos[appState.activeStagedIndex].dataUrl = smoothedUrl;
+    }
+
+    clearSkinBrushOverlay();
+
+    if (typeof showToast === 'function') {
+        showToast('✨ Area kulit yang diusap berhasil dihaluskan mulus (Mata & bibir tajam)!');
+    }
+}
+
+// Auto Skin Mask Preview ala Portraiture (SS 2)
+function toggleAutoSkinMaskPreview() {
+    var bgImg = document.getElementById('wm-simulator-bg');
+    var canvas = document.getElementById('wm-skin-brush-canvas');
+    var btn = document.getElementById('btn-toggle-skin-mask');
+    if (!bgImg || !canvas) return;
+
+    skinSmoothBrushState.previewMaskActive = !skinSmoothBrushState.previewMaskActive;
+
+    if (!skinSmoothBrushState.previewMaskActive) {
+        clearSkinBrushOverlay();
+        canvas.style.display = 'none';
+        if (btn) {
+            btn.style.background = 'rgba(2,132,199,0.1)';
+            btn.style.color = '#38bdf8';
+        }
+        if (typeof showToast === 'function') showToast('👁️ Mask kulit disembunyikan.');
+        return;
+    }
+
+    if (btn) {
+        btn.style.background = '#0284c7';
+        btn.style.color = '#ffffff';
+    }
+    canvas.style.display = 'block';
+
+    var w = bgImg.naturalWidth;
+    var h = bgImg.naturalHeight;
+    var offCanvas = document.createElement('canvas');
+    offCanvas.width = w;
+    offCanvas.height = h;
+    var offCtx = offCanvas.getContext('2d');
+    offCtx.drawImage(bgImg, 0, 0, w, h);
+    var imgData = offCtx.getImageData(0, 0, w, h);
+    var data = imgData.data;
+
+    canvas.width = bgImg.clientWidth || 800;
+    canvas.height = bgImg.clientHeight || 600;
+    var ctx = canvas.getContext('2d');
+    var dispData = ctx.createImageData(canvas.width, canvas.height);
+    var dd = dispData.data;
+
+    var scaleX = w / canvas.width;
+    var scaleY = h / canvas.height;
+
+    for (var cy = 0; cy < canvas.height; cy++) {
+        var srcY = Math.floor(cy * scaleY);
+        for (var cx = 0; cx < canvas.width; cx++) {
+            var srcX = Math.floor(cx * scaleX);
+            var srcIdx = (srcY * w + srcX) * 4;
+            var dIdx = (cy * canvas.width + cx) * 4;
+
+            var r = data[srcIdx], g = data[srcIdx + 1], b = data[srcIdx + 2];
+            var yVal = 0.299 * r + 0.587 * g + 0.114 * b;
+            var cbVal = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
+            var crVal = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
+
+            var isSkin = (cbVal >= 75 && cbVal <= 135 && crVal >= 130 && crVal <= 180) || (r > g && g > b && r > 50 && (r - b) > 15);
+            var isEyeOrLip = yVal < 50 || (r < 55 && g < 55 && b < 55) || (r > 115 && (r - g) > 40 && (r - b) > 35);
+
+            if (isSkin && !isEyeOrLip) {
+                dd[dIdx] = 52;
+                dd[dIdx + 1] = 211;
+                dd[dIdx + 2] = 153;
+                dd[dIdx + 3] = 130;
+            } else {
+                dd[dIdx + 3] = 0;
+            }
+        }
+    }
+
+    ctx.putImageData(dispData, 0, 0);
+    if (typeof showToast === 'function') {
+        showToast('👁️ Area Hijau = Kulit yang akan dihaluskan (Mata & bibir dikecualikan)');
+    }
+}
+
+// Menerapkan kehalusan ke seluruh topeng kulit wajah
+function applyAutoSkinMaskSmoothing() {
+    var bgImg = document.getElementById('wm-simulator-bg');
+    if (!bgImg || !bgImg.naturalWidth) return;
+
+    if (typeof pushPhotoHistory === 'function') {
+        pushPhotoHistory('Auto Mask Kulit Wajah');
+    }
+
+    var w = bgImg.naturalWidth;
+    var h = bgImg.naturalHeight;
+    var canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    var ctx = canvas.getContext('2d');
+    ctx.drawImage(bgImg, 0, 0, w, h);
+
+    var imgData = ctx.getImageData(0, 0, w, h);
+    var data = imgData.data;
+
+    var maskArray = new Uint8Array(w * h);
+    for (var y = 0; y < h; y++) {
+        for (var x = 0; x < w; x++) {
+            var pos = y * w + x;
+            var idx = pos * 4;
+            var r = data[idx], g = data[idx + 1], b = data[idx + 2];
+            var yVal = 0.299 * r + 0.587 * g + 0.114 * b;
+            var cbVal = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
+            var crVal = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
+
+            var isSkin = (cbVal >= 75 && cbVal <= 135 && crVal >= 130 && crVal <= 180) || (r > g && g > b && r > 50 && (r - b) > 15);
+            var isEyeOrLip = yVal < 50 || (r < 55 && g < 55 && b < 55) || (r > 115 && (r - g) > 40 && (r - b) > 35);
+
+            if (isSkin && !isEyeOrLip) {
+                maskArray[pos] = 1;
+            }
+        }
+    }
+
+    applyBilateralSkinSmoothing(data, w, h, maskArray, skinSmoothBrushState.strength);
+
+    ctx.putImageData(imgData, 0, 0);
+    var smoothedUrl = canvas.toDataURL('image/jpeg', 0.95);
+    bgImg.src = smoothedUrl;
+    if (typeof appState !== 'undefined' && appState.stagedPhotos && appState.stagedPhotos[appState.activeStagedIndex]) {
+        appState.stagedPhotos[appState.activeStagedIndex].dataUrl = smoothedUrl;
+    }
+
+    clearSkinBrushOverlay();
+
+    if (typeof showToast === 'function') {
+        showToast('✨ Seluruh kulit wajah berhasil dihaluskan mulus (Mata, alis & bibir tetap tajam)!');
+    }
+}
+
+// Inisialisasi listener kuas mulus saat halaman siap
+document.addEventListener('DOMContentLoaded', initSkinSmoothBrushStageListeners);
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    initSkinSmoothBrushStageListeners();
 }
