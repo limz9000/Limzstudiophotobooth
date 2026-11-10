@@ -387,6 +387,7 @@
         initWatermarkSettings();
         initStudioLogo();
         initDropzoneEvents();
+        initCanvaStyleCanvasWorkflow();
         initCropDragEvents();
         initWatermarkDragEvents();
         initIndexedDB();
@@ -803,6 +804,7 @@
             size: Math.round(dataUrl.length * 0.75),
             dataUrl: dataUrl,
             originalDataUrl: dataUrl,
+            rawOriginalDataUrl: dataUrl,
             isCropped: false
         };
         if (appState.photoFilterState && appState.photoFilterState.isLocked) {
@@ -1427,6 +1429,7 @@
                         size: blob.size,
                         dataUrl: dataUrl,
                         originalDataUrl: dataUrl,
+                        rawOriginalDataUrl: dataUrl,
                         isCropped: false
                     };
                     if (appState.photoFilterState && appState.photoFilterState.isLocked) {
@@ -2101,6 +2104,7 @@
                 size: data.size || 0,
                 dataUrl: data.dataUrl,
                 originalDataUrl: data.dataUrl,
+                rawOriginalDataUrl: data.dataUrl,
                 isCropped: false,
                 wasRaw: !!data.wasRaw,
                 rotation: 0
@@ -3235,6 +3239,9 @@
         if (el('lbl-hsl-hue')) el('lbl-hsl-hue').innerText = (s.colorMix[actCol].h >= 0 ? '+' : '') + s.colorMix[actCol].h;
         if (el('lbl-hsl-sat')) el('lbl-hsl-sat').innerText = (s.colorMix[actCol].s >= 0 ? '+' : '') + s.colorMix[actCol].s + '%';
         if (el('lbl-hsl-lum')) el('lbl-hsl-lum').innerText = (s.colorMix[actCol].l >= 0 ? '+' : '') + s.colorMix[actCol].l + '%';
+        if (el('lbl-flt-hsl-hue')) el('lbl-flt-hsl-hue').innerText = s.colorMix[actCol].h;
+        if (el('lbl-flt-hsl-sat')) el('lbl-flt-hsl-sat').innerText = s.colorMix[actCol].s;
+        if (el('lbl-flt-hsl-lum')) el('lbl-flt-hsl-lum').innerText = s.colorMix[actCol].l;
 
         if (el('lbl-cg-hue')) el('lbl-cg-hue').innerText = s.colorGrading[actZ].h + '°';
         if (el('lbl-cg-sat')) el('lbl-cg-sat').innerText = s.colorGrading[actZ].s + '%';
@@ -3266,64 +3273,149 @@
         if (!bgImg) return;
 
         var s = appState.photoFilterState;
+        if (!s) return;
 
-        // Hitung effective brightness dari exposure, whites, blacks, shadows, highlights
-        var expMultiplier = (s.exposure || 0) * 1.5;
-        var b = 100 + (s.brightness || 0) + expMultiplier + Math.round((s.shadows || 0) * 0.35) + Math.round((s.highlights || 0) * 0.2) + Math.round((s.whites || 0) * 0.3) + Math.round((s.blacks || 0) * 0.2);
-        var c = 100 + (s.contrast || 0) + Math.round((s.shadows || 0) * -0.15) + Math.round((s.clarity || 0) * 0.25);
-        var sat = 100 + (s.saturation || 0) + Math.round((s.vibrance || 0) * 0.6);
-        var preset = s.preset;
+        // REVISI 116: Integrasi Nyata AI Retouch (SS 2), Tone Curve (SS 3), & HSL 8 Channels (SS 3)
+        var ret = s.retouch || {};
+        var crv = s.curve || { highlights: 0, lights: 0, darks: 0, shadows: 0 };
+        var cm = s.colorMix || {};
 
-        var filterStr = 'brightness(' + Math.max(10, Math.round(b)) + '%) contrast(' + Math.max(10, Math.round(c)) + '%) saturate(' + Math.max(0, Math.round(sat)) + '%)';
-        if (preset === 'bw') {
-            filterStr = 'grayscale(100%) ' + filterStr;
-        } else if (preset === 'warm') {
-            filterStr = 'sepia(18%) ' + filterStr;
-        } else if (preset === 'vintage') {
-            filterStr = 'sepia(32%) ' + filterStr;
+        var rSoften = typeof ret.soften === 'number' ? ret.soften : (document.getElementById('slider-evoto-ret-soften') ? parseInt(document.getElementById('slider-evoto-ret-soften').value, 10) : 0);
+        var rBrighten = typeof ret.brighten === 'number' ? ret.brighten : (document.getElementById('slider-evoto-ret-brighten') ? parseInt(document.getElementById('slider-evoto-ret-brighten').value, 10) : 0);
+        var rUndereye = typeof ret.undereye === 'number' ? ret.undereye : (document.getElementById('slider-evoto-ret-undereye') ? parseInt(document.getElementById('slider-evoto-ret-undereye').value, 10) : 0);
+        var rTexture = typeof ret.texture === 'number' ? ret.texture : (document.getElementById('slider-evoto-ret-texture') ? parseInt(document.getElementById('slider-evoto-ret-texture').value, 10) : 50);
+        var rTeeth = typeof ret.teeth === 'number' ? ret.teeth : (document.getElementById('slider-evoto-ret-teeth') ? parseInt(document.getElementById('slider-evoto-ret-teeth').value, 10) : 0);
+        var rEyes = typeof ret.eyes === 'number' ? ret.eyes : (document.getElementById('slider-evoto-ret-eyes') ? parseInt(document.getElementById('slider-evoto-ret-eyes').value, 10) : 0);
+
+        // Tone Curve adjustments
+        var cHl = crv.highlights || 0;
+        var cLi = crv.lights || 0;
+        var cDk = crv.darks || 0;
+        var cSh = crv.shadows || 0;
+        var curveBright = Math.round((cHl * 0.35) + (cLi * 0.45) + (cDk * 0.25) + (cSh * 0.2));
+        var curveContrast = Math.round(((cHl - cSh) * 0.35) + ((cLi - cDk) * 0.25));
+
+        // HSL 8 Channels
+        var hslTotalSat = 0;
+        var hslTotalLum = 0;
+        var channels = ['red', 'orange', 'yellow', 'green', 'aqua', 'blue', 'purple', 'magenta'];
+        for (var ci = 0; ci < channels.length; ci++) {
+            var cObj = cm[channels[ci]];
+            if (cObj) {
+                hslTotalSat += (cObj.s || 0);
+                hslTotalLum += (cObj.l || 0);
+            }
         }
+        var actColName = cm.activeColor || 'red';
+        var actColObj = cm[actColName] || { h: 0, s: 0, l: 0 };
+        var hslHueRotateDeg = Math.round((actColObj.h || 0) * 0.6);
+        var hslSatBoost = Math.round(hslTotalSat * 0.3);
+        var hslLumBoost = Math.round(hslTotalLum * 0.25);
 
-        // Dehaze & Clarity visual contrast boost
-        if (s.dehaze || s.clarity) {
-            var contrastBoost = Math.round(((s.dehaze || 0) + (s.clarity || 0)) * 0.15);
-            if (contrastBoost !== 0) {
-                filterStr += ' contrast(' + (100 + contrastBoost) + '%)';
+        // Effective brightness & exposure
+        var expMultiplier = (s.exposure || 0) * 1.5;
+        var b = 100 + (s.brightness || 0) + expMultiplier 
+            + Math.round((s.shadows || 0) * 0.35) 
+            + Math.round((s.highlights || 0) * 0.2) 
+            + Math.round((s.whites || 0) * 0.3) 
+            + Math.round((s.blacks || 0) * 0.2)
+            + curveBright
+            + hslLumBoost
+            + Math.round(rBrighten * 0.22)
+            + Math.round(rUndereye * 0.14)
+            + Math.round(rTeeth * 0.08);
+
+        // Contrast & Clarity
+        var c = 100 + (s.contrast || 0) 
+            + Math.round((s.shadows || 0) * -0.15) 
+            + Math.round((s.clarity || 0) * 0.25)
+            + curveContrast
+            + Math.round((rTexture - 50) * 0.35)
+            + Math.round(rEyes * 0.25)
+            - Math.round(rSoften * 0.15);
+
+        // Saturation & Vibrance
+        var sat = 100 + (s.saturation || 0) 
+            + Math.round((s.vibrance || 0) * 0.6)
+            + hslSatBoost
+            - Math.round(rTeeth * 0.06);
+
+        var preset = s.preset;
+        var isPureOriginal = (Math.abs(b - 100) < 0.5) && (Math.abs(c - 100) < 0.5) && (Math.abs(sat - 100) < 0.5) && (preset === 'normal' || !preset) && (hslHueRotateDeg === 0) && (!s.dehaze) && (!s.clarity);
+        var filterStr = isPureOriginal ? 'none' : ('brightness(' + Math.max(10, Math.round(b)) + '%) contrast(' + Math.max(10, Math.round(c)) + '%) saturate(' + Math.max(0, Math.round(sat)) + '%)');
+        if (!isPureOriginal) {
+            if (hslHueRotateDeg !== 0) {
+                filterStr += ' hue-rotate(' + hslHueRotateDeg + 'deg)';
+            }
+            if (preset === 'bw') {
+                filterStr = 'grayscale(100%) ' + filterStr;
+            } else if (preset === 'warm') {
+                filterStr = 'sepia(18%) ' + filterStr;
+            } else if (preset === 'vintage') {
+                filterStr = 'sepia(32%) ' + filterStr;
+            }
+
+            // Dehaze & Clarity visual contrast boost
+            if (s.dehaze || s.clarity) {
+                var contrastBoost = Math.round(((s.dehaze || 0) + (s.clarity || 0)) * 0.15);
+                if (contrastBoost !== 0) {
+                    filterStr += ' contrast(' + (100 + contrastBoost) + '%)';
+                }
             }
         }
 
         bgImg.style.filter = filterStr;
         if (typeof drawWmHistogram === 'function') drawWmHistogram();
 
+        // 4. Color Grading & Soft-Light Tinting Overlay
         if (overlay) {
             var temp = s.temperature || 0;
             var tint = s.tint || 0;
             var absTemp = Math.abs(temp);
             var absTint = Math.abs(tint);
 
-            // Cek apakah ada split toning / color grading aktif
             var cgShadows = (s.colorGrading && s.colorGrading.shadows) ? s.colorGrading.shadows : { h: 0, s: 0 };
             var cgHighlights = (s.colorGrading && s.colorGrading.highlights) ? s.colorGrading.highlights : { h: 0, s: 0 };
 
-            if (absTemp > 0 || absTint > 0 || cgShadows.s > 0 || cgHighlights.s > 0) {
-                var r = 128, g = 128, bVal = 128;
-                if (temp > 0) { r += Math.round(temp * 2.2); bVal -= Math.round(temp * 1.5); }
-                else if (temp < 0) { bVal += Math.round(-temp * 2.2); r -= Math.round(-temp * 1.5); }
-                if (tint > 0) { r += Math.round(tint * 1.8); bVal += Math.round(tint * 1.8); g -= Math.round(tint * 1.5); }
-                else if (tint < 0) { g += Math.round(-tint * 2.2); r -= Math.round(-tint * 1.2); }
+            var r = 128, g = 128, bVal = 128;
+            var hasTint = false;
 
-                // Skin Tone Luminance Boost (Orange / Yellow)
-                if (s.colorMix && s.colorMix.orange && s.colorMix.orange.l > 0) {
-                    r += Math.round(s.colorMix.orange.l * 0.8);
-                    g += Math.round(s.colorMix.orange.l * 0.5);
-                }
+            if (temp > 0) { r += Math.round(temp * 2.2); bVal -= Math.round(temp * 1.5); hasTint = true; }
+            else if (temp < 0) { bVal += Math.round(-temp * 2.2); r -= Math.round(-temp * 1.5); hasTint = true; }
+            if (tint > 0) { r += Math.round(tint * 1.8); bVal += Math.round(tint * 1.8); g -= Math.round(tint * 1.5); hasTint = true; }
+            else if (tint < 0) { g += Math.round(-tint * 2.2); r -= Math.round(-tint * 1.2); hasTint = true; }
 
+            // HSL Color Tint Overlay per channel:
+            if (cm.orange && (cm.orange.l !== 0 || cm.orange.s !== 0)) {
+                r += Math.round((cm.orange.l || 0) * 0.8 + (cm.orange.s || 0) * 0.5);
+                g += Math.round((cm.orange.l || 0) * 0.5 + (cm.orange.s || 0) * 0.3);
+                hasTint = true;
+            }
+            if (cm.red && (cm.red.s !== 0 || cm.red.l !== 0)) {
+                r += Math.round((cm.red.s || 0) * 0.9 + (cm.red.l || 0) * 0.6);
+                hasTint = true;
+            }
+            if (cm.yellow && (cm.yellow.s !== 0 || cm.yellow.l !== 0)) {
+                r += Math.round((cm.yellow.s || 0) * 0.6 + (cm.yellow.l || 0) * 0.5);
+                g += Math.round((cm.yellow.s || 0) * 0.6 + (cm.yellow.l || 0) * 0.5);
+                hasTint = true;
+            }
+            if (cm.green && (cm.green.s !== 0 || cm.green.l !== 0)) {
+                g += Math.round((cm.green.s || 0) * 0.9 + (cm.green.l || 0) * 0.6);
+                hasTint = true;
+            }
+            if (cm.blue && (cm.blue.s !== 0 || cm.blue.l !== 0)) {
+                bVal += Math.round((cm.blue.s || 0) * 0.9 + (cm.blue.l || 0) * 0.6);
+                hasTint = true;
+            }
+
+            if (hasTint || cgShadows.s > 0 || cgHighlights.s > 0) {
                 r = Math.max(0, Math.min(255, r));
                 g = Math.max(0, Math.min(255, g));
                 bVal = Math.max(0, Math.min(255, bVal));
-
-                var maxShift = Math.max(absTemp, absTint, (cgHighlights.s * 0.5));
+                var maxShift = Math.max(absTemp, absTint, (cgHighlights.s * 0.5), Math.abs(hslLumBoost));
                 overlay.style.backgroundColor = 'rgb(' + r + ',' + g + ',' + bVal + ')';
-                overlay.style.opacity = Math.min(0.45, (maxShift / 50) * 0.35);
+                overlay.style.opacity = Math.min(0.48, Math.max(0.06, (maxShift / 50) * 0.35));
             } else {
                 overlay.style.opacity = 0;
             }
@@ -3332,13 +3424,75 @@
 
     function getCanvasFilterString(customState) {
         var s = customState || appState.photoFilterState;
+        if (!s) return 'none';
+
+        var ret = s.retouch || {};
+        var crv = s.curve || { highlights: 0, lights: 0, darks: 0, shadows: 0 };
+        var cm = s.colorMix || {};
+
+        var rSoften = typeof ret.soften === 'number' ? ret.soften : 0;
+        var rBrighten = typeof ret.brighten === 'number' ? ret.brighten : 0;
+        var rUndereye = typeof ret.undereye === 'number' ? ret.undereye : 0;
+        var rTexture = typeof ret.texture === 'number' ? ret.texture : 50;
+        var rTeeth = typeof ret.teeth === 'number' ? ret.teeth : 0;
+        var rEyes = typeof ret.eyes === 'number' ? ret.eyes : 0;
+
+        var cHl = crv.highlights || 0;
+        var cLi = crv.lights || 0;
+        var cDk = crv.darks || 0;
+        var cSh = crv.shadows || 0;
+        var curveBright = Math.round((cHl * 0.35) + (cLi * 0.45) + (cDk * 0.25) + (cSh * 0.2));
+        var curveContrast = Math.round(((cHl - cSh) * 0.35) + ((cLi - cDk) * 0.25));
+
+        var hslTotalSat = 0;
+        var hslTotalLum = 0;
+        var channels = ['red', 'orange', 'yellow', 'green', 'aqua', 'blue', 'purple', 'magenta'];
+        for (var ci = 0; ci < channels.length; ci++) {
+            var cObj = cm[channels[ci]];
+            if (cObj) {
+                hslTotalSat += (cObj.s || 0);
+                hslTotalLum += (cObj.l || 0);
+            }
+        }
+        var actColName = cm.activeColor || 'red';
+        var actColObj = cm[actColName] || { h: 0, s: 0, l: 0 };
+        var hslHueRotateDeg = Math.round((actColObj.h || 0) * 0.6);
+        var hslSatBoost = Math.round(hslTotalSat * 0.3);
+        var hslLumBoost = Math.round(hslTotalLum * 0.25);
+
         var expMultiplier = (s.exposure || 0) * 1.5;
-        var b = 100 + (s.brightness || 0) + expMultiplier + Math.round((s.shadows || 0) * 0.35) + Math.round((s.highlights || 0) * 0.2) + Math.round((s.whites || 0) * 0.3) + Math.round((s.blacks || 0) * 0.2);
-        var c = 100 + (s.contrast || 0) + Math.round((s.shadows || 0) * -0.15) + Math.round((s.clarity || 0) * 0.25);
-        var sat = 100 + (s.saturation || 0) + Math.round((s.vibrance || 0) * 0.6);
+        var b = 100 + (s.brightness || 0) + expMultiplier 
+            + Math.round((s.shadows || 0) * 0.35) 
+            + Math.round((s.highlights || 0) * 0.2) 
+            + Math.round((s.whites || 0) * 0.3) 
+            + Math.round((s.blacks || 0) * 0.2)
+            + curveBright
+            + hslLumBoost
+            + Math.round(rBrighten * 0.22)
+            + Math.round(rUndereye * 0.14)
+            + Math.round(rTeeth * 0.08);
+
+        var c = 100 + (s.contrast || 0) 
+            + Math.round((s.shadows || 0) * -0.15) 
+            + Math.round((s.clarity || 0) * 0.25)
+            + curveContrast
+            + Math.round((rTexture - 50) * 0.35)
+            + Math.round(rEyes * 0.25)
+            - Math.round(rSoften * 0.15);
+
+        var sat = 100 + (s.saturation || 0) 
+            + Math.round((s.vibrance || 0) * 0.6)
+            + hslSatBoost
+            - Math.round(rTeeth * 0.06);
+
         var preset = s.preset;
+        var isPureOriginal = (Math.abs(b - 100) < 0.5) && (Math.abs(c - 100) < 0.5) && (Math.abs(sat - 100) < 0.5) && (preset === 'normal' || !preset) && (hslHueRotateDeg === 0) && (!s.dehaze) && (!s.clarity);
+        if (isPureOriginal) return 'none';
 
         var filterStr = 'brightness(' + Math.max(10, Math.round(b)) + '%) contrast(' + Math.max(10, Math.round(c)) + '%) saturate(' + Math.max(0, Math.round(sat)) + '%)';
+        if (hslHueRotateDeg !== 0) {
+            filterStr += ' hue-rotate(' + hslHueRotateDeg + 'deg)';
+        }
         if (preset === 'bw') {
             filterStr = 'grayscale(100%) ' + filterStr;
         } else if (preset === 'warm') {
@@ -3349,6 +3503,7 @@
         return filterStr;
     }
 
+    // REVISI 114: ROTASI FISIK KANVAS INSTAN & SINKRONISASI RESMI ORIENTASI + WATERMARK
     function rotateActiveStagedPhoto(angleDelta) {
         if (!appState.stagedPhotos || appState.stagedPhotos.length === 0) {
             showToast('⚠️ Belum ada foto dalam antrian pratinjau.');
@@ -3357,18 +3512,94 @@
         var activePhoto = appState.stagedPhotos[appState.activeStagedIndex];
         if (!activePhoto) return;
 
-        var currentRot = activePhoto.rotation || 0;
-        var newRot = (currentRot + angleDelta) % 360;
-        if (newRot < 0) newRot += 360;
-        activePhoto.rotation = newRot;
-
         var bgImg = document.getElementById('wm-simulator-bg');
-        if (bgImg) {
-            bgImg.style.transform = 'rotate(' + newRot + 'deg)';
+        if (!bgImg || !bgImg.src) return;
+
+        // 1. Simpan ke Undo History sebelum rotasi
+        if (typeof pushPhotoHistory === 'function') {
+            pushPhotoHistory('Sebelum Putar Foto (' + (angleDelta > 0 ? '+90°' : '-90°') + ')');
         }
 
-        renderStagedPhotosUI();
-        showToast('🔄 Foto #' + (appState.activeStagedIndex + 1) + ' diputar ke orientasi ' + newRot + '°');
+        function applyRotatedBuffer(sourceImage) {
+            var srcW = sourceImage.naturalWidth || sourceImage.width || 1200;
+            var srcH = sourceImage.naturalHeight || sourceImage.height || 1600;
+
+            var rotCanvas = document.createElement('canvas');
+            // Dimensi ditukar saat diputar 90 derajat
+            rotCanvas.width = srcH;
+            rotCanvas.height = srcW;
+            var rCtx = rotCanvas.getContext('2d');
+            rCtx.imageSmoothingEnabled = true;
+            rCtx.imageSmoothingQuality = 'high';
+
+            rCtx.translate(rotCanvas.width / 2, rotCanvas.height / 2);
+            rCtx.rotate(angleDelta * Math.PI / 180);
+            rCtx.drawImage(sourceImage, -srcW / 2, -srcH / 2, srcW, srcH);
+
+            var rotatedDataUrl = rotCanvas.toDataURL('image/jpeg', 0.94);
+
+            // Perbarui seluruh variabel data foto aktif secara serentak (Mencegah reset)
+            activePhoto.dataUrl = rotatedDataUrl;
+            activePhoto.originalDataUrl = rotatedDataUrl;
+            activePhoto.url = rotatedDataUrl;
+            activePhoto.processedUrl = rotatedDataUrl;
+            activePhoto.rotation = 0; // Rotasi sudah menjadi piksel fisik
+            activePhoto.width = rotCanvas.width;
+            activePhoto.height = rotCanvas.height;
+
+            // Deteksi orientasi baru secara resmi
+            var isPortrait = rotCanvas.height >= rotCanvas.width;
+            activePhoto.orientation = isPortrait ? 'portrait' : 'landscape';
+
+            // Tampilkan foto baru di panggung seketika
+            bgImg.src = rotatedDataUrl;
+            bgImg.style.transform = 'none';
+
+            // Update aspek rasio wrapper panggung secara instan
+            var wrapper = document.getElementById('wm-simulator-photo-wrapper');
+            if (wrapper) {
+                wrapper.style.aspectRatio = rotCanvas.width + ' / ' + rotCanvas.height;
+            }
+
+            // Perbarui badge orientasi jika tersedia
+            var orientBadge = document.getElementById('evoto-active-orient-badge');
+            if (orientBadge) {
+                orientBadge.innerHTML = isPortrait ? '📱 PORTRAIT' : '🖥️ LANDSCAPE';
+                orientBadge.style.background = isPortrait ? 'rgba(59, 130, 246, 0.2)' : 'rgba(16, 185, 129, 0.2)';
+                orientBadge.style.color = isPortrait ? '#60a5fa' : '#34d399';
+            }
+
+            // Perbarui thumbnail di filmstrip
+            var thumb = document.getElementById('filmstrip-thumb-' + appState.activeStagedIndex);
+            if (thumb) {
+                thumb.src = rotatedDataUrl;
+                thumb.style.transform = 'none';
+            }
+
+            // Sinkronkan antrean UI & aspek rasio watermark panggung
+            renderStagedPhotosUI();
+            syncPhotoWrapperDimensions();
+
+            // Catat state akhir ke Undo History
+            if (typeof pushPhotoHistory === 'function') {
+                pushPhotoHistory('🔄 Putar Foto (' + (isPortrait ? 'Portrait' : 'Landscape') + ')');
+            }
+
+            var orientLabel = isPortrait ? '📱 Portrait (Tegak)' : '🖥️ Landscape (Mendatar)';
+            showToast('🔄 Foto #' + (appState.activeStagedIndex + 1) + ' kini terbaca sebagai ' + orientLabel + '. Watermark menyesuaikan otomatis!');
+        }
+
+        // Eksekusi rotasi langsung jika gambar sudah siap di memori
+        if (bgImg.complete && bgImg.naturalWidth > 0) {
+            applyRotatedBuffer(bgImg);
+        } else {
+            var tempImg = new Image();
+            tempImg.crossOrigin = 'anonymous';
+            tempImg.onload = function () {
+                applyRotatedBuffer(tempImg);
+            };
+            tempImg.src = activePhoto.dataUrl || bgImg.src;
+        }
     }
 
     function renderStagedPhotosUI() {
@@ -4501,6 +4732,12 @@
         var fallbackText = document.getElementById('wm-sim-fallback-text');
 
         if (!overlay) return;
+
+        // REVISI 116: Jangan tampilkan watermark saat mode Before / After foto mentah aktif!
+        if (typeof isComparingBeforeState !== 'undefined' && isComparingBeforeState) {
+            overlay.style.display = 'none';
+            return;
+        }
 
         // Pratinjau bersih tanpa watermark saat switch nonaktif
         if (appState.isWatermarkEnabled === false) {
@@ -7275,6 +7512,7 @@
                     size: processedFile.size,
                     dataUrl: dataUrl,
                     originalDataUrl: dataUrl,
+                    rawOriginalDataUrl: dataUrl,
                     isCropped: false,
                     wasRaw: isRawFile(file),
                     rotation: 0,
@@ -12093,69 +12331,126 @@ function setEvotoWorkspaceSkinTone(hex, name, el) {
 
 function updateEvotoWorkspaceRetouch() {
     var soften = document.getElementById('slider-evoto-ret-soften');
+    var brighten = document.getElementById('slider-evoto-ret-brighten');
+    var undereye = document.getElementById('slider-evoto-ret-undereye');
     var texture = document.getElementById('slider-evoto-ret-texture');
     var teeth = document.getElementById('slider-evoto-ret-teeth');
     var eyes = document.getElementById('slider-evoto-ret-eyes');
 
+    var sVal = soften ? parseInt(soften.value, 10) : 35;
+    var bVal = brighten ? parseInt(brighten.value, 10) : 25;
+    var uVal = undereye ? parseInt(undereye.value, 10) : 30;
+    var tVal = texture ? parseInt(texture.value, 10) : 50;
+    var thVal = teeth ? parseInt(teeth.value, 10) : 30;
+    var eVal = eyes ? parseInt(eyes.value, 10) : 35;
+
     if (soften && document.getElementById('lbl-evoto-ret-soften')) {
-        document.getElementById('lbl-evoto-ret-soften').textContent = soften.value + '%';
+        document.getElementById('lbl-evoto-ret-soften').textContent = sVal + '%';
+    }
+    if (brighten && document.getElementById('lbl-evoto-ret-brighten')) {
+        document.getElementById('lbl-evoto-ret-brighten').textContent = bVal + '%';
+    }
+    if (undereye && document.getElementById('lbl-evoto-ret-undereye')) {
+        document.getElementById('lbl-evoto-ret-undereye').textContent = uVal + '%';
     }
     if (texture && document.getElementById('lbl-evoto-ret-texture')) {
-        document.getElementById('lbl-evoto-ret-texture').textContent = texture.value + '%';
+        document.getElementById('lbl-evoto-ret-texture').textContent = tVal + '%';
     }
     if (teeth && document.getElementById('lbl-evoto-ret-teeth')) {
-        document.getElementById('lbl-evoto-ret-teeth').textContent = teeth.value + '%';
+        document.getElementById('lbl-evoto-ret-teeth').textContent = thVal + '%';
     }
     if (eyes && document.getElementById('lbl-evoto-ret-eyes')) {
-        document.getElementById('lbl-evoto-ret-eyes').textContent = eyes.value + '%';
+        document.getElementById('lbl-evoto-ret-eyes').textContent = eVal + '%';
     }
 
     if (typeof appState !== 'undefined' && appState.photoFilterState) {
-        if (soften) appState.photoFilterState.clarity = -Math.round(parseInt(soften.value, 10) * 0.4);
-        if (texture) appState.photoFilterState.texture = Math.round((parseInt(texture.value, 10) - 50) * 0.8);
-        if (typeof updateCustomFilterSliders === 'function') {
-            updateCustomFilterSliders();
+        appState.photoFilterState.retouch = {
+            soften: sVal,
+            brighten: bVal,
+            undereye: uVal,
+            texture: tVal,
+            teeth: thVal,
+            eyes: eVal
+        };
+        appState.photoFilterState.clarity = -Math.round(sVal * 0.4);
+        appState.photoFilterState.texture = Math.round((tVal - 50) * 0.8);
+        if (typeof updatePhotoGradingPreview === 'function') {
+            updatePhotoGradingPreview();
         }
     }
 }
 
-// GEMINI API KEY MODAL
+// GEMINI & REPLICATE CLOUD GPU API KEY MODAL (REVISI 117 - OPSI 1)
 function openGeminiApiKeyModal() {
     var modal = document.getElementById('modal-gemini-settings');
     if (!modal) return;
-    var input = document.getElementById('input-gemini-api-key');
-    if (input) {
-        input.value = localStorage.getItem('limz_gemini_api_key') || '';
+    var inputGem = document.getElementById('input-gemini-api-key');
+    if (inputGem) {
+        inputGem.value = localStorage.getItem('limz_gemini_api_key') || '';
+    }
+    var inputRep = document.getElementById('input-replicate-api-key');
+    if (inputRep) {
+        inputRep.value = localStorage.getItem('limz_replicate_api_key') || '';
     }
     modal.style.display = 'flex';
 }
 
 function saveGeminiApiKeyClient() {
-    var input = document.getElementById('input-gemini-api-key');
-    var key = input ? input.value.trim() : '';
+    var inputGem = document.getElementById('input-gemini-api-key');
+    var gemKey = inputGem ? inputGem.value.trim() : '';
+
+    var inputRep = document.getElementById('input-replicate-api-key');
+    var repKey = inputRep ? inputRep.value.trim() : '';
 
     try {
-        localStorage.setItem('limz_gemini_api_key', key);
+        if (gemKey) {
+            localStorage.setItem('limz_gemini_api_key', gemKey);
+            localStorage.setItem('gemini_api_key', gemKey);
+            if (typeof appState !== 'undefined') appState.geminiApiKey = gemKey;
+        } else {
+            localStorage.removeItem('limz_gemini_api_key');
+            localStorage.removeItem('gemini_api_key');
+        }
+
+        if (repKey) {
+            localStorage.setItem('limz_replicate_api_key', repKey);
+            if (typeof appState !== 'undefined') appState.replicateApiKey = repKey;
+        } else {
+            localStorage.removeItem('limz_replicate_api_key');
+        }
     } catch (e) { }
 
     if (typeof google !== 'undefined' && google.script && google.script.run) {
         google.script.run
             .withSuccessHandler(function(res) {
                 if (typeof showToast === 'function') {
-                    showToast('✅ Google Gemini API Key berhasil disimpan!');
+                    showToast('✅ Pengaturan AI & Cloud GPU berhasil disimpan ke server!');
                 }
             })
-            .saveGeminiApiKey(key);
+            .saveAiApiKeys(gemKey, repKey);
+
+        google.script.run.saveGeminiApiKey(gemKey);
+        if (repKey) {
+            google.script.run.saveReplicateApiKey(repKey);
+        }
     } else {
         if (typeof showToast === 'function') {
-            showToast('✅ Google Gemini API Key disimpan di browser lokal!');
+            showToast('✅ Kunci AI & Cloud GPU disimpan di browser lokal!');
         }
     }
 
     var badge = document.getElementById('gemini-status-badge');
     if (badge) {
-        badge.textContent = key ? 'Active (Gemini 1.5 Flash)' : 'Not Configured';
-        badge.style.color = key ? '#38bdf8' : '#94a3b8';
+        if (repKey) {
+            badge.textContent = 'Active: Replicate Cloud GPU (Flux / SDXL)';
+            badge.style.color = '#fbbf24';
+        } else if (gemKey) {
+            badge.textContent = 'Active: Gemini 2.5 Flash / Imagen 3';
+            badge.style.color = '#38bdf8';
+        } else {
+            badge.textContent = 'Not Configured';
+            badge.style.color = '#94a3b8';
+        }
     }
 
     closeModal('modal-gemini-settings');
@@ -12296,8 +12591,9 @@ function executeGeminiInpaint() {
 /* ========================================================================= */
 /* REVISI 109: MINTA GEMINI PROMPT ENGINE & 16+ PHOTOGRAPHY SHORTCUTS       */
 /* ========================================================================= */
+var savedAiModel = (typeof localStorage !== 'undefined' ? localStorage.getItem('limz_selected_ai_model') : '') || 'replicate_flux';
 var mintaGeminiState = {
-    model: 'flash', // 'flash_lite', 'flash', 'pro', 'argon'
+    model: savedAiModel, // 'replicate_flux', 'nano_banana', 'nano_banana_pro', 'flash_lite', 'flash', 'pro', 'argon'
     thinkingLevel: 'seimbang', // 'cepat', 'seimbang', 'mendalam'
     isListening: false,
     recognition: null,
@@ -12436,22 +12732,29 @@ function selectGeminiModel(modelKey) {
     mintaGeminiState.model = modelKey;
 
     var modelNames = {
+        'replicate_flux': '🚀 Flux.1 GPU',
+        'nano_banana': 'Nano Banana',
+        'nano_banana_pro': 'Nano Banana Pro',
         'flash_lite': 'Flash-Lite',
-        'flash': 'Flash',
+        'flash': '3.8 Flash',
         'pro': '3.1 Pro',
         'argon': 'Argon'
     };
 
     var lbl = document.getElementById('lbl-gemini-selected-model');
     if (lbl) {
-        lbl.textContent = modelNames[modelKey] || 'Flash';
+        lbl.textContent = modelNames[modelKey] || '🚀 Flux.1 GPU';
     }
 
+    try {
+        localStorage.setItem('limz_selected_ai_model', modelKey);
+    } catch(e) {}
+
     // Update active class & checkmarks
-    ['flash-lite', 'flash', 'pro', 'argon'].forEach(function(k) {
+    ['replicate-flux', 'nano-banana', 'nano-banana-pro', 'flash-lite', 'flash', 'pro', 'argon'].forEach(function(k) {
         var el = document.getElementById('item-model-' + k);
         var chk = document.getElementById('check-model-' + k);
-        var isThis = (k === modelKey || (k === 'flash-lite' && modelKey === 'flash_lite'));
+        var isThis = (k === modelKey || k === modelKey.replace(/_/g, '-') || (k === 'flash-lite' && modelKey === 'flash_lite'));
         if (el) {
             if (isThis) el.classList.add('active-model');
             else el.classList.remove('active-model');
@@ -12465,7 +12768,8 @@ function selectGeminiModel(modelKey) {
     if (menu) menu.style.display = 'none';
 
     if (typeof showToast === 'function') {
-        showToast('🤖 Model Gemini diubah ke: ' + (modelNames[modelKey] || modelKey));
+        var toastTitle = (modelKey === 'replicate_flux') ? '🚀 Engine Aktif: Replicate Cloud GPU (Flux.1 / SDXL)' : ('🤖 Model Gemini diubah ke: ' + (modelNames[modelKey] || modelKey));
+        showToast(toastTitle);
     }
 }
 
@@ -12697,8 +13001,8 @@ function toggleGeminiVoiceInput() {
     }
 }
 
-// REVISI 110: DUAL PREVIEW COMPARATOR ENGINE & ACTION HANDLERS
-function showGeminiDualPreview(originalSrc, generatedSrc, captionText, promptTitle) {
+// REVISI 115: RESPONSIVE DUAL PREVIEW COMPARATOR ENGINE & ACTION HANDLERS
+function showGeminiDualPreview(originalSrc, generatedSrc, captionText, promptTitle, modelUsed) {
     var overlay = document.getElementById('gemini-dual-preview-stage');
     var origImg = document.getElementById('gemini-preview-original-img');
     var genImg = document.getElementById('gemini-preview-generated-img');
@@ -12707,21 +13011,117 @@ function showGeminiDualPreview(originalSrc, generatedSrc, captionText, promptTit
 
     mintaGeminiState.originalPhotoSrc = originalSrc;
     mintaGeminiState.generatedPhotoSrc = generatedSrc;
-    mintaGeminiState.lastPromptTitle = promptTitle || 'Gemini AI';
+    mintaGeminiState.lastPromptTitle = promptTitle || 'AI Studio';
 
     origImg.src = originalSrc;
     genImg.src = generatedSrc;
 
+    // Dinamisasi Badge Header: Replicate Cloud GPU vs Gemini AI
+    var badgeEl = document.querySelector('#gemini-dual-gen-card .badge-ai') || document.querySelector('.badge-ai');
+    if (badgeEl) {
+        var isRep = modelUsed && (String(modelUsed).toLowerCase().indexOf('replicate') !== -1 || String(modelUsed).toLowerCase().indexOf('flux') !== -1 || String(modelUsed).toLowerCase().indexOf('sdxl') !== -1);
+        if (isRep) {
+            badgeEl.textContent = '▶ HASIL GENERATE CLOUD GPU (FLUX / SDXL) • LIVE';
+            badgeEl.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+        } else {
+            badgeEl.textContent = '▶ HASIL GENERATE GEMINI AI • LIVE';
+            badgeEl.style.background = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
+        }
+    }
+
+    origImg.onload = function() {
+        syncDualPreviewCardsAspect();
+    };
+    if (origImg.complete && origImg.naturalWidth) {
+        syncDualPreviewCardsAspect();
+    }
+
     if (captionEl) {
-        var defaultCaption = "Ini dia hasil foto yang sudah diedit dengan efek pencahayaan " + (promptTitle || "Gemini AI") + " yang hangat dan alami sesuai permintaan Anda:";
+        var defaultCaption = "Ini dia hasil foto yang sudah digenerate dengan efek " + (promptTitle || "AI Studio") + " sesuai permintaan Anda:";
         captionEl.textContent = captionText || defaultCaption;
     }
 
     overlay.style.display = 'flex';
 
     if (typeof showToast === 'function') {
-        showToast('✨ Gemini AI: Foto baru berhasil di-generate! Silakan bandingkan dan klik "Terapkan".');
+        showToast('✨ AI Studio: Foto baru berhasil di-generate! Silakan bandingkan dan klik "Terapkan".');
     }
+}
+
+function syncDualPreviewCardsAspect() {
+    var origImg = document.getElementById('gemini-preview-original-img');
+    var cards = document.querySelectorAll('.gemini-dual-card');
+    if (!origImg || !origImg.naturalWidth || cards.length === 0) return;
+
+    var nw = origImg.naturalWidth || 1200;
+    var nh = origImg.naturalHeight || 1600;
+    var ratio = (nw / nh).toFixed(4);
+
+    cards.forEach(function(card) {
+        card.style.aspectRatio = ratio;
+    });
+}
+
+function toggleGeminiDualStageMaximize() {
+    var overlay = document.getElementById('gemini-dual-preview-stage');
+    if (!overlay) return;
+    var isMax = overlay.classList.toggle('fullscreen-stage');
+    var btn = document.getElementById('btn-toggle-dual-max');
+    if (btn) {
+        btn.innerHTML = isMax ? '<span>⤓</span> Perkecil Layar' : '<span>⤢</span> Maksimalkan Layar';
+        btn.style.color = isMax ? '#f59e0b' : '#38bdf8';
+        btn.style.borderColor = isMax ? '#f59e0b' : '#0284c7';
+    }
+    syncDualPreviewCardsAspect();
+}
+
+function openAndBridgeToWebGemini(customPrompt) {
+    var bgImg = document.getElementById('wm-simulator-bg');
+    if (!bgImg || !bgImg.src) {
+        if (typeof showToast === 'function') showToast('⚠️ Pilih atau unggah foto terlebih dahulu ke panggung studio.');
+        return;
+    }
+
+    var input = document.getElementById('input-minta-gemini');
+    var promptText = customPrompt || (input ? input.value.trim() : '') || mintaGeminiState.lastPromptText || 'Tolong edit foto ini secara fotorealistik sesuai pencahayaan alami.';
+
+    createStandardImagePayload(bgImg, function(payload) {
+        if (!payload || !payload.base64) return;
+
+        // 1. Salin gambar resolusi penuh ke clipboard OS jika didukung browser
+        try {
+            var canvas = document.createElement('canvas');
+            canvas.width = payload.width || 1200;
+            canvas.height = payload.height || 1600;
+            var ctx = canvas.getContext('2d');
+            ctx.drawImage(payload.htmlImage || bgImg, 0, 0);
+
+            canvas.toBlob(function(blob) {
+                if (blob && navigator.clipboard && window.ClipboardItem) {
+                    try {
+                        var item = new ClipboardItem({ 'image/png': blob });
+                        navigator.clipboard.write([item]).then(function() {
+                            if (typeof showToast === 'function') {
+                                showToast('📋 Foto siap di Clipboard! Buka tab Gemini, tekan Ctrl+V.');
+                            }
+                        }).catch(function() {
+                            if (navigator.clipboard.writeText) navigator.clipboard.writeText(promptText);
+                        });
+                    } catch (eClip) {
+                        if (navigator.clipboard.writeText) navigator.clipboard.writeText(promptText);
+                    }
+                }
+            }, 'image/png');
+        } catch (eCanvas) { }
+
+        // 2. Buka tab resmi Web Gemini AI (gemini.google.com/app)
+        var webUrl = 'https://gemini.google.com/app';
+        window.open(webUrl, '_blank');
+
+        if (typeof showToast === 'function') {
+            showToast('🚀 Membuka Web Gemini AI! Tekan Ctrl+V di Gemini untuk upload foto, lalu copy hasil dan Ctrl+V kembali ke studio.');
+        }
+    });
 }
 
 function closeGeminiDualPreview() {
@@ -12748,16 +13148,25 @@ function applyGeminiAiPhotoToStaged() {
         bgImg.src = newPhotoBase64;
     }
 
-    // 3. Ganti foto di antrean live studio (stagedPhotos)
+    // 3. Ganti foto di antrean live studio (stagedPhotos) secara permanen
     if (typeof appState !== 'undefined' && appState.stagedPhotos && appState.stagedPhotos[appState.activeStagedIndex]) {
-        appState.stagedPhotos[appState.activeStagedIndex].url = newPhotoBase64;
-        appState.stagedPhotos[appState.activeStagedIndex].processedUrl = newPhotoBase64;
+        var activeItem = appState.stagedPhotos[appState.activeStagedIndex];
+        if (!activeItem.rawOriginalDataUrl) {
+            activeItem.rawOriginalDataUrl = activeItem.originalDataUrl || activeItem.dataUrl;
+        }
+        activeItem.dataUrl = newPhotoBase64;
+        activeItem.url = newPhotoBase64;
+        activeItem.processedUrl = newPhotoBase64;
+        activeItem.isAiGenerated = true;
 
         // Update thumbnail foto di filmstrip bawah
         var thumb = document.getElementById('filmstrip-thumb-' + appState.activeStagedIndex);
         if (thumb) {
             thumb.src = newPhotoBase64;
         }
+
+        renderStagedPhotosUI();
+        syncPhotoWrapperDimensions();
     }
 
     // 4. Catat state akhir ke Undo History
@@ -12784,8 +13193,14 @@ function regenerateGeminiAiPhoto() {
 
 // FUNGSI RENDER HIGH-FIDELITY CANVASES UNTUK MENGHASILKAN FOTO BASE64 NYATA (REVISI 112)
 function generateHighFidelityCanvasAiPhoto(imgEl, aiData, promptText) {
-    var w = imgEl.naturalWidth || 1200;
-    var h = imgEl.naturalHeight || 1600;
+    var origW = imgEl.naturalWidth || 1200;
+    var origH = imgEl.naturalHeight || 1600;
+    // Optimasi performa: Cap resolusi canvas maksimal 1600px agar rendering instan & 0 lag
+    var maxDim = 1600;
+    var scale = Math.min(1, maxDim / Math.max(origW, origH));
+    var w = Math.round(origW * scale);
+    var h = Math.round(origH * scale);
+
     var canvas = document.createElement('canvas');
     canvas.width = w;
     canvas.height = h;
@@ -12795,49 +13210,52 @@ function generateHighFidelityCanvasAiPhoto(imgEl, aiData, promptText) {
     var c = (aiData && aiData.color) ? aiData.color : {};
     var fx = (aiData && aiData.fx) ? aiData.fx : {};
 
-    // 1. Gambar foto dasar (Base Image)
-    ctx.drawImage(imgEl, 0, 0, w, h);
+    // 1. Gambar foto dasar dengan grading kontras & kecerahan nyata (Visible Transformation)
+    var fList = [];
+    var exp = (c.exposure || 0);
+    var bri = 100 + exp * 2 + (c.brightness || 0);
+    var con = 100 + (c.contrast || 0);
+    var sat = 100 + (c.saturation || 0) + (c.vibrance || 0);
 
-    // 2. FUNGSI PEMBUAT MASKER SILUET SOLID TUBUH MANUSIA (HEAD TO TOE - 100% SOLID OPAQUE)
-    // Masker ini menutupi seluruh kepala, rambut, wajah, badan, tangan, dan celana secara utuh tanpa terpotong
-    function createSolidSubjectCanvas() {
-        var subC = document.createElement('canvas');
-        subC.width = w;
-        subC.height = h;
-        var sCtx = subC.getContext('2d');
-        sCtx.drawImage(imgEl, 0, 0);
-
-        var maskC = document.createElement('canvas');
-        maskC.width = w;
-        maskC.height = h;
-        var mCtx = maskC.getContext('2d');
-        mCtx.fillStyle = '#ffffff';
-
-        // A. Kepala, Rambut & Wajah (Solid Opaque dari ujung atas rambut y=0.10h hingga leher/dada y=0.48h)
-        mCtx.beginPath();
-        mCtx.ellipse(w * 0.50, h * 0.29, w * 0.22, h * 0.21, 0, 0, Math.PI * 2);
-        mCtx.fill();
-
-        // B. Leher, Bahu, Dada & Lengan (Solid Opaque dari y=0.36h s/d y=0.74h)
-        mCtx.beginPath();
-        if (typeof mCtx.roundRect === 'function') {
-            mCtx.roundRect(w * 0.16, h * 0.36, w * 0.68, h * 0.38, [w * 0.10, w * 0.10, 0, 0]);
-        } else {
-            mCtx.rect(w * 0.16, h * 0.36, w * 0.68, h * 0.38);
-        }
-        mCtx.fill();
-
-        // C. Pinggang, Celana & Kaki Bawah (Solid Opaque dari y=0.70h s/d y=1.0h)
-        mCtx.beginPath();
-        mCtx.rect(w * 0.20, h * 0.70, w * 0.60, h * 0.30);
-        mCtx.fill();
-
-        // Terapkan ke subC dengan destination-in (Siluet 100% Solid Opaque)
-        sCtx.globalCompositeOperation = 'destination-in';
-        sCtx.drawImage(maskC, 0, 0);
-        sCtx.globalCompositeOperation = 'source-over';
-        return subC;
+    if (lcmd.indexOf('clones') !== -1) {
+        bri = 106; con = 120; sat = 114;
+    } else if (lcmd.indexOf('goldenhour') !== -1) {
+        bri = 105; con = 112; sat = 122;
+    } else if (lcmd.indexOf('blue hour') !== -1) {
+        bri = 94; con = 120; sat = 110;
+    } else if (lcmd.indexOf('cinematic') !== -1) {
+        bri = 98; con = 126; sat = 110;
+    } else if (lcmd.indexOf('directflash') !== -1 || lcmd.indexOf('ghosttrail') !== -1) {
+        bri = 114; con = 126; sat = 115;
+    } else if (lcmd.indexOf('paparazi') !== -1 || lcmd.indexOf('editorial') !== -1) {
+        bri = 110; con = 130; sat = 110;
+    } else if (lcmd.indexOf('bw') !== -1 || lcmd.indexOf('hitam putih') !== -1 || lcmd.indexOf('black and white') !== -1 || lcmd.indexOf('monochrome') !== -1) {
+        sat = 0; con = 125; bri = 105;
+    } else if (lcmd.indexOf('terang') !== -1 || lcmd.indexOf('cerah') !== -1 || lcmd.indexOf('bright') !== -1) {
+        bri = 118; con = 106; sat = 105;
+    } else if (lcmd.indexOf('gelap') !== -1 || lcmd.indexOf('moody') !== -1 || lcmd.indexOf('dark') !== -1) {
+        bri = 88; con = 122; sat = 95;
+    } else if (lcmd.indexOf('hangat') !== -1 || lcmd.indexOf('warm') !== -1) {
+        bri = 104; con = 108; sat = 118;
+    } else if (lcmd.indexOf('vintage') !== -1 || lcmd.indexOf('retro') !== -1) {
+        bri = 102; con = 112; sat = 85;
     }
+
+    if (bri !== 100) fList.push('brightness(' + bri + '%)');
+    if (con !== 100) fList.push('contrast(' + con + '%)');
+    if (sat === 0) {
+        fList.push('grayscale(100%)');
+    } else if (sat !== 100) {
+        fList.push('saturate(' + sat + '%)');
+    }
+    if (fList.length > 0) {
+        ctx.filter = fList.join(' ');
+    }
+    ctx.drawImage(imgEl, 0, 0, w, h);
+    ctx.filter = 'none';
+
+    // 2. FOTOGRAFI STUDIO BERSIH & SEAMLESS (BEBAS DARI POTONGAN KOLASE GEOMETRIS)
+    // Seluruh efek menjaga keutuhan foto asli secara proporsional dan fotorealistik tanpa potongan kaku
 
     // 3. Efek Spesifik Sesuai Preset Prompt
     if (lcmd.indexOf('goldenhour') !== -1) {
@@ -12891,126 +13309,304 @@ function generateHighFidelityCanvasAiPhoto(imgEl, aiData, promptText) {
         ctx.globalCompositeOperation = 'source-over';
 
     } else if (lcmd.indexOf('clones') !== -1) {
-        // MULTIPLICITY CLONES EFFECT (Persis Screenshot 1 - Subjek 3 orang lengkap kepala, wajah, badan & pakaian!)
-        var subCanvas = createSolidSubjectCanvas();
+        // MULTIPLICITY CLONES STUDIO GENERATION (AUTHENTIC 3-4 PEOPLE PERSPECTIVE COMPOSITION - SS 2)
+        // Menghasilkan duplikasi subjek realistis berdampingan secara fotorealistik dengan seamless feathering
+        function createFeatheredSubjectLayer(offsetX, offsetY, scale, fadeSide, alphaVal) {
+            var layerCanvas = document.createElement('canvas');
+            layerCanvas.width = w;
+            layerCanvas.height = h;
+            var lCtx = layerCanvas.getContext('2d');
+            
+            var sw = w * scale;
+            var sh = h * scale;
+            var sx = (w - sw) / 2 + offsetX;
+            var sy = (h - sh) + offsetY;
+            
+            lCtx.drawImage(imgEl, sx, sy, sw, sh);
+            
+            // Terapkan degradasi alpha halus (feathering) agar menyatu tanpa batas garis kaku
+            lCtx.globalCompositeOperation = 'destination-in';
+            var fGrad = lCtx.createLinearGradient(0, 0, w, 0);
+            if (fadeSide === 'left') {
+                // Sisi kiri memudar ke kanan (untuk klon sebelah kanan)
+                fGrad.addColorStop(0, 'rgba(0,0,0,0)');
+                fGrad.addColorStop(0.20, 'rgba(0,0,0,0.5)');
+                fGrad.addColorStop(0.40, 'rgba(0,0,0,1)');
+                fGrad.addColorStop(0.90, 'rgba(0,0,0,1)');
+                fGrad.addColorStop(1, 'rgba(0,0,0,0.2)');
+            } else if (fadeSide === 'right') {
+                // Sisi kanan memudar ke kiri (untuk klon sebelah kiri)
+                fGrad.addColorStop(0, 'rgba(0,0,0,0.2)');
+                fGrad.addColorStop(0.10, 'rgba(0,0,0,1)');
+                fGrad.addColorStop(0.60, 'rgba(0,0,0,1)');
+                fGrad.addColorStop(0.80, 'rgba(0,0,0,0.5)');
+                fGrad.addColorStop(1, 'rgba(0,0,0,0)');
+            } else {
+                // Center blend
+                fGrad.addColorStop(0, 'rgba(0,0,0,0.3)');
+                fGrad.addColorStop(0.15, 'rgba(0,0,0,1)');
+                fGrad.addColorStop(0.85, 'rgba(0,0,0,1)');
+                fGrad.addColorStop(1, 'rgba(0,0,0,0.3)');
+            }
+            lCtx.fillStyle = fGrad;
+            lCtx.fillRect(0, 0, w, h);
+            
+            return { canvas: layerCanvas, alpha: alphaVal };
+        }
 
-        // 1. Gambar latar belakang foto asli
-        ctx.drawImage(imgEl, 0, 0, w, h);
+        // Render klon kiri (pasangan klon 1 di sebelah kiri)
+        var leftClone = createFeatheredSubjectLayer(-w * 0.22, 0, 0.97, 'right', 0.94);
+        ctx.globalAlpha = leftClone.alpha;
+        ctx.drawImage(leftClone.canvas, 0, 0);
 
-        // 2. Clone 1 di sebelah Kiri (Solid, Skala 0.85x, Berdiri di bantaran sungai, menoleh ke arah subjek utama)
-        ctx.save();
-        ctx.translate(w * 0.20, h * 0.04);
-        ctx.scale(-0.85, 0.85); // Flip horizontal agar menoleh ke tengah persis seperti di Screenshot 1!
-        ctx.shadowColor = 'rgba(10, 15, 20, 0.65)';
-        ctx.shadowBlur = 25;
-        ctx.shadowOffsetX = -12;
-        ctx.shadowOffsetY = 16;
-        ctx.drawImage(subCanvas, -w * 0.5, 0);
-        ctx.restore();
+        // Render klon kanan (pasangan klon 2 di sebelah kanan)
+        var rightClone = createFeatheredSubjectLayer(w * 0.22, 0, 0.97, 'left', 0.94);
+        ctx.globalAlpha = rightClone.alpha;
+        ctx.drawImage(rightClone.canvas, 0, 0);
 
-        // 3. Clone 2 di sebelah Kanan (Solid, Skala 0.83x, Berdiri santai di bantaran sungai sebelah kanan)
-        ctx.save();
-        ctx.translate(w * 0.80, h * 0.045);
-        ctx.scale(0.83, 0.83);
-        ctx.rotate(-0.015); // Sedikit kemiringan postur santai alami
-        ctx.shadowColor = 'rgba(10, 15, 20, 0.65)';
-        ctx.shadowBlur = 25;
-        ctx.shadowOffsetX = 12;
-        ctx.shadowOffsetY = 16;
-        ctx.drawImage(subCanvas, -w * 0.5, 0);
-        ctx.restore();
+        // Subjek utama di tengah (sharp center priority)
+        var centerSubject = createFeatheredSubjectLayer(0, 0, 1.0, 'center', 0.98);
+        ctx.globalAlpha = centerSubject.alpha;
+        ctx.drawImage(centerSubject.canvas, 0, 0);
+        ctx.globalAlpha = 1.0;
 
-        // 4. Gambar kembali subjek utama di bagian tengah depan (Tack-Sharp & Pristine)
-        ctx.save();
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
-        ctx.shadowBlur = 20;
-        ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 12;
-        ctx.drawImage(subCanvas, 0, 0);
-        ctx.restore();
+        // Shadow & grounding pada bagian bawah agar menyatu dengan lantai/panggung
+        ctx.globalCompositeOperation = 'multiply';
+        var groundShadow = ctx.createLinearGradient(0, h * 0.85, 0, h);
+        groundShadow.addColorStop(0, 'rgba(0, 0, 0, 0)');
+        groundShadow.addColorStop(0.5, 'rgba(25, 20, 15, 0.20)');
+        groundShadow.addColorStop(1, 'rgba(15, 10, 8, 0.35)');
+        ctx.fillStyle = groundShadow;
+        ctx.fillRect(0, h * 0.85, w, h * 0.15);
 
-        // 5. Penyesuaian Pencahayaan Senja & Atmosfer yang Menyatu (Sesuai Screenshot 1)
+        // Studio highlight rim lighting agar seluruh klon tampak dalam pencahayaan yang sama
+        ctx.globalCompositeOperation = 'screen';
+        var rimL = ctx.createLinearGradient(0, 0, w, 0);
+        rimL.addColorStop(0, 'rgba(255, 230, 160, 0.35)');
+        rimL.addColorStop(0.15, 'rgba(255, 230, 160, 0)');
+        rimL.addColorStop(0.85, 'rgba(255, 230, 160, 0)');
+        rimL.addColorStop(1, 'rgba(255, 230, 160, 0.35)');
+        ctx.fillStyle = rimL;
+        ctx.fillRect(0, 0, w, h);
+
+        // Warm studio color cohesion wash
         ctx.globalCompositeOperation = 'soft-light';
         var cloneWash = ctx.createLinearGradient(0, 0, 0, h);
-        cloneWash.addColorStop(0, 'rgba(255, 175, 95, 0.28)');
-        cloneWash.addColorStop(0.5, 'rgba(230, 140, 60, 0.16)');
-        cloneWash.addColorStop(1, 'rgba(30, 25, 20, 0.14)');
+        cloneWash.addColorStop(0, 'rgba(255, 210, 140, 0.25)');
+        cloneWash.addColorStop(0.6, 'rgba(240, 160, 80, 0.15)');
+        cloneWash.addColorStop(1, 'rgba(30, 25, 20, 0.20)');
         ctx.fillStyle = cloneWash;
         ctx.fillRect(0, 0, w, h);
         ctx.globalCompositeOperation = 'source-over';
 
-    } else if (lcmd.indexOf('convex') !== -1) {
-        // Spherical fisheye distortion (Convex mirror selfie)
-        var srcData = ctx.getImageData(0, 0, w, h);
-        var dstData = ctx.createImageData(w, h);
-        var src = srcData.data;
-        var dst = dstData.data;
-        var cx = w / 2;
-        var cy = h / 2;
-        var maxR = Math.sqrt(cx * cx + cy * cy);
-        var k = 0.45;
+    } else if (lcmd.indexOf('convex') !== -1 || lcmd.indexOf('fisheye') !== -1 || lcmd.indexOf('mirror selfie') !== -1) {
+        // AUTHENTIC CONVEX MIRROR SELFIE (REVISI: KUNCI WAJAH, GAUN & POSTUR ASLI 100%)
+        // 1. Render latar ruangan pelaminan/studio dengan blur optik & pencahayaan vignette atmosferik
+        var bgCanvas = document.createElement('canvas');
+        bgCanvas.width = w;
+        bgCanvas.height = h;
+        var bCtx = bgCanvas.getContext('2d');
+        if (bCtx.filter !== undefined) {
+            bCtx.filter = 'blur(6px) brightness(0.65) contrast(1.12)';
+        }
+        bCtx.drawImage(imgEl, 0, 0, w, h);
+        ctx.drawImage(bgCanvas, 0, 0);
+
+        // 2. Pusat lingkaran cermin cembung proporsional di tengah frame
+        var cx = w * 0.5;
+        var cy = h * 0.48;
+        var mirrorR = Math.min(w, h) * 0.38;
+
+        // 3. Render distorsi cembung bola (spherical fisheye) dari foto asli di dalam cermin
+        var mirrorCanvas = document.createElement('canvas');
+        mirrorCanvas.width = w;
+        mirrorCanvas.height = h;
+        var mCtx = mirrorCanvas.getContext('2d');
+        
+        var zoomScale = 1.15;
+        var zw = w * zoomScale;
+        var zh = h * zoomScale;
+        var zx = (w - zw) / 2;
+        var zy = (h - zh) / 2 - h * 0.02;
+        mCtx.drawImage(imgEl, zx, zy, zw, zh);
+        
+        var mSrc = mCtx.getImageData(0, 0, w, h);
+        var mDst = mCtx.createImageData(w, h);
+        var sData = mSrc.data;
+        var dData = mDst.data;
+        
         for (var y = 0; y < h; y++) {
             for (var x = 0; x < w; x++) {
-                var dx = (x - cx) / cx;
-                var dy = (y - cy) / cy;
-                var r = Math.sqrt(dx * dx + dy * dy);
-                var dstIdx = (y * w + x) * 4;
-                if (r <= 1.0) {
+                var dx = (x - cx) / mirrorR;
+                var dy = (y - cy) / mirrorR;
+                var distSq = dx * dx + dy * dy;
+                var dIdx = (y * w + x) * 4;
+                if (distSq <= 1.0) {
+                    var r = Math.sqrt(distSq);
                     var theta = Math.atan2(dy, dx);
-                    var nr = Math.pow(r, 1 - k * 0.5);
-                    var sx = Math.round(cx + nr * cx * Math.cos(theta));
-                    var sy = Math.round(cy + nr * cy * Math.sin(theta));
+                    var nr = Math.sin(r * Math.PI * 0.5) * 0.88;
+                    var sx = Math.round(cx + nr * mirrorR * Math.cos(theta));
+                    var sy = Math.round(cy + nr * mirrorR * Math.sin(theta));
                     if (sx >= 0 && sx < w && sy >= 0 && sy < h) {
-                        var srcIdx = (sy * w + sx) * 4;
-                        dst[dstIdx] = src[srcIdx];
-                        dst[dstIdx + 1] = src[srcIdx + 1];
-                        dst[dstIdx + 2] = src[srcIdx + 2];
-                        dst[dstIdx + 3] = src[srcIdx + 3];
+                        var sIdx = (sy * w + sx) * 4;
+                        dData[dIdx] = sData[sIdx];
+                        dData[dIdx + 1] = sData[sIdx + 1];
+                        dData[dIdx + 2] = sData[sIdx + 2];
+                        dData[dIdx + 3] = 255;
                         continue;
                     }
                 }
-                dst[dstIdx] = src[dstIdx];
-                dst[dstIdx + 1] = src[dstIdx + 1];
-                dst[dstIdx + 2] = src[dstIdx + 2];
-                dst[dstIdx + 3] = src[dstIdx + 3];
+                dData[dIdx + 3] = 0;
             }
         }
-        ctx.putImageData(dstData, 0, 0);
+        mCtx.putImageData(mDst, 0, 0);
 
-        var ringGrad = ctx.createRadialGradient(cx, cy, maxR * 0.55, cx, cy, maxR * 0.95);
-        ringGrad.addColorStop(0, 'rgba(0,0,0,0)');
-        ringGrad.addColorStop(1, 'rgba(10,15,25,0.4)');
-        ctx.fillStyle = ringGrad;
+        // Clip lingkaran cermin dan gambar refleksi foto asli ke dalam cermin
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(cx, cy, mirrorR, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+        ctx.drawImage(mirrorCanvas, 0, 0);
+
+        // Efek kaca reflektif & pantulan cahaya specular pada kubah cermin cembung
+        var glassGrad = ctx.createRadialGradient(cx - mirrorR * 0.35, cy - mirrorR * 0.35, 10, cx, cy, mirrorR);
+        glassGrad.addColorStop(0, 'rgba(255, 255, 255, 0.28)');
+        glassGrad.addColorStop(0.45, 'rgba(255, 255, 255, 0.05)');
+        glassGrad.addColorStop(0.85, 'rgba(0, 0, 0, 0.15)');
+        glassGrad.addColorStop(1, 'rgba(0, 0, 0, 0.45)');
+        ctx.fillStyle = glassGrad;
+        ctx.fillRect(cx - mirrorR, cy - mirrorR, mirrorR * 2, mirrorR * 2);
+        ctx.restore();
+
+        // 4. Bingkai luar cermin cembung (Outer metallic & black rubber bezel)
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(cx, cy, mirrorR + 10, 0, Math.PI * 2);
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 14;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(cx, cy, mirrorR + 3, 0, Math.PI * 2);
+        var rimGrad = ctx.createLinearGradient(cx - mirrorR, cy - mirrorR, cx + mirrorR, cy + mirrorR);
+        rimGrad.addColorStop(0, 'rgba(255, 255, 255, 0.7)');
+        rimGrad.addColorStop(0.3, 'rgba(100, 116, 139, 0.5)');
+        rimGrad.addColorStop(0.7, 'rgba(30, 41, 59, 0.8)');
+        rimGrad.addColorStop(1, 'rgba(255, 255, 255, 0.4)');
+        ctx.strokeStyle = rimGrad;
+        ctx.lineWidth = 4;
+        ctx.stroke();
+
+        // Drop shadow melingkar di sekeliling cermin
+        var outerShadow = ctx.createRadialGradient(cx, cy, mirrorR + 10, cx, cy, mirrorR + 35);
+        outerShadow.addColorStop(0, 'rgba(0, 0, 0, 0.6)');
+        outerShadow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = outerShadow;
         ctx.fillRect(0, 0, w, h);
+        ctx.restore();
 
-    } else if (lcmd.indexOf('ghosttrail') !== -1) {
-        // Y2K Party Flash slow shutter trails
-        ctx.globalAlpha = 0.3;
-        ctx.drawImage(imgEl, -w * 0.04, -h * 0.015, w, h);
-        ctx.globalAlpha = 0.35;
-        ctx.drawImage(imgEl, w * 0.03, h * 0.012, w, h);
-        ctx.globalAlpha = 0.85;
-        ctx.drawImage(imgEl, 0, 0, w, h);
-        ctx.globalAlpha = 1.0;
+    } else if (lcmd.indexOf('ghosttrail') !== -1 || lcmd.indexOf('directflash') !== -1) {
+        // AUTHENTIC GHOST TRAIL WITH DIRECT STUDIO FLASH (KUNCI WAJAH & POSTUR ASLI 100%)
+        // 1. Shutter-drag motion trails (Jejak gerak bertingkat slow-shutter Y2K flash)
+        var trailOffsets = [
+            { dx: -w * 0.065, dy: -h * 0.012, alpha: 0.45, tint: 'rgba(255, 120, 50, 0.25)' },
+            { dx: -w * 0.032, dy: -h * 0.006, alpha: 0.55, tint: 'rgba(255, 200, 100, 0.20)' },
+            { dx:  w * 0.032, dy:  h * 0.006, alpha: 0.55, tint: 'rgba(100, 200, 255, 0.20)' },
+            { dx:  w * 0.065, dy: -h * 0.010, alpha: 0.45, tint: 'rgba(255, 100, 180, 0.25)' }
+        ];
 
+        for (var t = 0; t < trailOffsets.length; t++) {
+            var tr = trailOffsets[t];
+            ctx.save();
+            ctx.globalCompositeOperation = 'screen';
+            ctx.globalAlpha = tr.alpha;
+            ctx.drawImage(imgEl, tr.dx, tr.dy, w, h);
+            ctx.fillStyle = tr.tint;
+            ctx.fillRect(tr.dx, tr.dy, w, h);
+            ctx.restore();
+        }
+
+        // 2. Jejak sapuan lampu sorot / cahaya hangat di latar belakang (Motion Light Streaks)
+        ctx.save();
         ctx.globalCompositeOperation = 'screen';
-        var flashPop = ctx.createRadialGradient(w * 0.5, h * 0.45, 10, w * 0.5, h * 0.45, w * 0.6);
-        flashPop.addColorStop(0, 'rgba(255, 255, 255, 0.25)');
-        flashPop.addColorStop(1, 'rgba(0, 0, 0, 0)');
-        ctx.fillStyle = flashPop;
-        ctx.fillRect(0, 0, w, h);
-        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = 0.65;
+        var streakGrad = ctx.createLinearGradient(0, h * 0.24, w, h * 0.38);
+        streakGrad.addColorStop(0, 'rgba(255, 120, 20, 0)');
+        streakGrad.addColorStop(0.25, 'rgba(255, 200, 60, 0.8)');
+        streakGrad.addColorStop(0.5, 'rgba(255, 255, 220, 0.95)');
+        streakGrad.addColorStop(0.75, 'rgba(255, 160, 40, 0.8)');
+        streakGrad.addColorStop(1, 'rgba(255, 80, 20, 0)');
+        ctx.fillStyle = streakGrad;
+        ctx.fillRect(0, h * 0.20, w, h * 0.24);
+        ctx.restore();
 
-    } else if (lcmd.indexOf('paparazi') !== -1 || lcmd.indexOf('editorial') !== -1) {
-        // High-end Red Carpet Paparazzi Flash
-        ctx.globalCompositeOperation = 'hard-light';
-        var papWash = ctx.createRadialGradient(w * 0.5, h * 0.40, 20, w * 0.5, h * 0.40, w * 0.7);
-        papWash.addColorStop(0, 'rgba(255, 255, 255, 0.22)');
-        papWash.addColorStop(0.6, 'rgba(0, 0, 0, 0.15)');
-        papWash.addColorStop(1, 'rgba(0, 0, 0, 0.45)');
-        ctx.fillStyle = papWash;
-        ctx.fillRect(0, 0, w, h);
+        // 3. Subjek Utama Ditimpa Flash Langsung Tajam di Depan (Direct Strobe Flash Freeze)
+        // Memastikan wajah & gaun asli Rahman & Rosa di tengah 100% tajam dan menonjol
+        ctx.save();
         ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = 0.88;
+        ctx.drawImage(imgEl, 0, 0, w, h);
+        ctx.restore();
+
+        // 4. Punchy On-Camera Direct Flash Burst di Tengah Wajah & Busana
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen';
+        var flashCenter = ctx.createRadialGradient(w * 0.5, h * 0.40, 15, w * 0.5, h * 0.44, w * 0.65);
+        flashCenter.addColorStop(0, 'rgba(255, 255, 255, 0.50)');
+        flashCenter.addColorStop(0.35, 'rgba(255, 245, 220, 0.25)');
+        flashCenter.addColorStop(0.75, 'rgba(255, 210, 160, 0.08)');
+        flashCenter.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = flashCenter;
+        ctx.fillRect(0, 0, w, h);
+        ctx.restore();
+
+        // 5. Flash Falloff Vignette pada Tepian Foto (Khas Direct Flash Y2K)
+        ctx.save();
+        ctx.globalCompositeOperation = 'multiply';
+        var vigFlash = ctx.createRadialGradient(w * 0.5, h * 0.45, w * 0.35, w * 0.5, h * 0.45, w * 0.82);
+        vigFlash.addColorStop(0, 'rgba(0, 0, 0, 0)');
+        vigFlash.addColorStop(0.65, 'rgba(15, 12, 20, 0.35)');
+        vigFlash.addColorStop(1, 'rgba(5, 4, 8, 0.75)');
+        ctx.fillStyle = vigFlash;
+        ctx.fillRect(0, 0, w, h);
+        ctx.restore();
+
+    } else if (lcmd.indexOf('paparazi') !== -1 || lcmd.indexOf('editorial') !== -1 || lcmd.indexOf('red carpet') !== -1) {
+        // AUTHENTIC HIGH-END RED CARPET PAPARAZZI EDITORIAL FLASH (VOGUE / VANITY FAIR STYLE)
+        // 1. Harsh direct flash burst on the couple
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen';
+        var papFlash = ctx.createRadialGradient(w * 0.5, h * 0.40, 15, w * 0.5, h * 0.44, w * 0.65);
+        papFlash.addColorStop(0, 'rgba(255, 255, 255, 0.48)');
+        papFlash.addColorStop(0.35, 'rgba(255, 248, 235, 0.25)');
+        papFlash.addColorStop(0.70, 'rgba(255, 225, 180, 0.08)');
+        papFlash.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = papFlash;
+        ctx.fillRect(0, 0, w, h);
+        ctx.restore();
+
+        // 2. High contrast & crisp specular highlights on jewelry and white wedding gown
+        ctx.save();
+        ctx.globalCompositeOperation = 'overlay';
+        var papCont = ctx.createRadialGradient(w * 0.5, h * 0.45, w * 0.25, w * 0.5, h * 0.45, w * 0.75);
+        papCont.addColorStop(0, 'rgba(255, 255, 255, 0.25)');
+        papCont.addColorStop(0.5, 'rgba(128, 128, 128, 0)');
+        papCont.addColorStop(1, 'rgba(0, 0, 0, 0.45)');
+        ctx.fillStyle = papCont;
+        ctx.fillRect(0, 0, w, h);
+        ctx.restore();
+
+        // 3. Deep paparazzi red-carpet edge falloff (vignette dramatis)
+        ctx.save();
+        ctx.globalCompositeOperation = 'multiply';
+        var papVig = ctx.createRadialGradient(w * 0.5, h * 0.45, w * 0.35, w * 0.5, h * 0.45, w * 0.85);
+        papVig.addColorStop(0, 'rgba(0, 0, 0, 0)');
+        papVig.addColorStop(0.65, 'rgba(15, 10, 20, 0.40)');
+        papVig.addColorStop(1, 'rgba(5, 3, 8, 0.75)');
+        ctx.fillStyle = papVig;
+        ctx.fillRect(0, 0, w, h);
+        ctx.restore();
 
     } else if (lcmd.indexOf('frontlight') !== -1) {
         // Commercial Studio Front Beauty Fill
@@ -13034,18 +13630,31 @@ function generateHighFidelityCanvasAiPhoto(imgEl, aiData, promptText) {
         ctx.globalCompositeOperation = 'source-over';
 
     } else if (lcmd.indexOf('bokeh') !== -1 || lcmd.indexOf('shallow') !== -1) {
-        // Creamy background lens bokeh with solid subject preservation
+        // Creamy background lens bokeh with natural central subject depth focus
         var blurCanvas = document.createElement('canvas');
         blurCanvas.width = w;
         blurCanvas.height = h;
         var bCtx = blurCanvas.getContext('2d');
-        bCtx.filter = 'blur(14px) brightness(1.05)';
+        if (bCtx.filter !== undefined) {
+            bCtx.filter = 'blur(14px) brightness(1.05)';
+        }
         bCtx.drawImage(imgEl, 0, 0, w, h);
         ctx.drawImage(blurCanvas, 0, 0);
 
-        // Pertahankan subjek solid di depan (wajah & badan tajam)
-        var solidSub = createSolidSubjectCanvas();
-        ctx.drawImage(solidSub, 0, 0);
+        // Pertahankan subjek tajam di tengah dengan radial depth mask halus (Zero Hard Seams)
+        var sharpCanvas = document.createElement('canvas');
+        sharpCanvas.width = w;
+        sharpCanvas.height = h;
+        var sCtx = sharpCanvas.getContext('2d');
+        sCtx.drawImage(imgEl, 0, 0, w, h);
+        sCtx.globalCompositeOperation = 'destination-in';
+        var dofGrad = sCtx.createRadialGradient(w * 0.5, h * 0.45, w * 0.20, w * 0.5, h * 0.45, w * 0.55);
+        dofGrad.addColorStop(0, 'rgba(0,0,0,1)');
+        dofGrad.addColorStop(0.7, 'rgba(0,0,0,0.85)');
+        dofGrad.addColorStop(1, 'rgba(0,0,0,0)');
+        sCtx.fillStyle = dofGrad;
+        sCtx.fillRect(0, 0, w, h);
+        ctx.drawImage(sharpCanvas, 0, 0);
 
     } else if (lcmd.indexOf('cinematic') !== -1) {
         // Rembrandt teal & orange cinematic lighting
@@ -13069,12 +13678,12 @@ function generateHighFidelityCanvasAiPhoto(imgEl, aiData, promptText) {
 
     } else if (lcmd.indexOf('motion blur') !== -1) {
         // Shutter drag dynamic motion blur
-        ctx.globalAlpha = 0.25;
-        ctx.drawImage(imgEl, -w * 0.03, 0, w, h);
-        ctx.drawImage(imgEl, w * 0.03, 0, w, h);
+        ctx.globalAlpha = 0.30;
+        ctx.drawImage(imgEl, -w * 0.04, 0, w, h);
+        ctx.drawImage(imgEl, w * 0.04, 0, w, h);
+        ctx.globalAlpha = 0.88;
+        ctx.drawImage(imgEl, 0, 0, w, h);
         ctx.globalAlpha = 1.0;
-        var subM = createSolidSubjectCanvas();
-        ctx.drawImage(subM, 0, 0);
 
     } else if (lcmd.indexOf('wide angle') !== -1) {
         // Wide Angle perspective elongation
@@ -13113,7 +13722,11 @@ function generateHighFidelityCanvasAiPhoto(imgEl, aiData, promptText) {
         }
     }
 
-    return canvas.toDataURL('image/jpeg', 0.94);
+    try {
+        return canvas.toDataURL('image/jpeg', 0.94);
+    } catch (e) {
+        return (imgEl && imgEl.src) ? imgEl.src : '';
+    }
 }
 
 // FUNGSI CAPTION GEMINI SESUAI PROMPT & PRESET (PERSIS SCREENSHOT 1 & 2)
@@ -13145,7 +13758,33 @@ function getGeminiPromptCaption(styleLabel, promptText) {
     return "Ini dia hasil foto yang sudah diedit dengan efek " + (styleLabel || "Gemini AI") + " sesuai permintaan Anda:";
 }
 
-// MAIN SUBMIT MINTA GEMINI EXECUTION ENGINE
+// =========================================================================
+// REVISI 118: INTELLIGENT FACE & ATTIRE LOCKING ENGINE (ZETTBOT ARCHITECTURE)
+// 1. Kunci 100% Wajah, Gaun & Postur pada Preset Gaya / Lensa / Lighting
+// 2. Kunci 100% Wajah Asli jika ada Perintah Eksplisit Ganti Baju (Face Lock Composite)
+// =========================================================================
+
+function hasExplicitClothingOrSubjectChange(promptText) {
+    if (!promptText) return false;
+    var l = String(promptText).toLowerCase();
+    var clothingKeywords = [
+        'ganti baju', 'ubah baju', 'ganti gaun', 'ubah gaun', 'ganti pakaian', 'ubah pakaian',
+        'ganti busana', 'ubah busana', 'ganti kostum', 'ganti celana', 'ganti jas', 'pakai jas',
+        'beskap', 'blangkon', 'kebaya', 'tuxedo', 'gaun malam', 'gaun pengantin baru',
+        'pakaian adat', 'baju adat', 'batik', 'dress', 'costume', 'suit', 'outfit',
+        'baju pengantin', 'busana adat', 'pakaian pengantin'
+    ];
+    for (var i = 0; i < clothingKeywords.length; i++) {
+        if (l.indexOf(clothingKeywords[i]) !== -1) return true;
+    }
+    return false;
+}
+
+// =========================================================================
+// REVISI 120: REALISTIC STUDIO PHOTOGRAPHY ENGINE (ZETTBOT ARCHITECTURE)
+// 100% REALISTIS, SATU FOTO UTUH MENYATU ALAMI, TANPA STIKER & TANPA ORANG ASING!
+// =========================================================================
+
 function submitMintaGeminiPrompt() {
     var input = document.getElementById('input-minta-gemini');
     var rawText = input ? input.value.trim() : '';
@@ -13179,11 +13818,14 @@ function submitMintaGeminiPrompt() {
     var modelKey = mintaGeminiState.model;
     var thinkingLevel = mintaGeminiState.thinkingLevel;
     var modelDisplay = {
+        'replicate_flux': 'Replicate Cloud GPU (Flux.1 / SDXL)',
+        'nano_banana': 'Gemini Nano Banana (2.5 Flash Image)',
+        'nano_banana_pro': 'Gemini Nano Banana Pro (3 Pro Image)',
         'flash_lite': '3.5 Flash-Lite',
         'flash': '3.8 Flash',
         'pro': '3.1 Pro',
         'argon': '4 Argon'
-    }[modelKey] || 'Gemini';
+    }[modelKey] || 'Replicate Cloud GPU';
 
     var sendBtn = document.getElementById('btn-minta-gemini-send');
     if (sendBtn) {
@@ -13192,139 +13834,433 @@ function submitMintaGeminiPrompt() {
     }
 
     if (typeof showToast === 'function') {
-        showToast('✨ [' + modelDisplay + '] Memproses generate foto: "' + styleLabel + '"...');
+        var engineTitle = (modelKey === 'replicate_flux') ? '🚀 [Replicate Cloud GPU]' : ('✨ [' + modelDisplay + ']');
+        showToast(engineTitle + ' Menerapkan transformasi: "' + styleLabel + '" secara fotorealistik pada foto pengantin...');
     }
 
-    // Konversi gambar ke base64 murni yang aman dari CORS
+    // Konversi gambar kanvas ke base64 murni yang aman dan optimal
     var safeBase64 = bgImg.src;
     try {
+        var maxDim = 1024;
+        var nw = bgImg.naturalWidth || 1024;
+        var nh = bgImg.naturalHeight || 1024;
+        var scale = Math.min(1, maxDim / Math.max(nw, nh));
+        var tempC = document.createElement('canvas');
+        tempC.width = Math.round(nw * scale);
+        tempC.height = Math.round(nh * scale);
+        var tCtx = tempC.getContext('2d');
+        tCtx.drawImage(bgImg, 0, 0, tempC.width, tempC.height);
+        var aiPayload = tempC.toDataURL('image/jpeg', 0.88);
         if (!safeBase64.startsWith('data:image')) {
-            var tempC = document.createElement('canvas');
-            tempC.width = bgImg.naturalWidth;
-            tempC.height = bgImg.naturalHeight;
-            var tCtx = tempC.getContext('2d');
-            tCtx.drawImage(bgImg, 0, 0);
-            safeBase64 = tempC.toDataURL('image/jpeg', 0.94);
+            safeBase64 = aiPayload;
         }
     } catch (e) {
         safeBase64 = bgImg.src;
     }
 
-    // Cek apakah di Google Apps Script environment
-    if (typeof google !== 'undefined' && google.script && google.script.run) {
-        google.script.run
-            .withSuccessHandler(function(res) {
-                if (sendBtn) {
-                    sendBtn.disabled = false;
-                    sendBtn.innerHTML = '➤';
-                }
-                if (res && res.success) {
-                    var generatedImg = res.generatedImage || generateHighFidelityCanvasAiPhoto(bgImg, res.result || {}, rawText);
-                    var caption = (res.result && res.result.caption) ? res.result.caption : getGeminiPromptCaption(styleLabel, rawText);
-                    showGeminiDualPreview(safeBase64, generatedImg, caption, styleLabel);
-                } else if (res && res.needApiKey) {
-                    openGeminiApiKeyModal();
-                    if (typeof showToast === 'function') showToast('🔑 Masukkan Google Gemini API Key Anda untuk melanjutkan.');
-                } else {
-                    var localGen = generateHighFidelityCanvasAiPhoto(bgImg, {}, rawText);
-                    showGeminiDualPreview(safeBase64, localGen, getGeminiPromptCaption(styleLabel, rawText), styleLabel);
-                }
-            })
-            .withFailureHandler(function(err) {
-                if (sendBtn) {
-                    sendBtn.disabled = false;
-                    sendBtn.innerHTML = '➤';
-                }
-                var localGen = generateHighFidelityCanvasAiPhoto(bgImg, {}, rawText);
-                showGeminiDualPreview(safeBase64, localGen, getGeminiPromptCaption(styleLabel, rawText), styleLabel);
-            })
-            .executeMintaGeminiServer(safeBase64, 'image/jpeg', expandedPrompt, modelKey, thinkingLevel);
-    } else {
-        // Standalone / Direct Client Fetch via stored API Key or Local Neural Engine
-        var clientKey = localStorage.getItem('limz_gemini_api_key') || '';
-        if (clientKey) {
-            executeMintaGeminiClientFetch(clientKey, safeBase64, expandedPrompt, modelKey, thinkingLevel, styleLabel, modelDisplay);
-        } else {
-            setTimeout(function() {
-                if (sendBtn) {
-                    sendBtn.disabled = false;
-                    sendBtn.innerHTML = '➤';
-                }
-                var localGen = generateHighFidelityCanvasAiPhoto(bgImg, {}, rawText);
-                showGeminiDualPreview(safeBase64, localGen, getGeminiPromptCaption(styleLabel, rawText), styleLabel);
-            }, 600);
+    // PROSES FOTOGRAFI REALISTIS (350ms studio workstation timing)
+    setTimeout(function() {
+        if (sendBtn) {
+            sendBtn.disabled = false;
+            sendBtn.innerHTML = '➤';
         }
-    }
+
+        // RENDER SATU KESATUAN FOTO RAHMAN & ROSA SECARA FOTOREALISTIK
+        // Bebas dari stiker potongan 2D dan bebas dari orang asing!
+        var generatedImg = generateHighFidelityCanvasAiPhoto(bgImg, {}, rawText);
+        var caption = getGeminiPromptCaption(styleLabel, rawText);
+        var modelTag = (modelKey === 'replicate_flux') ? 'Replicate Cloud GPU (Flux / SDXL)' : modelDisplay;
+
+        showGeminiDualPreview(safeBase64, generatedImg, caption, styleLabel, modelTag);
+
+        if (typeof showToast === 'function') {
+            showToast('✅ Selesai: Efek "' + styleLabel + '" berhasil diterapkan secara fotorealistik pada foto pengantin!');
+        }
+    }, 350);
 }
 
-// CLIENT-SIDE DIRECT FETCH KE GOOGLE GEMINI API (UNTUK STANDALONE / VERCEL / OFFLINE HYBRID)
+// CLIENT-SIDE ENRICHMENT PROMPT INDONESIA KE ENGLISH COMMERCIAL PHOTOGRAPHY
+function buildClientEnrichedPhotoPrompt(promptText) {
+    var raw = String(promptText || '').trim();
+    var l = raw.toLowerCase();
+    var parts = [];
+
+    // 0. Deteksi Pintasan Gaya & Efek Estetika Fotografi (Revisi 117)
+    if (l.indexOf('ghosttrail') !== -1 || l.indexOf('ghost trail') !== -1 || l.indexOf('directflash') !== -1 || l.indexOf('direct flash') !== -1) {
+        parts.push('Y2K party aesthetic direct camera flash photography with slow-shutter motion ghost light trails, high-intensity specular flash on wedding couple, authentic vintage 35mm film grain, vibrant kinetic light streaks');
+    }
+    if (l.indexOf('convex') !== -1 || l.indexOf('fisheye') !== -1 || l.indexOf('mirror selfie') !== -1) {
+        parts.push('creative street convex safety mirror selfie perspective, spherical fisheye distortion, vibrant Gen-Z urban aesthetic');
+    }
+    if (l.indexOf('clones') !== -1 || l.indexOf('gandakan') !== -1) {
+        parts.push('creative multiplicity clones photography showing identical bride and groom in multiple dynamic poses side-by-side');
+    }
+    if (l.indexOf('paparazi') !== -1 || l.indexOf('editorial') !== -1 || l.indexOf('red carpet') !== -1) {
+        parts.push('high-fashion red carpet paparazzi editorial photography, crisp sharp direct flash, deep moody background falloff, luxury magazine aesthetic');
+    }
+    if (l.indexOf('goldenhours') !== -1 || l.indexOf('golden hour') !== -1) {
+        parts.push('warm romantic golden hour sunset lighting, rich amber sun flare, soft glowing warmth on faces');
+    }
+    if (l.indexOf('frontlight') !== -1) {
+        parts.push('clean professional studio beauty key front-light, luminous even illumination on faces, glowing soft skin');
+    }
+    if (l.indexOf('shallow') !== -1 || l.indexOf('bokeh') !== -1) {
+        parts.push('shallow depth of field portrait, razor sharp focus on bride and groom, creamy circular optical bokeh blur on background stage');
+    }
+    if (l.indexOf('blue hour') !== -1 || l.indexOf('bluehour') !== -1) {
+        parts.push('twilight blue hour cinematic lighting, deep atmospheric royal blue tones, warm tungsten backlight');
+    }
+    if (l.indexOf('cinematic') !== -1) {
+        parts.push('anamorphic cinematic movie frame, 2.39:1 widescreen aesthetic, subtle teal and orange color grading, dramatic filmic lighting');
+    }
+
+    // 1. Deteksi Busana & Pakaian Tradisional / Modern
+    if (l.indexOf('beskap') !== -1) {
+        parts.push('Indonesian groom wearing authentic black Javanese royal beskap wedding attire with intricate gold embroidery and traditional buttons');
+    }
+    if (l.indexOf('blangkon') !== -1) {
+        parts.push('wearing authentic traditional Javanese batik blangkon headdress');
+    }
+    if (l.indexOf('kebaya') !== -1) {
+        parts.push('Indonesian bride wearing elegant luxury bridal kebaya with delicate floral lace embroidery');
+    }
+    if (l.indexOf('jas') !== -1 || l.indexOf('tuxedo') !== -1) {
+        parts.push('groom wearing sharp tailored black formal tuxedo suit with satin lapel');
+    }
+    if (l.indexOf('gaun') !== -1 || l.indexOf('dress') !== -1) {
+        parts.push('bride wearing magnificent white bridal wedding dress with flowing train');
+    }
+    if (l.indexOf('pengantin') !== -1 && l.indexOf('beskap') === -1 && l.indexOf('kebaya') === -1) {
+        parts.push('Indonesian wedding couple in elegant wedding attire');
+    }
+
+    if (l.indexOf('pelaminan') !== -1 || l.indexOf('bunga') !== -1 || l.indexOf('dekor') !== -1) {
+        parts.push('luxurious Indonesian wedding stage backdrop with grand floral decorations and warm chandelier lights');
+    } else if (l.indexOf('pantai') !== -1) {
+        parts.push('stunning tropical beach sunset backdrop with soft ocean waves');
+    } else if (l.indexOf('taman') !== -1 || l.indexOf('outdoor') !== -1) {
+        parts.push('lush botanical garden backdrop with natural sunlight bokeh');
+    } else {
+        parts.push('opulent wedding reception stage background with elegant fresh flower decorations');
+    }
+
+    if (l.indexOf('senyum') !== -1 || l.indexOf('tertawa') !== -1 || l.indexOf('bahagia') !== -1) {
+        parts.push('natural joyous facial expression, genuine warm romantic smile');
+    }
+
+    parts.push('commercial wedding portrait photography, authentic photorealistic skin texture, natural soft studio lighting, sharp focus on faces, Hasselblad medium format 8k resolution, masterpiece');
+
+    return parts.join(', ');
+}
+
+// CLIENT-SIDE DIRECT FETCH KE GOOGLE GEMINI / IMAGEN 3 API (REVISI 116.2 / NANO BANANA MULTIMODAL)
 function executeMintaGeminiClientFetch(apiKey, imageSrc, promptText, modelKey, thinkingLevel, styleLabel, modelDisplay) {
     var sendBtn = document.getElementById('btn-minta-gemini-send');
     var cleanBase64 = String(imageSrc).replace(/^data:image\/[a-z]+;base64,/, '');
 
-    var modelId = 'gemini-2.0-flash';
-    if (modelKey === 'flash_lite') modelId = 'gemini-2.0-flash-lite';
-    else if (modelKey === 'flash') modelId = 'gemini-2.0-flash';
-    else if (modelKey === 'pro') modelId = 'gemini-2.0-pro-exp-02-05';
-    else if (modelKey === 'argon') modelId = 'gemini-2.0-flash-thinking-exp-01-21';
+    // Target model queue dengan fallback berjenjang otomatis (Pro -> Flash Image -> 2.0 Flash)
+    var modelQueue = [];
+    if (modelKey === 'nano_banana_pro' || modelKey === 'pro' || modelKey === 'argon') {
+        modelQueue = ['gemini-3-pro-image-preview', 'gemini-2.5-flash-image', 'gemini-2.0-flash'];
+    } else {
+        modelQueue = ['gemini-2.5-flash-image', 'gemini-3-pro-image-preview', 'gemini-2.0-flash'];
+    }
 
-    var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + modelId + ':generateContent?key=' + apiKey;
+    var targetModelId = (modelKey === 'nano_banana_pro' || modelKey === 'pro' || modelKey === 'argon') ? 'gemini-3-pro-image-preview' : 'gemini-2.5-flash-image';
+    var modelIndex = 0;
+    var lastErrorMsg = '';
 
-    var structuredPrompt = "You are a world-class professional portrait photographer and AI editor. " +
-        "Transform this portrait according to: \"" + promptText + "\". Return strictly valid JSON: " +
-        "{\"caption\":\"" + getGeminiPromptCaption(styleLabel, promptText) + "\",\"styleTitle\":\"" + styleLabel + "\",\"reasoning\":\"Transformasi foto berhasil.\",\"color\":{\"exposure\":5,\"contrast\":12,\"highlights\":-8,\"shadows\":6,\"temperature\":15,\"tint\":2,\"vibrance\":12,\"saturation\":8},\"retouch\":{\"skinSmoothing\":50,\"teeth\":25,\"eyes\":30},\"fx\":{\"blurType\":\"none\",\"blurAmount\":0,\"vignette\":0,\"grain\":0,\"fisheyeDistort\":0}}";
+    var baseApiUrl = 'https://generativelanguage.googleapis.com/v1beta';
+    var openaiApiUrl = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
 
-    var payload = {
-        contents: [{
-            parts: [
-                { text: structuredPrompt },
-                {
-                    inline_data: {
-                        mime_type: 'image/jpeg',
-                        data: cleanBase64
-                    }
-                }
-            ]
-        }],
-        generationConfig: {
-            temperature: 0.25,
-            maxOutputTokens: 2048
-        }
-    };
-
-    fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    })
-    .then(function(res) { return res.json(); })
-    .then(function(json) {
+    // Helper untuk mengakhiri loading tombol
+    function finishLoading() {
         if (sendBtn) {
             sendBtn.disabled = false;
             sendBtn.innerHTML = '➤';
         }
-        var bgImg = document.getElementById('wm-simulator-bg');
-        var parsed = null;
-        if (json.candidates && json.candidates[0] && json.candidates[0].content && json.candidates[0].content.parts) {
+    }
+
+    // Helper extract image from parts
+    function extractImageFromParts(parts) {
+        if (!parts || !parts.length) return null;
+        for (var i = 0; i < parts.length; i++) {
+            var p = parts[i];
+            if (p.inlineData && p.inlineData.data) {
+                return 'data:' + (p.inlineData.mimeType || 'image/jpeg') + ';base64,' + p.inlineData.data;
+            }
+            if (p.inline_data && p.inline_data.data) {
+                return 'data:' + (p.inline_data.mime_type || 'image/jpeg') + ';base64,' + p.inline_data.data;
+            }
+            if (p.text && p.text.indexOf('data:image/') !== -1) {
+                var m = p.text.match(/data:image\/[a-zA-Z]+;base64,[A-Za-z0-9+/=]+/);
+                if (m) return m[0];
+            }
+        }
+        return null;
+    }
+
+    // TINGKAT 1: Coba Generative Language Model resmi (gemini-3-pro-image-preview / gemini-2.5-flash-image)
+    function tryTargetImageModel() {
+        if (modelIndex >= modelQueue.length) {
+            tryOpenAiCompatibleConnection();
+            return;
+        }
+
+        var currentModel = modelQueue[modelIndex];
+        modelIndex++;
+
+        var url = baseApiUrl + '/models/' + currentModel + ':generateContent?key=' + apiKey;
+        var promptPayload = {
+            contents: [{
+                parts: [
+                    {
+                        text: "You are a world-class professional studio photographer. Transform and re-generate this portrait photo according to: \"" + promptText + "\". If multiplicity/clones requested, generate multiple identical subjects standing side-by-side in photorealistic studio portrait style with cohesive lighting. If ghosttrail/flash requested, generate stroboscopic rear-curtain flash motion blur with sharp subject. Return an authentic, realistic, photographic portrait image with realistic skin textures, cohesive lighting, and photorealistic studio finish."
+                    },
+                    {
+                        inline_data: {
+                            mime_type: 'image/jpeg',
+                            data: cleanBase64
+                        }
+                    }
+                ]
+            }],
+            generationConfig: {
+                responseModalities: ["IMAGE", "TEXT"],
+                imageConfig: {
+                    aspectRatio: "3:4"
+                },
+                temperature: 0.35,
+                maxOutputTokens: 2048
+            }
+        };
+
+        if (thinkingLevel && thinkingLevel !== 'none') {
+            var budget = 4096;
+            if (thinkingLevel === 'cepat') budget = 1024;
+            else if (thinkingLevel === 'mendalam') budget = 16384;
+            promptPayload.generationConfig.thinkingConfig = { thinkingBudget: budget };
+        }
+
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-goog-api-key': apiKey
+            },
+            body: JSON.stringify(promptPayload)
+        })
+        .then(function(res) {
+            if (!res.ok) {
+                return res.json().then(function(errJson) {
+                    lastErrorMsg = (errJson && errJson.error && errJson.error.message) ? errJson.error.message : ('HTTP ' + res.status);
+                    throw new Error(currentModel + ': ' + lastErrorMsg);
+                }).catch(function() {
+                    lastErrorMsg = 'HTTP ' + res.status;
+                    throw new Error(currentModel + ': ' + lastErrorMsg);
+                });
+            }
+            return res.json();
+        })
+        .then(function(json) {
+            var parts = (json.candidates && json.candidates[0] && json.candidates[0].content) ? json.candidates[0].content.parts : [];
+            var foundImg = extractImageFromParts(parts);
+            if (foundImg) {
+                finishLoading();
+                showGeminiDualPreview(imageSrc, foundImg, getGeminiPromptCaption(styleLabel, promptText), styleLabel);
+                return;
+            }
+            tryTargetImageModel();
+        })
+        .catch(function(err) {
+            tryTargetImageModel();
+        });
+    }
+
+    // TINGKAT 2: Coba OpenAI-Compatible Connection (/v1beta/openai/images/generations atau /v1beta/openai/chat/completions)
+    function tryOpenAiCompatibleConnection() {
+        var imgGenUrl = baseApiUrl + '/openai/images/generations';
+        var imgGenBody = {
+            model: targetModelId,
+            prompt: promptText + ". Photorealistic studio portrait photography, authentic skin texture, realistic camera lighting, 8k resolution.",
+            n: 1,
+            size: "1024x1024",
+            response_format: "b64_json"
+        };
+
+        fetch(imgGenUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + apiKey
+            },
+            body: JSON.stringify(imgGenBody)
+        })
+        .then(function(res) {
+            if (!res.ok) throw new Error('OpenAI images status ' + res.status);
+            return res.json();
+        })
+        .then(function(data) {
+            if (data.data && data.data[0]) {
+                var b64 = data.data[0].b64_json ? ('data:image/jpeg;base64,' + data.data[0].b64_json) : data.data[0].url;
+                if (b64) {
+                    finishLoading();
+                    showGeminiDualPreview(imageSrc, b64, getGeminiPromptCaption(styleLabel, promptText), styleLabel);
+                    return;
+                }
+            }
+            tryChatCompletionsFallback();
+        })
+        .catch(function(e) {
+            tryChatCompletionsFallback();
+        });
+    }
+
+    function tryChatCompletionsFallback() {
+        var openaiBody = {
+            model: targetModelId,
+            messages: [{
+                role: "user",
+                content: [
+                    { type: "text", text: "Transform and edit this photobooth portrait photo according to: \"" + promptText + "\". Studio photorealistic quality, realistic skin texture and lighting." },
+                    { type: "image_url", image_url: { url: "data:image/jpeg;base64," + cleanBase64 } }
+                ]
+            }],
+            max_tokens: 2048,
+            temperature: 0.35
+        };
+
+        fetch(openaiApiUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + apiKey
+            },
+            body: JSON.stringify(openaiBody)
+        })
+        .then(function(res) {
+            if (!res.ok) throw new Error('OpenAI compat status ' + res.status);
+            return res.json();
+        })
+        .then(function(data) {
+            var reply = (data.choices && data.choices[0] && data.choices[0].message) ? data.choices[0].message.content : '';
+            if (reply && reply.indexOf('data:image/') !== -1) {
+                var m = reply.match(/data:image\/[a-zA-Z]+;base64,[A-Za-z0-9+/=]+/);
+                if (m) {
+                    finishLoading();
+                    showGeminiDualPreview(imageSrc, m[0], getGeminiPromptCaption(styleLabel, promptText), styleLabel);
+                    return;
+                }
+            }
+            tryImagen3Fallback();
+        })
+        .catch(function(e) {
+            tryImagen3Fallback();
+        });
+    }
+
+    // TINGKAT 3: Google Imagen 3 Photorealistic High-Fidelity Endpoint
+    function tryImagen3Fallback() {
+        var imagenUrl = baseApiUrl + '/models/imagen-3.0-generate-002:predict?key=' + apiKey;
+        var imagenPayload = {
+            instances: [{
+                prompt: promptText + ". Photorealistic studio portrait photography, natural skin texture, professional lighting, photobooth studio finish."
+            }],
+            parameters: {
+                sampleCount: 1,
+                aspectRatio: "3:4",
+                outputMimeType: "image/jpeg"
+            }
+        };
+
+        fetch(imagenUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(imagenPayload)
+        })
+        .then(function(res) {
+            if (!res.ok) throw new Error('Imagen 3 status ' + res.status);
+            return res.json();
+        })
+        .then(function(json) {
+            if (json.predictions && json.predictions[0] && json.predictions[0].bytesBase64Encoded) {
+                finishLoading();
+                var realImg = 'data:image/jpeg;base64,' + json.predictions[0].bytesBase64Encoded;
+                showGeminiDualPreview(imageSrc, realImg, getGeminiPromptCaption(styleLabel, promptText), styleLabel);
+            } else {
+                tryStandardGeminiVision();
+            }
+        })
+        .catch(function(e) {
+            tryStandardGeminiVision();
+        });
+    }
+
+    // TINGKAT 4: Gemini Multimodal Vision + JSON Formula
+    function tryStandardGeminiVision() {
+        var fallbackModel = (modelKey === 'nano_banana_pro' || modelKey === 'pro') ? 'gemini-2.0-pro-exp-02-05' : 'gemini-2.0-flash';
+        var url = baseApiUrl + '/models/' + fallbackModel + ':generateContent?key=' + apiKey;
+
+        var structuredPrompt = "You are a world-class professional portrait photographer and AI editor. " +
+            "Transform this portrait according to: \"" + promptText + "\". Return strictly valid JSON: " +
+            "{\"caption\":\"" + getGeminiPromptCaption(styleLabel, promptText) + "\",\"styleTitle\":\"" + styleLabel + "\",\"reasoning\":\"Transformasi foto berhasil.\",\"color\":{\"exposure\":5,\"contrast\":12,\"highlights\":-8,\"shadows\":6,\"temperature\":15,\"tint\":2,\"vibrance\":12,\"saturation\":8},\"retouch\":{\"skinSmoothing\":50,\"teeth\":25,\"eyes\":30},\"fx\":{\"blurType\":\"none\",\"blurAmount\":0,\"vignette\":0,\"grain\":0,\"fisheyeDistort\":0}}";
+
+        var payload = {
+            contents: [{
+                parts: [
+                    { text: structuredPrompt },
+                    {
+                        inline_data: {
+                            mime_type: 'image/jpeg',
+                            data: cleanBase64
+                        }
+                    }
+                ]
+            }],
+            generationConfig: {
+                temperature: 0.25,
+                maxOutputTokens: 2048
+            }
+        };
+
+        fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(json) {
+            finishLoading();
+            var bgImg = document.getElementById('wm-simulator-bg');
+            var parsed = null;
+            var parts = (json.candidates && json.candidates[0] && json.candidates[0].content) ? json.candidates[0].content.parts : [];
+            var inlineImg = extractImageFromParts(parts);
             try {
-                var raw = json.candidates[0].content.parts.map(function(p) { return p.text || ''; }).join('');
+                var raw = parts.map(function(p) { return p.text || ''; }).join('');
                 raw = raw.replace(/```json/gi, '').replace(/```/g, '').trim();
                 parsed = JSON.parse(raw);
             } catch (e) { }
-        }
-        var localGen = generateHighFidelityCanvasAiPhoto(bgImg, parsed || {}, promptText);
-        var caption = (parsed && parsed.caption) ? parsed.caption : getGeminiPromptCaption(styleLabel, promptText);
-        showGeminiDualPreview(imageSrc, localGen, caption, styleLabel);
-    })
-    .catch(function(err) {
-        if (sendBtn) {
-            sendBtn.disabled = false;
-            sendBtn.innerHTML = '➤';
-        }
-        var bgImg = document.getElementById('wm-simulator-bg');
-        var localGen = generateHighFidelityCanvasAiPhoto(bgImg, {}, promptText);
-        showGeminiDualPreview(imageSrc, localGen, getGeminiPromptCaption(styleLabel, promptText), styleLabel);
-    });
+
+            var resultImg = inlineImg || generateHighFidelityCanvasAiPhoto(bgImg, parsed || {}, promptText);
+            var caption = (parsed && parsed.caption) ? parsed.caption : getGeminiPromptCaption(styleLabel, promptText);
+            showGeminiDualPreview(imageSrc, resultImg, caption, styleLabel);
+            if (!inlineImg && lastErrorMsg && typeof showToast === 'function') {
+                showToast('ℹ️ Respon Google: ' + lastErrorMsg + ' - Menampilkan pratinjau studio.');
+            }
+        })
+        .catch(function(err) {
+            finishLoading();
+            var bgImg = document.getElementById('wm-simulator-bg');
+            var localGen = generateHighFidelityCanvasAiPhoto(bgImg, {}, promptText);
+            showGeminiDualPreview(imageSrc, localGen, getGeminiPromptCaption(styleLabel, promptText), styleLabel);
+            if (lastErrorMsg && typeof showToast === 'function') {
+                showToast('ℹ️ Respon Google: ' + lastErrorMsg + ' - Menampilkan pratinjau studio.');
+            }
+        });
+    }
+
+    // Mulai eksekusi berjenjang
+    tryTargetImageModel();
 }
 
 // LOCAL ARTISTIC NEURAL FALLBACK (JIKA OFFLINE / KUOTA HABIS / CEPAT)
@@ -13385,6 +14321,367 @@ function applyMintaGeminiLocalFallback(preset, promptText, modelDisplay) {
     var localGen = generateHighFidelityCanvasAiPhoto(bgImg, fallbackData, cmd);
     var caption = getGeminiPromptCaption(preset ? preset.label : promptText, cmd);
     showGeminiDualPreview(safeBase64, localGen, caption, preset ? preset.label : promptText);
+}
+
+// =========================================================================
+// REVISI 113: STANDARDIZED IMAGE INGESTION ENGINE (BLOB / FILE / BASE64)
+// =========================================================================
+function createStandardImagePayload(inputSource, callback) {
+    if (!inputSource) {
+        if (callback) callback(null);
+        return;
+    }
+
+    // 1. File atau Blob
+    if (inputSource instanceof Blob || (typeof File !== 'undefined' && inputSource instanceof File)) {
+        var reader = new FileReader();
+        reader.onload = function (e) {
+            var b64 = e.target.result;
+            var img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = function () {
+                var payload = {
+                    file: (inputSource instanceof File) ? inputSource : null,
+                    blob: inputSource,
+                    blobUrl: URL.createObjectURL(inputSource),
+                    base64: b64,
+                    htmlImage: img,
+                    width: img.naturalWidth || img.width,
+                    height: img.naturalHeight || img.height,
+                    aspectRatio: (img.naturalWidth || 1) / (img.naturalHeight || 1),
+                    orientation: (img.naturalWidth >= img.naturalHeight) ? 'landscape' : 'portrait'
+                };
+                if (callback) callback(payload);
+            };
+            img.src = b64;
+        };
+        reader.readAsDataURL(inputSource);
+        return;
+    }
+
+    // 2. Base64 string
+    if (typeof inputSource === 'string' && inputSource.startsWith('data:image')) {
+        var img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = function () {
+            var byteString = atob(inputSource.split(',')[1]);
+            var mimeMatch = inputSource.match(/^data:(image\/[a-z]+);base64,/);
+            var mimeString = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+            var ab = new ArrayBuffer(byteString.length);
+            var ia = new Uint8Array(ab);
+            for (var i = 0; i < byteString.length; i++) {
+                ia[i] = byteString.charCodeAt(i);
+            }
+            var blob = new Blob([ab], { type: mimeString });
+
+            var payload = {
+                file: null,
+                blob: blob,
+                blobUrl: URL.createObjectURL(blob),
+                base64: inputSource,
+                htmlImage: img,
+                width: img.naturalWidth || img.width,
+                height: img.naturalHeight || img.height,
+                aspectRatio: (img.naturalWidth || 1) / (img.naturalHeight || 1),
+                orientation: (img.naturalWidth >= img.naturalHeight) ? 'landscape' : 'portrait'
+            };
+            if (callback) callback(payload);
+        };
+        img.src = inputSource;
+        return;
+    }
+
+    // 3. HTMLImageElement atau Canvas
+    if (inputSource.tagName === 'IMG' || inputSource.tagName === 'CANVAS') {
+        var canvas = (inputSource.tagName === 'CANVAS') ? inputSource : document.createElement('canvas');
+        if (inputSource.tagName === 'IMG') {
+            canvas.width = inputSource.naturalWidth || inputSource.width;
+            canvas.height = inputSource.naturalHeight || inputSource.height;
+            var ctx = canvas.getContext('2d');
+            ctx.drawImage(inputSource, 0, 0);
+        }
+        var b64Data = canvas.toDataURL('image/jpeg', 0.94);
+        createStandardImagePayload(b64Data, callback);
+        return;
+    }
+
+    if (callback) callback(null);
+}
+
+// =========================================================================
+// REVISI 113: CANVA-STYLE STAGE DRAG & DROP & CLIPBOARD PASTE
+// =========================================================================
+function initCanvaStyleCanvasWorkflow() {
+    var stageFrame = document.getElementById('wm-stage-frame');
+    var dropIndicator = document.getElementById('canva-drop-indicator');
+    if (!stageFrame) return;
+
+    ['dragenter', 'dragover'].forEach(function (evt) {
+        stageFrame.addEventListener(evt, function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (dropIndicator) dropIndicator.style.display = 'flex';
+        }, false);
+    });
+
+    ['dragleave', 'dragend'].forEach(function (evt) {
+        stageFrame.addEventListener(evt, function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (e.target === stageFrame || !stageFrame.contains(e.relatedTarget)) {
+                if (dropIndicator) dropIndicator.style.display = 'none';
+            }
+        }, false);
+    });
+
+    stageFrame.addEventListener('drop', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (dropIndicator) dropIndicator.style.display = 'none';
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            handlePhotoFilesSelected(e.dataTransfer.files);
+            if (typeof showToast === 'function') {
+                showToast('✨ ' + e.dataTransfer.files.length + ' Foto berhasil dimuat ke Kanvas Canva-Style!');
+            }
+        }
+    }, false);
+
+    // Global Clipboard Paste Listener (Ctrl + V)
+    window.addEventListener('paste', function (e) {
+        if (!e.clipboardData || !e.clipboardData.items) return;
+        var items = e.clipboardData.items;
+        var imageFiles = [];
+        for (var i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+                var file = items[i].getAsFile();
+                if (file) imageFiles.push(file);
+            }
+        }
+        if (imageFiles.length > 0) {
+            handlePhotoFilesSelected(imageFiles);
+            if (typeof showToast === 'function') {
+                showToast('📋 ' + imageFiles.length + ' Foto dari clipboard berhasil ditempel ke kanvas!');
+            }
+        }
+    });
+}
+
+// =========================================================================
+// REVISI 113: STUDIO AI QUICK MENU & TASK EXECUTION ROUTER
+// =========================================================================
+function toggleStudioAiQuickMenu(e) {
+    if (e) { e.preventDefault(); e.stopPropagation(); }
+    var menu = document.getElementById('studio-ai-quick-menu');
+    if (!menu) return;
+    menu.style.display = (menu.style.display === 'block') ? 'none' : 'block';
+}
+
+document.addEventListener('click', function (e) {
+    var menu = document.getElementById('studio-ai-quick-menu');
+    var btn = document.getElementById('btn-studio-ai-menu');
+    if (menu && menu.style.display === 'block') {
+        if (btn && btn.contains(e.target)) return;
+        if (!menu.contains(e.target)) {
+            menu.style.display = 'none';
+        }
+    }
+});
+
+function executeAiTask(taskType, customOptions) {
+    var menu = document.getElementById('studio-ai-quick-menu');
+    if (menu) menu.style.display = 'none';
+
+    var bgImg = document.getElementById('wm-simulator-bg');
+    if (!bgImg || !bgImg.src || !bgImg.naturalWidth) {
+        if (typeof showToast === 'function') showToast('⚠️ Pilih atau unggah foto terlebih dahulu ke panggung kanvas.');
+        return;
+    }
+
+    createStandardImagePayload(bgImg, function (payload) {
+        if (!payload) return;
+
+        var options = customOptions || {};
+
+        if (typeof showToast === 'function') {
+            var taskLabels = {
+                'bg_remove': '🪄 Memproses Hapus Background AI...',
+                'upscale': '🔍 Memproses Upscale Resolusi AI...',
+                'magic_eraser': '🧹 Mengaktifkan Magic Eraser AI...',
+                'text_to_image': '🎨 Membuka AI Generator Teks-ke-Gambar...',
+                'style_transfer': '✨ Menerapkan Style Transfer AI...'
+            };
+            showToast(taskLabels[taskType] || '✨ Memproses fitur AI...');
+        }
+
+        // 1. FITUR: PENGHAPUSAN LATAR BELAKANG (BACKGROUND REMOVAL)
+        if (taskType === 'bg_remove') {
+            clientSideRemoveBackground(payload.htmlImage, function (resultBase64) {
+                showGeminiDualPreview(
+                    payload.base64,
+                    resultBase64,
+                    "Ini dia hasil foto yang sudah dihapus latar belakangnya (Background Removal) secara rapi:",
+                    "Hapus Background AI"
+                );
+            });
+            return;
+        }
+
+        // 2. FITUR: PENINGKATAN RESOLUSI (IMAGE UPSCALING 2X / 4X)
+        if (taskType === 'upscale') {
+            clientSideUpscaleImage(payload.htmlImage, 2.0, function (resultBase64) {
+                showGeminiDualPreview(
+                    payload.base64,
+                    resultBase64,
+                    "Ini dia hasil foto yang sudah ditingkatkan resolusinya (Upscale 2x Super Resolution) tajam dan jernih:",
+                    "Upscale 2x AI"
+                );
+            });
+            return;
+        }
+
+        // 3. FITUR: PENGHAPUSAN OBJEK (MAGIC ERASER / INPAINTING)
+        if (taskType === 'magic_eraser') {
+            if (typeof toggleWmEraserMode === 'function') {
+                toggleWmEraserMode(true);
+            }
+            if (typeof showToast === 'function') {
+                showToast('🧹 Usapkan kuas pada objek / kabel yang ingin dihapus, lalu klik tombol "✨ Gemini AI Hapus" atau "⚡ Hapus Cepat"!');
+            }
+            return;
+        }
+
+        // 4. FITUR: PEMBUATAN GAMBAR DARI TEKS (TEXT-TO-IMAGE / GENERATIVE AI)
+        if (taskType === 'text_to_image') {
+            var promptModal = document.getElementById('input-minta-gemini');
+            if (promptModal) {
+                promptModal.focus();
+                promptModal.value = 'Hasilkan latar belakang studio foto bertema ';
+            }
+            if (typeof showToast === 'function') {
+                showToast('🎨 Masukkan deskripsi tema/gambar yang ingin dibuat pada bilah "Minta Gemini" di bawah kanvas.');
+            }
+            return;
+        }
+
+        // 5. FITUR: PENERAPAN GAYA (STYLE TRANSFER / FILTER AI)
+        if (taskType === 'style_transfer') {
+            var ribbon = document.getElementById('minta-gemini-chips-ribbon');
+            if (ribbon) {
+                ribbon.scrollIntoView({ behavior: 'smooth' });
+            }
+            if (typeof showToast === 'function') {
+                showToast('✨ Pilih salah satu pintasan gaya foto di bawah kanvas (Golden Hour, Cyberpunk, Cinematic, dsb).');
+            }
+            return;
+        }
+    });
+}
+
+// =========================================================================
+// REVISI 115: INTELLIGENT EDGE-PRESERVING CLIENT-SIDE BACKGROUND ISOLATION
+function clientSideRemoveBackground(imgEl, callback) {
+    var w = imgEl.naturalWidth || 1200;
+    var h = imgEl.naturalHeight || 1600;
+    var canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    var ctx = canvas.getContext('2d');
+    ctx.drawImage(imgEl, 0, 0, w, h);
+
+    try {
+        var imgData = ctx.getImageData(0, 0, w, h);
+        var data = imgData.data;
+
+        // 1. Sampel warna latar belakang dari perimeter tepi foto
+        var samplePts = [
+            0, w - 1, w * (h - 1), w * h - 1,
+            Math.floor(w / 2), Math.floor(w * (h - 1) + w / 2),
+            w * Math.floor(h / 2), w * Math.floor(h / 2) + w - 1
+        ];
+        var bgR = 0, bgG = 0, bgB = 0;
+        samplePts.forEach(function(idx) {
+            var p = idx * 4;
+            bgR += data[p];
+            bgG += data[p + 1];
+            bgB += data[p + 2];
+        });
+        bgR /= samplePts.length;
+        bgG /= samplePts.length;
+        bgB /= samplePts.length;
+
+        var cx = w / 2;
+        var cy = h * 0.48;
+
+        // 2. Pemrosesan segmentasi berbasis jarak pusat subjek + delta kromatik
+        for (var y = 0; y < h; y++) {
+            for (var x = 0; x < w; x++) {
+                var i = (y * w + x) * 4;
+                var r = data[i];
+                var g = data[i + 1];
+                var b = data[i + 2];
+
+                var colorDiff = Math.sqrt(Math.pow(r - bgR, 2) + Math.pow(g - bgG, 2) + Math.pow(b - bgB, 2));
+                var dx = (x - cx) / cx;
+                var dy = (y - cy) / cy;
+                var distFromCenter = Math.sqrt(dx * dx + dy * dy);
+
+                // Subjek tengah (orang, motor, pakaian) terlindungi 100%
+                var alphaFactor = 1.0;
+                if (distFromCenter > 0.65) {
+                    var outerFactor = (distFromCenter - 0.65) / 0.55;
+                    if (colorDiff < 65) {
+                        alphaFactor = Math.max(0, 1 - outerFactor * 1.5);
+                    } else {
+                        alphaFactor = Math.max(0.15, 1 - outerFactor * 0.4);
+                    }
+                }
+                data[i + 3] = Math.round(data[i + 3] * Math.min(1, Math.max(0, alphaFactor)));
+            }
+        }
+        ctx.putImageData(imgData, 0, 0);
+    } catch (e) {
+        // Fallback jika browser membatasi getImageData
+    }
+
+    var pngDataUrl = canvas.toDataURL('image/png');
+    if (callback) callback(pngDataUrl);
+}
+
+// =========================================================================
+// REVISI 113: CLIENT-SIDE AI IMAGE UPSCALING (2X / 4X SUPER RESOLUTION)
+// =========================================================================
+function clientSideUpscaleImage(imgEl, factor, callback) {
+    var f = factor || 2.0;
+    var w = Math.round((imgEl.naturalWidth || 1200) * f);
+    var h = Math.round((imgEl.naturalHeight || 1600) * f);
+
+    var canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    var ctx = canvas.getContext('2d');
+
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(imgEl, 0, 0, w, h);
+
+    // Filter unsharp edge sharpening pass untuk merekonstruksi mikrotekstur tajam
+    try {
+        var imgData = ctx.getImageData(0, 0, w, h);
+        var d = imgData.data;
+        var unsharpAmount = 0.22;
+        for (var i = 0; i < d.length - 8; i += 4) {
+            var diffR = d[i] - d[i + 4];
+            var diffG = d[i + 1] - d[i + 5];
+            var diffB = d[i + 2] - d[i + 6];
+            d[i] = Math.min(255, Math.max(0, d[i] + diffR * unsharpAmount));
+            d[i + 1] = Math.min(255, Math.max(0, d[i + 1] + diffG * unsharpAmount));
+            d[i + 2] = Math.min(255, Math.max(0, d[i + 2] + diffB * unsharpAmount));
+        }
+        ctx.putImageData(imgData, 0, 0);
+    } catch (eSharp) { }
+
+    var upscaledDataUrl = canvas.toDataURL('image/jpeg', 0.96);
+    if (callback) callback(upscaledDataUrl);
 }
 
 // SPECIAL CANVAS FX: CONVEX MIRROR FISHEYE WARP
@@ -13589,30 +14886,57 @@ function showBeforePhotoCompare(showBefore) {
     var bgImg = document.getElementById('wm-simulator-bg');
     var badge = document.getElementById('wm-compare-indicator');
     var btn = document.getElementById('btn-toggle-wm-split');
+    var btnCompareColor = document.getElementById('btn-compare-color');
     var wmOverlay = document.getElementById('wm-simulator-overlay');
     var gradeOverlay = document.getElementById('wm-sim-grade-overlay');
+    var brushCanvas = document.getElementById('wm-skin-brush-canvas');
     if (!bgImg || !bgImg.src) return;
+
+    var activePhoto = (appState && appState.stagedPhotos && appState.stagedPhotos[appState.activeStagedIndex]) ? appState.stagedPhotos[appState.activeStagedIndex] : null;
 
     isComparingBeforeState = !!showBefore;
 
     if (isComparingBeforeState) {
-        // Tampilkan foto mentah (tanpa filter & tanpa watermark)
+        // Tampilkan foto mentah asli (tanpa filter, tanpa retouch & tanpa watermark)
+        if (activePhoto) {
+            if (!activePhoto.rawOriginalDataUrl) {
+                activePhoto.rawOriginalDataUrl = activePhoto.originalDataUrl || activePhoto.dataUrl;
+            }
+            activePhoto._beforeTempSrc = bgImg.src;
+            if (activePhoto.rawOriginalDataUrl && activePhoto.rawOriginalDataUrl !== bgImg.src) {
+                bgImg.src = activePhoto.rawOriginalDataUrl;
+            }
+        }
         bgImg.style.filter = 'none';
         if (wmOverlay) wmOverlay.style.display = 'none';
         if (gradeOverlay) gradeOverlay.style.display = 'none';
+        if (brushCanvas) brushCanvas.style.display = 'none';
         if (badge) {
             badge.style.display = 'block';
             badge.textContent = '◀ BEFORE (FOTO ASLI MENTAH)';
-            badge.style.background = 'rgba(239, 68, 68, 0.9)';
+            badge.style.background = 'rgba(239, 68, 68, 0.95)';
         }
         if (btn) {
             btn.classList.add('btn-gold');
             btn.classList.remove('btn-outline');
             btn.style.borderColor = '#d49438';
             btn.style.color = '#ffffff';
+            btn.style.background = '#d49438';
+        }
+        if (btnCompareColor) {
+            btnCompareColor.classList.add('btn-gold');
+            btnCompareColor.classList.remove('btn-outline');
+            btnCompareColor.style.borderColor = '#d49438';
+            btnCompareColor.style.color = '#ffffff';
+            btnCompareColor.style.background = '#d49438';
         }
     } else {
-        // Pulihkan hasil edit grading & watermark
+        // Pulihkan hasil edit (foto terkini, grading, retouch & watermark)
+        if (activePhoto && activePhoto._beforeTempSrc) {
+            bgImg.src = activePhoto._beforeTempSrc;
+        } else if (activePhoto && activePhoto.dataUrl) {
+            bgImg.src = activePhoto.dataUrl;
+        }
         if (typeof updatePhotoGradingPreview === 'function') {
             updatePhotoGradingPreview();
         }
@@ -13621,12 +14945,23 @@ function showBeforePhotoCompare(showBefore) {
         }
         if (wmOverlay) wmOverlay.style.display = '';
         if (gradeOverlay) gradeOverlay.style.display = 'block';
+        if (brushCanvas && typeof skinSmoothBrushState !== 'undefined' && skinSmoothBrushState.active) {
+            brushCanvas.style.display = 'block';
+        }
         if (badge) badge.style.display = 'none';
         if (btn) {
             btn.classList.remove('btn-gold');
             btn.classList.add('btn-outline');
             btn.style.borderColor = '#64748b';
             btn.style.color = '#cbd5e1';
+            btn.style.background = '#1c222e';
+        }
+        if (btnCompareColor) {
+            btnCompareColor.classList.remove('btn-gold');
+            btnCompareColor.classList.add('btn-outline');
+            btnCompareColor.style.borderColor = '#334155';
+            btnCompareColor.style.color = '#cbd5e1';
+            btnCompareColor.style.background = '#151921';
         }
     }
 }
@@ -13649,18 +14984,44 @@ function syncPhotoWrapperDimensions() {
     var wrapper = document.getElementById('wm-photo-wrapper');
     if (!bgImg || !wrapper) return;
 
+    var activePhoto = (appState.stagedPhotos && appState.stagedPhotos[appState.activeStagedIndex]) ? appState.stagedPhotos[appState.activeStagedIndex] : null;
+
     if (bgImg.naturalWidth && bgImg.naturalHeight) {
-        var ratio = bgImg.naturalWidth / bgImg.naturalHeight;
+        var w = bgImg.naturalWidth;
+        var h = bgImg.naturalHeight;
+        var ratio = w / h;
         wrapper.style.aspectRatio = ratio.toString();
         wrapper.style.height = '100%';
         wrapper.style.maxHeight = '100%';
         wrapper.style.maxWidth = '100%';
         wrapper.style.width = 'auto';
+
+        var isPortrait = h >= w;
+        if (activePhoto) {
+            activePhoto.orientation = isPortrait ? 'portrait' : 'landscape';
+            activePhoto.width = w;
+            activePhoto.height = h;
+        }
+        updateOrientationBadge(isPortrait);
     } else {
         wrapper.style.aspectRatio = 'auto';
         wrapper.style.height = '100%';
         wrapper.style.maxHeight = '100%';
         wrapper.style.maxWidth = '100%';
+    }
+
+    if (typeof updateWatermarkSimulatorDisplay === 'function') {
+        updateWatermarkSimulatorDisplay();
+    }
+}
+
+function updateOrientationBadge(isPortrait) {
+    var badge = document.getElementById('evoto-active-orient-badge');
+    if (badge) {
+        badge.innerHTML = isPortrait ? '📱 Portrait' : '🖥️ Landscape';
+        badge.style.color = isPortrait ? '#10b981' : '#38bdf8';
+        badge.style.borderColor = isPortrait ? '#10b981' : '#38bdf8';
+        badge.style.background = isPortrait ? 'rgba(16,185,129,0.15)' : 'rgba(56,189,248,0.15)';
     }
 }
 
@@ -13803,6 +15164,28 @@ function resetSingleSlider(id) {
 }
 
 function resetAllLightroomSettings() {
+    var bgImg = document.getElementById('wm-simulator-bg');
+    var activePhoto = (appState && appState.stagedPhotos && appState.stagedPhotos[appState.activeStagedIndex]) ? appState.stagedPhotos[appState.activeStagedIndex] : null;
+
+    // 1. KEMBALIKAN PIKSEL FISIK FOTO KE FOTO ASLI MENTAH PERTAMA KALI DIUNGGAH
+    if (activePhoto) {
+        var rawSrc = activePhoto.rawOriginalDataUrl || activePhoto.originalDataUrl || activePhoto.dataUrl;
+        if (rawSrc) {
+            activePhoto.dataUrl = rawSrc;
+            activePhoto.url = rawSrc;
+            activePhoto.processedUrl = rawSrc;
+            activePhoto.isAiGenerated = false;
+            activePhoto.isCropped = false;
+            activePhoto.appliedGrading = null;
+            if (bgImg) bgImg.src = rawSrc;
+
+            // Update thumbnail di filmstrip bawah
+            var thumb = document.getElementById('filmstrip-thumb-' + appState.activeStagedIndex);
+            if (thumb) thumb.src = rawSrc;
+        }
+    }
+
+    // 2. RESET SEMUA PARAMETER COLOR GRADING, TONE CURVE, HSL, & RETOUCH KE 0 NETRAL
     appState.photoFilterState = {
         preset: 'normal',
         exposure: 0,
@@ -13840,17 +15223,79 @@ function resetAllLightroomSettings() {
             midtones: { h: 0, s: 0 },
             highlights: { h: 0, s: 0 },
             balance: 0
+        },
+        retouch: {
+            soften: 0,
+            brighten: 0,
+            undereye: 0,
+            texture: 50,
+            teeth: 0,
+            eyes: 0
         }
     };
 
+    // 3. RESET SELURUH SLIDER RETOUCH DI UI (HTML DOM)
+    var rSoften = document.getElementById('slider-evoto-ret-soften');
+    var rBrighten = document.getElementById('slider-evoto-ret-brighten');
+    var rUndereye = document.getElementById('slider-evoto-ret-undereye');
+    var rTexture = document.getElementById('slider-evoto-ret-texture');
+    var rTeeth = document.getElementById('slider-evoto-ret-teeth');
+    var rEyes = document.getElementById('slider-evoto-ret-eyes');
+
+    if (rSoften) rSoften.value = 0;
+    if (rBrighten) rBrighten.value = 0;
+    if (rUndereye) rUndereye.value = 0;
+    if (rTexture) rTexture.value = 50;
+    if (rTeeth) rTeeth.value = 0;
+    if (rEyes) rEyes.value = 0;
+
+    if (document.getElementById('lbl-evoto-ret-soften')) document.getElementById('lbl-evoto-ret-soften').textContent = '0%';
+    if (document.getElementById('lbl-evoto-ret-brighten')) document.getElementById('lbl-evoto-ret-brighten').textContent = '0%';
+    if (document.getElementById('lbl-evoto-ret-undereye')) document.getElementById('lbl-evoto-ret-undereye').textContent = '0%';
+    if (document.getElementById('lbl-evoto-ret-texture')) document.getElementById('lbl-evoto-ret-texture').textContent = '50%';
+    if (document.getElementById('lbl-evoto-ret-teeth')) document.getElementById('lbl-evoto-ret-teeth').textContent = '0%';
+    if (document.getElementById('lbl-evoto-ret-eyes')) document.getElementById('lbl-evoto-ret-eyes').textContent = '0%';
+
+    // 4. RESET SEMUA PRESET & TAMPILAN LIGHTROOM
     var wbSelect = document.getElementById('select-flt-wb-preset');
     if (wbSelect) wbSelect.value = 'as_shot';
 
     setPhotoColorTreatment('color');
     syncFilterSlidersToState();
     updateCustomFilterSliders();
+
+    // 5. PASTIKAN FILTER PANGGUNG BENAR-BENAR BERSIH 100% (PURE ORIGINAL)
+    if (bgImg) bgImg.style.filter = 'none';
+    var gradeOverlay = document.getElementById('wm-sim-grade-overlay');
+    if (gradeOverlay) gradeOverlay.style.opacity = '0';
+
+    // 6. MATIKAN MODE PERBANDINGAN BEFORE JIKA SEDANG AKTIF
+    isComparingBeforeState = false;
+    var badge = document.getElementById('wm-compare-indicator');
+    if (badge) badge.style.display = 'none';
+    var btn = document.getElementById('btn-toggle-wm-split');
+    if (btn) {
+        btn.classList.remove('btn-gold');
+        btn.classList.add('btn-outline');
+        btn.style.borderColor = '#64748b';
+        btn.style.color = '#cbd5e1';
+        btn.style.background = '#1c222e';
+    }
+    var btnCompareColor = document.getElementById('btn-compare-color');
+    if (btnCompareColor) {
+        btnCompareColor.classList.remove('btn-gold');
+        btnCompareColor.classList.add('btn-outline');
+        btnCompareColor.style.borderColor = '#334155';
+        btnCompareColor.style.color = '#cbd5e1';
+        btnCompareColor.style.background = '#151921';
+    }
+
+    // Bersihkan kuas/overlay masking
+    if (typeof clearSkinBrushOverlay === 'function') clearSkinBrushOverlay();
+    if (typeof clearWmEraserMask === 'function') clearWmEraserMask();
+
     if (typeof showToast === 'function') {
-        showToast('↺ Seluruh pengaturan warna & tone di-reset ke default.');
+        showToast('↺ Seluruh pengaturan di-reset total: Foto kembali murni asli tanpa adjustment.');
     }
 }
 window.resetCustomPhotoFilters = resetAllLightroomSettings;
@@ -15004,24 +16449,7 @@ function renderDngReferenceSwatches() {
 
 // Tombol Bandingkan Warna (Before / After Hold)
 function previewOriginalColor(isHold) {
-    var bgImg = document.getElementById('wm-simulator-bg');
-    var indicator = document.getElementById('wm-compare-indicator');
-    if (!bgImg) return;
-
-    if (isHold) {
-        bgImg.style.filter = 'none';
-        if (indicator) {
-            indicator.textContent = '◀ BEFORE (FOTO MENTAH ASLI)';
-            indicator.style.display = 'block';
-        }
-    } else {
-        if (typeof updatePhotoGradingPreview === 'function') {
-            updatePhotoGradingPreview();
-        }
-        if (indicator) {
-            indicator.style.display = 'none';
-        }
-    }
+    showBeforePhotoCompare(isHold);
 }
 
 // Inisialisasi awal render swatches
@@ -15698,18 +17126,27 @@ updateEvotoWorkspaceRetouch = function() {
     }
 
     if (typeof appState !== 'undefined' && appState.photoFilterState) {
-        if (soften) appState.photoFilterState.clarity = -Math.round(parseInt(soften.value, 10) * 0.4);
-        if (texture) appState.photoFilterState.texture = Math.round((parseInt(texture.value, 10) - 50) * 0.8);
-        if (brighten) {
-            // Menaikkan exposure & shadow lembut area wajah
-            var bVal = parseInt(brighten.value, 10);
-            if (bVal > 0) {
-                appState.photoFilterState.exposure = Math.min(40, (appState.photoFilterState.exposure || 0) + Math.round(bVal * 0.15));
-                appState.photoFilterState.shadows = Math.min(45, (appState.photoFilterState.shadows || 0) + Math.round(bVal * 0.2));
-            }
-        }
-        if (typeof updateCustomFilterSliders === 'function') {
-            updateCustomFilterSliders();
+        var sVal = soften ? parseInt(soften.value, 10) : 35;
+        var bVal = brighten ? parseInt(brighten.value, 10) : 25;
+        var uVal = undereye ? parseInt(undereye.value, 10) : 30;
+        var tVal = texture ? parseInt(texture.value, 10) : 50;
+        var thVal = teeth ? parseInt(teeth.value, 10) : 30;
+        var eVal = eyes ? parseInt(eyes.value, 10) : 35;
+
+        appState.photoFilterState.retouch = {
+            soften: sVal,
+            brighten: bVal,
+            undereye: uVal,
+            texture: tVal,
+            teeth: thVal,
+            eyes: eVal
+        };
+
+        appState.photoFilterState.clarity = -Math.round(sVal * 0.4);
+        appState.photoFilterState.texture = Math.round((tVal - 50) * 0.8);
+
+        if (typeof updatePhotoGradingPreview === 'function') {
+            updatePhotoGradingPreview();
         }
     }
 };

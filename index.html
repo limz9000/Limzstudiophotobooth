@@ -497,13 +497,9 @@
                                 <span>📺</span> Monitor
                             </button>
                             <button type="button" class="btn btn-outline btn-sm" id="btn-toggle-wm-split"
-                                onmousedown="showBeforePhotoCompare(true)"
-                                onmouseup="showBeforePhotoCompare(false)"
-                                ontouchstart="showBeforePhotoCompare(true)"
-                                ontouchend="showBeforePhotoCompare(false)"
                                 onclick="toggleBeforePhotoCompare()"
                                 style="border-color: #64748b; color: #cbd5e1; font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 6px; background: #1c222e;"
-                                title="Klik atau Tahan untuk membandingkan foto asli mentah sebelum filter/watermark">
+                                title="Klik untuk beralih antara foto mentah asli (Before) dan hasil editan (After)">
                                 👁️ Before / After
                             </button>
                             <button type="button" class="btn btn-dark btn-sm" onclick="connectUsbCameraNative()" style="background: #1c222e; border: 1px solid #2e384d; color: #e2e8f0; font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 6px;">
@@ -539,7 +535,8 @@
                                         <span id="evoto-active-photo-title" style="font-size: 12.5px; font-weight: 800; color: #ffffff;">Foto_Aktif_Upload.jpg</span>
                                         <span class="badge-status" id="staged-status-badge" style="background: rgba(212,148,56,0.2); color: #d49438; border: 1px solid #d49438; font-size: 9.5px; font-weight: 800;">FOTO AKTIF UPLOAD • LIVE</span>
                                     </div>
-                                    <div style="display: flex; gap: 6px; align-items: center;">
+                                    <div style="display: flex; gap: 6px; align-items: center; position: relative;">
+                                        <span id="evoto-active-orient-badge" style="font-size: 10.5px; font-weight: 700; color: #10b981; background: rgba(16,185,129,0.15); border: 1px solid #10b981; padding: 2px 7px; border-radius: 4px;" title="Orientasi aktif foto">📱 Portrait</span>
                                         <span id="evoto-active-preset-badge" style="font-size: 11px; font-weight: 700; color: #38bdf8; background: #0f172a; padding: 3px 8px; border-radius: 4px; border: 1px solid #1e293b;">Preset: Natural</span>
                                         <button type="button" class="evoto-btn-icon" id="btn-undo-header" onclick="undoPhotoAction()" title="Undo Aksi Terakhir (Ctrl+Z)" disabled style="color: #38bdf8; opacity: 0.4;">↺ Undo</button>
                                         <button type="button" class="evoto-btn-icon" id="btn-redo-header" onclick="redoPhotoAction()" title="Redo Aksi (Ctrl+Y)" disabled style="color: #38bdf8; opacity: 0.4;">↻ Redo</button>
@@ -547,8 +544,30 @@
                                         <button type="button" class="evoto-btn-icon" onclick="setStageZoom(1.5)" title="Perbesar 150%">1.5x</button>
                                         <button type="button" class="evoto-btn-icon" onclick="setStageZoom(2.0)" title="Perbesar 200%">2x</button>
                                         <button type="button" class="evoto-btn-icon" id="btn-toggle-crop" onclick="toggleCropMode()" style="color: #f59e0b;" title="Crop Foto">✂️ Crop</button>
-                                        <button type="button" class="evoto-btn-icon" onclick="rotateActiveStagedPhoto(-90)" title="Putar 90° Kiri">⟲ -90°</button>
-                                        <button type="button" class="evoto-btn-icon" onclick="rotateActiveStagedPhoto(90)" title="Putar 90° Kanan">⟳ +90°</button>
+                                        <button type="button" class="evoto-btn-icon" onclick="rotateActiveStagedPhoto(-90)" title="Putar 90° Kiri (Otomatis Orientasi Portrait & Watermark Menyesuaikan)">⟲ -90°</button>
+                                        <button type="button" class="evoto-btn-icon" onclick="rotateActiveStagedPhoto(90)" title="Putar 90° Kanan (Otomatis Orientasi Portrait & Watermark Menyesuaikan)">⟳ +90°</button>
+                                        <button type="button" class="evoto-btn-icon" id="btn-studio-ai-menu" onclick="toggleStudioAiQuickMenu(event)" style="color: #c084fc; border: 1px solid #9333ea; background: rgba(147, 51, 234, 0.15); font-weight: 700;" title="Buka Menu Studio AI (Hapus Background, Upscale, Magic Eraser, dsb)">✨ Studio AI ▾</button>
+
+                                        <!-- STUDIO AI QUICK MENU POPOVER (CANVA-STYLE TOOLKIT) -->
+                                        <div id="studio-ai-quick-menu" style="display: none; position: absolute; top: 34px; right: 0; background: #0f172a; border: 1px solid #9333ea; border-radius: 10px; padding: 6px; box-shadow: 0 10px 25px rgba(0,0,0,0.6); z-index: 100; min-width: 220px;">
+                                            <div style="font-size: 10px; font-weight: 800; color: #c084fc; padding: 4px 8px; letter-spacing: 0.5px; text-transform: uppercase;">✨ Studio AI Toolkit</div>
+                                            <div class="gemini-dropdown-divider" style="margin: 4px 0;"></div>
+                                            <div class="studio-ai-menu-item" onclick="executeAiTask('bg_remove')" style="display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; cursor: pointer; color: #f1f5f9; font-size: 11.5px; font-weight: 600; transition: background 0.15s ease;">
+                                                <span style="font-size: 14px;">🪄</span> Hapus Background (Transparan)
+                                            </div>
+                                            <div class="studio-ai-menu-item" onclick="executeAiTask('upscale')" style="display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; cursor: pointer; color: #f1f5f9; font-size: 11.5px; font-weight: 600; transition: background 0.15s ease;">
+                                                <span style="font-size: 14px;">🔍</span> Peningkatan Resolusi (Upscale 2x)
+                                            </div>
+                                            <div class="studio-ai-menu-item" onclick="executeAiTask('magic_eraser')" style="display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; cursor: pointer; color: #f1f5f9; font-size: 11.5px; font-weight: 600; transition: background 0.15s ease;">
+                                                <span style="font-size: 14px;">🧹</span> Hapus Objek (Magic Eraser)
+                                            </div>
+                                            <div class="studio-ai-menu-item" onclick="executeAiTask('text_to_image')" style="display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; cursor: pointer; color: #f1f5f9; font-size: 11.5px; font-weight: 600; transition: background 0.15s ease;">
+                                                <span style="font-size: 14px;">🎨</span> Teks ke Gambar (AI Generator)
+                                            </div>
+                                            <div class="studio-ai-menu-item" onclick="executeAiTask('style_transfer')" style="display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; cursor: pointer; color: #f1f5f9; font-size: 11.5px; font-weight: 600; transition: background 0.15s ease;">
+                                                <span style="font-size: 14px;">✨</span> Penerapan Gaya (Filter AI)
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -578,7 +597,11 @@
                                 </div>
 
                                 <!-- CANVAS STAGE VIEWPORT (INTERACTIVE BEFORE / AFTER SLIDER) -->
-                                <div class="evoto-stage-container" id="wm-stage-frame">
+                                <div class="evoto-stage-container" id="wm-stage-frame" style="position: relative;">
+                                    <!-- CANVA-STYLE DRAG & DROP OVERLAY INDICATOR -->
+                                    <div id="canva-drop-indicator" style="display: none; position: absolute; inset: 12px; border: 2.5px dashed #a855f7; border-radius: 12px; background: rgba(168,85,247,0.12); z-index: 50; pointer-events: none; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+                                        <span style="color: #ffffff; font-weight: 800; font-size: 13.5px; background: rgba(15,23,42,0.9); padding: 8px 18px; border-radius: 8px; border: 1px solid #a855f7; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">📂 Lepaskan Foto di Sini (Canva Stage)</span>
+                                    </div>
                                     <!-- EMPTY STATE KANVAS JIKA BELUM ADA FOTO -->
                                     <div id="evoto-empty-stage" style="display: none; position: absolute; inset: 0; align-items: center; justify-content: center; flex-direction: column; gap: 12px; background: #0c0f14; color: #64748b; z-index: 5;">
                                         <span style="font-size: 42px; opacity: 0.6;">📷</span>
@@ -665,9 +688,9 @@
                                         </div>
                                     </div>
 
-                                    <!-- REVISI 110: DUAL PREVIEW COMPARATOR (FOTO ASLI VS HASIL GENERATE GEMINI AI) -->
+                                    <!-- REVISI 115: RESPONSIVE DUAL PREVIEW COMPARATOR (FOTO ASLI VS HASIL GENERATE GEMINI AI) -->
                                     <div id="gemini-dual-preview-stage" class="gemini-dual-stage-overlay" style="display: none;">
-                                        <!-- CAPTION BOX PERSIS SCREENSHOT GEMINI -->
+                                        <!-- CAPTION BOX DENGAN TOGGLE MAKSIMALKAN LAYAR WORKSTATION -->
                                         <div class="gemini-dual-caption-bar" id="gemini-dual-caption-bar">
                                             <div style="display: flex; align-items: center; gap: 8px;">
                                                 <span style="font-size: 16px;">✨</span>
@@ -675,24 +698,29 @@
                                                     Ini dia hasil foto yang sudah diedit dengan efek pencahayaan AI Gemini sesuai permintaan Anda:
                                                 </span>
                                             </div>
-                                            <button type="button" class="btn btn-outline btn-sm" onclick="closeGeminiDualPreview()" style="color: #94a3b8; border-color: #334155; padding: 2px 8px; font-size: 12px;" title="Tutup Preview (Kembali ke Foto Asli)">✕</button>
+                                            <div style="display: flex; align-items: center; gap: 6px;">
+                                                <button type="button" class="btn btn-outline btn-sm" id="btn-toggle-dual-max" onclick="toggleGeminiDualStageMaximize()" style="color: #38bdf8; border-color: #0284c7; padding: 3px 10px; font-size: 11px; font-weight: 700; border-radius: 6px; background: rgba(2, 132, 199, 0.15); display: inline-flex; align-items: center; gap: 4px;" title="Perbesar Lembar Kerja Memenuhi Layar Studio Workstation">
+                                                    <span>⤢</span> Maksimalkan Layar
+                                                </button>
+                                                <button type="button" class="btn btn-outline btn-sm" onclick="closeGeminiDualPreview()" style="color: #94a3b8; border-color: #334155; padding: 3px 9px; font-size: 12px; border-radius: 6px;" title="Tutup Preview (Kembali ke Foto Asli)">✕</button>
+                                            </div>
                                         </div>
 
                                         <!-- DUAL COMPARISON COLUMNS (SISI KIRI: ASLI, SISI KANAN: HASIL AI) -->
-                                        <div class="gemini-dual-cards-container">
+                                        <div class="gemini-dual-cards-container" id="gemini-dual-cards-container">
                                             <!-- SISI KIRI: FOTO ASLI MENTAH -->
-                                            <div class="gemini-dual-card original-card">
+                                            <div class="gemini-dual-card original-card" id="gemini-dual-orig-card">
                                                 <div class="gemini-dual-badge badge-orig">◀ FOTO ASLI (MENTAH)</div>
                                                 <div class="gemini-dual-img-wrap">
-                                                    <img id="gemini-preview-original-img" src="" alt="Foto Asli" style="width: 100%; height: 100%; object-fit: contain;">
+                                                    <img id="gemini-preview-original-img" src="" alt="Foto Asli">
                                                 </div>
                                             </div>
 
                                             <!-- SISI KANAN: HASIL GENERATE GEMINI AI -->
-                                            <div class="gemini-dual-card generated-card">
+                                            <div class="gemini-dual-card generated-card" id="gemini-dual-gen-card">
                                                 <div class="gemini-dual-badge badge-ai">▶ HASIL GENERATE GEMINI AI • LIVE</div>
                                                 <div class="gemini-dual-img-wrap">
-                                                    <img id="gemini-preview-generated-img" src="" alt="Hasil Generate Gemini AI" style="width: 100%; height: 100%; object-fit: contain;">
+                                                    <img id="gemini-preview-generated-img" src="" alt="Hasil Generate Gemini AI">
                                                 </div>
                                             </div>
                                         </div>
@@ -747,6 +775,34 @@
 
                                     <!-- MODEL SELECTION DROPDOWN POPOVER (PERSIS SCREENSHOT 2) -->
                                     <div class="minta-gemini-model-dropdown" id="minta-gemini-model-dropdown">
+                                        <!-- REPLICATE CLOUD GPU ENGINE (FLUX.1 SCHNELL / SDXL) - PRO AI (REVISI 117) -->
+                                        <div class="gemini-model-item active-model" id="item-model-replicate-flux" onclick="selectGeminiModel('replicate_flux')" style="background: rgba(2, 132, 199, 0.16); border-left: 3px solid #38bdf8;">
+                                            <span class="gemini-model-check" id="check-model-replicate-flux">✓</span>
+                                            <div class="gemini-model-info">
+                                                <div style="display: flex; align-items: center; gap: 6px;">
+                                                    <span class="gemini-model-name" style="color: #38bdf8; font-weight: 800;">🚀 Replicate Cloud GPU</span>
+                                                    <span style="font-size: 8.5px; background: #0284c7; color: #fff; padding: 1px 5px; border-radius: 4px; font-weight: 800;">PRO AI</span>
+                                                </div>
+                                                <span class="gemini-model-sub" style="color: #94a3b8;">Flux.1 Schnell / SDXL (Ubah Baju &amp; Render Bebas)</span>
+                                            </div>
+                                        </div>
+                                        <div class="gemini-dropdown-divider"></div>
+
+                                        <div class="gemini-model-item" id="item-model-nano-banana" onclick="selectGeminiModel('nano_banana')">
+                                            <span class="gemini-model-check" id="check-model-nano-banana"></span>
+                                            <div class="gemini-model-info">
+                                                <span class="gemini-model-name">Gemini Nano Banana</span>
+                                                <span class="gemini-model-sub">gemini-2.5-flash-image (Cepat)</span>
+                                            </div>
+                                        </div>
+                                        <div class="gemini-model-item" id="item-model-nano-banana-pro" onclick="selectGeminiModel('nano_banana_pro')">
+                                            <span class="gemini-model-check" id="check-model-nano-banana-pro"></span>
+                                            <div class="gemini-model-info">
+                                                <span class="gemini-model-name">Gemini Nano Banana Pro</span>
+                                                <span class="gemini-model-sub">gemini-3-pro-image-preview (Fotorealistik)</span>
+                                            </div>
+                                        </div>
+                                        <div class="gemini-dropdown-divider"></div>
                                         <div class="gemini-model-item" id="item-model-flash-lite" onclick="selectGeminiModel('flash_lite')">
                                             <span class="gemini-model-check" id="check-model-flash-lite"></span>
                                             <div class="gemini-model-info">
@@ -754,8 +810,8 @@
                                                 <span class="gemini-model-sub">Jawaban tercepat</span>
                                             </div>
                                         </div>
-                                        <div class="gemini-model-item active-model" id="item-model-flash" onclick="selectGeminiModel('flash')">
-                                            <span class="gemini-model-check" id="check-model-flash">✓</span>
+                                        <div class="gemini-model-item" id="item-model-flash" onclick="selectGeminiModel('flash')">
+                                            <span class="gemini-model-check" id="check-model-flash"></span>
                                             <div class="gemini-model-info">
                                                 <span class="gemini-model-name">3.8 Flash</span>
                                                 <span class="gemini-model-sub">Bantuan serbaguna</span>
@@ -801,7 +857,7 @@
                                             <span style="font-size: 14px; margin-right: 8px;">🔑</span>
                                             <div class="gemini-model-info">
                                                 <span class="gemini-model-name" style="font-size: 11.5px; color: #38bdf8;">Hubungkan Akun / API Key</span>
-                                                <span class="gemini-model-sub" style="font-size: 10px;">Atur Google AI Studio API Key</span>
+                                                <span class="gemini-model-sub" style="font-size: 10px;">Engine: Replicate Cloud GPU &amp; Google Gemini</span>
                                             </div>
                                         </div>
                                     </div>
@@ -812,8 +868,8 @@
                                             <span>+</span>
                                         </button>
                                         <input type="text" class="input-minta-gemini" id="input-minta-gemini" placeholder="Minta Gemini (atau ketik / untuk pintasan foto)..." autocomplete="off" oninput="handleGeminiInputTyping(this.value)" onkeydown="handleGeminiInputKeydown(event)">
-                                        <button type="button" class="btn-gemini-model-toggle" id="btn-minta-gemini-model-toggle" onclick="toggleGeminiModelDropdown(event)" title="Pilih Model Google Gemini">
-                                            <span id="lbl-gemini-selected-model">Flash</span>
+                                        <button type="button" class="btn-gemini-model-toggle" id="btn-minta-gemini-model-toggle" onclick="toggleGeminiModelDropdown(event)" title="Pilih Engine AI (Replicate Cloud GPU / Google Gemini)">
+                                            <span id="lbl-gemini-selected-model">🚀 Flux.1 GPU</span>
                                             <span style="font-size: 9px; margin-left: 2px;">▾</span>
                                         </button>
                                         <button type="button" class="btn-gemini-action-btn" id="btn-minta-gemini-mic" onclick="toggleGeminiVoiceInput()" title="Perintah Suara (Speech-to-Text)">
@@ -1112,25 +1168,25 @@
                                     <div>
                                         <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; color: #e2e8f0; margin-bottom: 3px;">
                                             <span>Kehalusan Kulit (Skin Smoothing)</span>
-                                            <span id="lbl-evoto-ret-soften" style="color: #fbbf24;">35%</span>
+                                            <span id="lbl-evoto-ret-soften" style="color: #fbbf24;">0%</span>
                                         </div>
-                                        <input type="range" id="slider-evoto-ret-soften" min="0" max="100" value="35" style="width: 100%; accent-color: #d49438;" oninput="updateEvotoWorkspaceRetouch()">
+                                        <input type="range" id="slider-evoto-ret-soften" min="0" max="100" value="0" style="width: 100%; accent-color: #d49438;" oninput="updateEvotoWorkspaceRetouch()">
                                     </div>
 
                                     <div>
                                         <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; color: #e2e8f0; margin-bottom: 3px;">
                                             <span>Kecerahan Wajah (Face Brighten)</span>
-                                            <span id="lbl-evoto-ret-brighten" style="color: #fbbf24;">25%</span>
+                                            <span id="lbl-evoto-ret-brighten" style="color: #fbbf24;">0%</span>
                                         </div>
-                                        <input type="range" id="slider-evoto-ret-brighten" min="0" max="100" value="25" style="width: 100%; accent-color: #f59e0b;" oninput="updateEvotoWorkspaceRetouch()">
+                                        <input type="range" id="slider-evoto-ret-brighten" min="0" max="100" value="0" style="width: 100%; accent-color: #f59e0b;" oninput="updateEvotoWorkspaceRetouch()">
                                     </div>
 
                                     <div>
                                         <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; color: #e2e8f0; margin-bottom: 3px;">
                                             <span>Samarkan Kantung Mata (Under-Eye)</span>
-                                            <span id="lbl-evoto-ret-undereye" style="color: #fbbf24;">30%</span>
+                                            <span id="lbl-evoto-ret-undereye" style="color: #fbbf24;">0%</span>
                                         </div>
-                                        <input type="range" id="slider-evoto-ret-undereye" min="0" max="100" value="30" style="width: 100%; accent-color: #38bdf8;" oninput="updateEvotoWorkspaceRetouch()">
+                                        <input type="range" id="slider-evoto-ret-undereye" min="0" max="100" value="0" style="width: 100%; accent-color: #38bdf8;" oninput="updateEvotoWorkspaceRetouch()">
                                     </div>
 
                                     <div>
@@ -1144,17 +1200,17 @@
                                     <div>
                                         <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; color: #e2e8f0; margin-bottom: 3px;">
                                             <span>Pemutih Gigi (Teeth Whitening)</span>
-                                            <span id="lbl-evoto-ret-teeth" style="color: #fbbf24;">30%</span>
+                                            <span id="lbl-evoto-ret-teeth" style="color: #fbbf24;">0%</span>
                                         </div>
-                                        <input type="range" id="slider-evoto-ret-teeth" min="0" max="100" value="30" style="width: 100%; accent-color: #d49438;" oninput="updateEvotoWorkspaceRetouch()">
+                                        <input type="range" id="slider-evoto-ret-teeth" min="0" max="100" value="0" style="width: 100%; accent-color: #d49438;" oninput="updateEvotoWorkspaceRetouch()">
                                     </div>
 
                                     <div>
                                         <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; color: #e2e8f0; margin-bottom: 3px;">
                                             <span>Pencerah Mata (Eye Brightening)</span>
-                                            <span id="lbl-evoto-ret-eyes" style="color: #fbbf24;">35%</span>
+                                            <span id="lbl-evoto-ret-eyes" style="color: #fbbf24;">0%</span>
                                         </div>
-                                        <input type="range" id="slider-evoto-ret-eyes" min="0" max="100" value="35" style="width: 100%; accent-color: #d49438;" oninput="updateEvotoWorkspaceRetouch()">
+                                        <input type="range" id="slider-evoto-ret-eyes" min="0" max="100" value="0" style="width: 100%; accent-color: #d49438;" oninput="updateEvotoWorkspaceRetouch()">
                                     </div>
                                 </div>
                             </div>
@@ -3581,28 +3637,49 @@
 
     <script src="/app.js"></script>
 
-    <!-- MODAL SETEL GOOGLE GEMINI API KEY (REVISI 93) -->
+    <!-- MODAL SETEL GOOGLE GEMINI & REPLICATE CLOUD GPU API KEY (REVISI 117) -->
     <div id="modal-gemini-settings" class="modal-overlay" style="display: none; align-items: center; justify-content: center; z-index: 9999;">
-        <div class="modal-card" style="max-width: 440px; background: #12151b; border: 1px solid #1f2633; color: #ffffff; border-radius: 12px; padding: 22px; box-shadow: 0 10px 30px rgba(0,0,0,0.6);">
+        <div class="modal-card" style="max-width: 480px; background: #12151b; border: 1px solid #1f2633; color: #ffffff; border-radius: 12px; padding: 22px; box-shadow: 0 10px 30px rgba(0,0,0,0.6);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
                 <h3 style="font-size: 15px; font-weight: 800; color: #38bdf8; display: flex; align-items: center; gap: 8px; margin: 0;">
-                    <span>✨ Pengaturan Google Gemini AI</span>
+                    <span>✨ Pengaturan AI &amp; Cloud GPU Engine</span>
                 </h3>
                 <button type="button" class="btn btn-outline btn-sm" onclick="closeModal('modal-gemini-settings')" style="color: #94a3b8; border: none; font-size: 16px; padding: 2px 8px;">✕</button>
             </div>
             <p style="font-size: 12px; color: #94a3b8; margin: 0 0 12px; line-height: 1.5;">
-                Masukkan Google Gemini API Key Anda untuk mengaktifkan AI Object Eraser, Smart Retouch, dan Color Grading otomatis.
+                Hubungkan API Key untuk mengaktifkan AI Studio, Object Eraser, serta Cloud GPU (Flux / SDXL) untuk generate potret bebas dari teks.
             </p>
-            <div style="margin-bottom: 14px;">
-                <label style="display: block; font-size: 11px; font-weight: 700; color: #cbd5e1; margin-bottom: 4px;">Gemini API Key:</label>
-                <input type="password" id="input-gemini-api-key" class="form-control" placeholder="AIzaSy..." style="background: #181d26; border: 1px solid #2e3c54; color: #ffffff; font-size: 12px; width: 100%; padding: 8px 10px; border-radius: 6px;">
+            
+            <!-- SECTION 1: REPLICATE CLOUD GPU (OPSI 1 - FLUX / SDXL REAL GENERATIVE) -->
+            <div style="margin-bottom: 14px; background: rgba(30, 41, 59, 0.4); border: 1px solid #334155; border-radius: 8px; padding: 12px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <label style="font-size: 11.5px; font-weight: 700; color: #fbbf24; margin: 0;">🚀 Replicate Cloud GPU Token (Flux.1 / SDXL):</label>
+                    <span style="font-size: 10px; background: rgba(245, 158, 11, 0.2); color: #fbbf24; padding: 2px 6px; border-radius: 4px; font-weight: 700;">PRO AI</span>
+                </div>
+                <input type="password" id="input-replicate-api-key" class="form-control" placeholder="r8_xxxxxxxxxxxxxxxxxxxxxx" style="background: #0f172a; border: 1px solid #3b4252; color: #ffffff; font-size: 12px; width: 100%; padding: 8px 10px; border-radius: 6px; margin-bottom: 6px;">
+                <div style="font-size: 10.5px; color: #94a3b8; line-height: 1.4;">
+                    💡 <em>Kunci GPU di belakang layar untuk generate potret &amp; ganti baju/latar bebas. Dapatkan token di <a href="https://replicate.com" target="_blank" style="color: #fbbf24; text-decoration: underline; font-weight: 700;">replicate.com</a>.</em>
+                </div>
             </div>
-            <div style="font-size: 11px; color: #64748b; margin-bottom: 16px;">
-                💡 <em>Dapatkan API Key gratis di <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: #38bdf8; text-decoration: underline;">Google AI Studio</a>.</em>
+
+            <!-- SECTION 2: GOOGLE GEMINI API -->
+            <div style="margin-bottom: 14px;">
+                <label style="display: block; font-size: 11px; font-weight: 700; color: #cbd5e1; margin-bottom: 4px;">Google Gemini API Key (Vision &amp; Auto-Retouch):</label>
+                <input type="password" id="input-gemini-api-key" class="form-control" placeholder="AIzaSy..." style="background: #181d26; border: 1px solid #2e3c54; color: #ffffff; font-size: 12px; width: 100%; padding: 8px 10px; border-radius: 6px; margin-bottom: 4px;">
+                <div style="font-size: 10.5px; color: #64748b;">
+                    💡 <em>Dapatkan API Key gratis di <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: #38bdf8; text-decoration: underline;">Google AI Studio</a>.</em>
+                </div>
+            </div>
+
+            <div style="font-size: 10.5px; color: #94a3b8; margin-bottom: 16px; background: rgba(15,23,42,0.7); border: 1px solid #1e293b; border-radius: 6px; padding: 8px 10px; line-height: 1.45;">
+                <div style="color: #38bdf8; font-weight: 700; margin-bottom: 3px;">⚡ Status Engine Aktif:</div>
+                <div>• Cloud GPU Engine: <code style="color: #fbbf24; font-size: 10px;">Replicate (Flux.1 Schnell / SDXL Inpainting)</code></div>
+                <div>• Google Multimodal: <code style="color: #34d399; font-size: 10px;">Gemini 2.5 Flash / 3 Pro Image</code></div>
+                <div>• Auto-Language: <code style="color: #a78bfa; font-size: 10px;">Bahasa Indonesia ➔ Smart English Photo Enrichment</code></div>
             </div>
             <div style="display: flex; justify-content: flex-end; gap: 8px;">
                 <button type="button" class="btn btn-outline btn-sm" onclick="closeModal('modal-gemini-settings')" style="color: #cbd5e1; border-color: #475569;">Batal</button>
-                <button type="button" class="btn btn-gold btn-sm" onclick="saveGeminiApiKeyClient()" style="background: #d49438; font-weight: 800; padding: 6px 14px;">💾 Simpan API Key</button>
+                <button type="button" class="btn btn-gold btn-sm" onclick="saveGeminiApiKeyClient()" style="background: #d49438; font-weight: 800; padding: 6px 14px;">💾 Simpan Pengaturan AI</button>
             </div>
         </div>
     </div>
