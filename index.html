@@ -688,6 +688,57 @@
                                         </div>
                                     </div>
 
+                                    <!-- MODAL INTEGRASI LANGSUNG GEMINI WEB (GEMINI.GOOGLE.COM) -->
+                                    <div id="gemini-web-receiver-modal" class="gemini-web-modal-overlay" style="display: none;">
+                                        <div class="gemini-web-modal-card">
+                                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(56, 189, 248, 0.2); padding-bottom: 10px;">
+                                                <div style="display: flex; align-items: center; gap: 8px;">
+                                                    <span style="font-size: 20px;">🌐</span>
+                                                    <span style="font-weight: 800; font-size: 14.5px; color: #38bdf8;">Gemini Web Bridge (gemini.google.com)</span>
+                                                </div>
+                                                <button type="button" class="btn btn-outline btn-sm" onclick="closeGeminiWebReceiverModal()" style="color: #94a3b8; border-color: #334155; padding: 2px 8px; border-radius: 6px;">✕</button>
+                                            </div>
+                                            
+                                            <div style="background: rgba(15, 23, 42, 0.7); border: 1px dashed #0284c7; border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; text-align: left;">
+                                                <div style="font-size: 12px; font-weight: 700; color: #f59e0b; margin-bottom: 4px;">
+                                                    ✅ Foto Kanvas &amp; Prompt Siap Ditransfer!
+                                                </div>
+                                                <div style="font-size: 11.5px; color: #94a3b8; line-height: 1.4;">
+                                                    <b style="color: #f1f5f9;">Prompt:</b> <span id="gemini-web-prompt-preview" style="color: #38bdf8;"></span>
+                                                </div>
+                                                <div style="display: flex; gap: 6px; margin-top: 8px;">
+                                                    <button type="button" class="btn btn-outline btn-sm" onclick="copyGeminiPromptToClipboard()" style="flex: 1; border-color: #38bdf8; color: #38bdf8; font-size: 11px; padding: 5px 8px; border-radius: 6px; background: rgba(56, 189, 248, 0.08);" title="Salin teks prompt AI ke clipboard">
+                                                        📝 Salin Teks Prompt
+                                                    </button>
+                                                    <button type="button" class="btn btn-outline btn-sm" onclick="copyCanvasPhotoToClipboard()" style="flex: 1; border-color: #f59e0b; color: #f59e0b; font-size: 11px; padding: 5px 8px; border-radius: 6px; background: rgba(245, 158, 11, 0.08);" title="Salin ulang foto kanvas ke clipboard">
+                                                        🖼️ Salin Foto Kanvas
+                                                    </button>
+                                                </div>
+                                                <div style="margin-top: 8px; font-size: 11px; color: #cbd5e1; line-height: 1.5;">
+                                                    <b>Langkah Mudah:</b><br>
+                                                    1. Di tab <b>Gemini Web</b> yang baru terbuka, tekan <b>Ctrl + V</b> untuk paste foto kanvas, tempel prompt lalu tekan Enter.<br>
+                                                    2. Setelah hasil generate AI selesai, <b>Klik Kanan foto hasil &gt; Copy Image (Salin Gambar)</b>.<br>
+                                                    3. Kembali ke sini dan tekan <b>Ctrl + V</b> (atau klik tombol biru di bawah). Foto akan langsung terpasang ke Kanvas kerja kita!
+                                                </div>
+                                            </div>
+
+                                            <div style="display: flex; flex-direction: column; gap: 8px;">
+                                                <button type="button" class="btn btn-primary" onclick="pasteFromClipboardToCanvas()" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); border: none; font-weight: 700; font-size: 12.5px; padding: 10px 16px; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 14px rgba(2, 132, 199, 0.4);">
+                                                    <span>📥</span> Tempel Hasil dari Gemini Web (Ctrl + V)
+                                                </button>
+                                                <div style="display: flex; gap: 8px;">
+                                                    <button type="button" class="btn btn-outline" onclick="document.getElementById('input-gemini-result-file').click()" style="flex: 1; border-color: #334155; color: #94a3b8; font-size: 11px; padding: 7px 10px; border-radius: 8px;">
+                                                        📁 Upload File Gambar
+                                                    </button>
+                                                    <button type="button" class="btn btn-outline" onclick="reopenGeminiWebTab()" style="flex: 1; border-color: #f59e0b; color: #f59e0b; font-size: 11px; padding: 7px 10px; border-radius: 8px;">
+                                                        ↗️ Buka Ulang Gemini Web
+                                                    </button>
+                                                </div>
+                                                <input type="file" id="input-gemini-result-file" accept="image/*" style="display: none;" onchange="handleGeminiResultFileSelected(this)">
+                                            </div>
+                                        </div>
+                                    </div>
+
                                     <!-- REVISI 115: RESPONSIVE DUAL PREVIEW COMPARATOR (FOTO ASLI VS HASIL GENERATE GEMINI AI) -->
                                     <div id="gemini-dual-preview-stage" class="gemini-dual-stage-overlay" style="display: none;">
                                         <!-- CAPTION BOX DENGAN TOGGLE MAKSIMALKAN LAYAR WORKSTATION -->
@@ -775,9 +826,22 @@
 
                                     <!-- MODEL SELECTION DROPDOWN POPOVER (PERSIS SCREENSHOT 2) -->
                                     <div class="minta-gemini-model-dropdown" id="minta-gemini-model-dropdown">
+                                        <!-- GEMINI WEB DIRECT BRIDGE (GRATIS & TANPA API KEY) -->
+                                        <div class="gemini-model-item active-model" id="item-model-gemini-web" onclick="selectGeminiModel('gemini_web')" style="background: rgba(245, 158, 11, 0.16); border-left: 3px solid #f59e0b;">
+                                            <span class="gemini-model-check" id="check-model-gemini-web" style="color: #f59e0b;">✓</span>
+                                            <div class="gemini-model-info">
+                                                <div style="display: flex; align-items: center; gap: 6px;">
+                                                    <span class="gemini-model-name" style="color: #f59e0b; font-weight: 800;">🌐 Gemini Web (Direct)</span>
+                                                    <span style="font-size: 8.5px; background: #d97706; color: #fff; padding: 1px 5px; border-radius: 4px; font-weight: 800;">GRATIS</span>
+                                                </div>
+                                                <span class="gemini-model-sub" style="color: #94a3b8;">Kirim foto kanvas ke Gemini Web &amp; kirim balik hasil ke kanvas</span>
+                                            </div>
+                                        </div>
+                                        <div class="gemini-dropdown-divider"></div>
+
                                         <!-- REPLICATE CLOUD GPU ENGINE (FLUX.1 SCHNELL / SDXL) - PRO AI (REVISI 117) -->
-                                        <div class="gemini-model-item active-model" id="item-model-replicate-flux" onclick="selectGeminiModel('replicate_flux')" style="background: rgba(2, 132, 199, 0.16); border-left: 3px solid #38bdf8;">
-                                            <span class="gemini-model-check" id="check-model-replicate-flux">✓</span>
+                                        <div class="gemini-model-item" id="item-model-replicate-flux" onclick="selectGeminiModel('replicate_flux')">
+                                            <span class="gemini-model-check" id="check-model-replicate-flux"></span>
                                             <div class="gemini-model-info">
                                                 <div style="display: flex; align-items: center; gap: 6px;">
                                                     <span class="gemini-model-name" style="color: #38bdf8; font-weight: 800;">🚀 Replicate Cloud GPU</span>
@@ -868,8 +932,8 @@
                                             <span>+</span>
                                         </button>
                                         <input type="text" class="input-minta-gemini" id="input-minta-gemini" placeholder="Minta Gemini (atau ketik / untuk pintasan foto)..." autocomplete="off" oninput="handleGeminiInputTyping(this.value)" onkeydown="handleGeminiInputKeydown(event)">
-                                        <button type="button" class="btn-gemini-model-toggle" id="btn-minta-gemini-model-toggle" onclick="toggleGeminiModelDropdown(event)" title="Pilih Engine AI (Replicate Cloud GPU / Google Gemini)">
-                                            <span id="lbl-gemini-selected-model">🚀 Flux.1 GPU</span>
+                                        <button type="button" class="btn-gemini-model-toggle" id="btn-minta-gemini-model-toggle" onclick="toggleGeminiModelDropdown(event)" title="Pilih Engine AI (🌐 Gemini Web Direct / Replicate Cloud GPU / Google Gemini)">
+                                            <span id="lbl-gemini-selected-model">🌐 Gemini Web</span>
                                             <span style="font-size: 9px; margin-left: 2px;">▾</span>
                                         </button>
                                         <button type="button" class="btn-gemini-action-btn" id="btn-minta-gemini-mic" onclick="toggleGeminiVoiceInput()" title="Perintah Suara (Speech-to-Text)">

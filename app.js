@@ -12591,14 +12591,20 @@ function executeGeminiInpaint() {
 /* ========================================================================= */
 /* REVISI 109: MINTA GEMINI PROMPT ENGINE & 16+ PHOTOGRAPHY SHORTCUTS       */
 /* ========================================================================= */
-var savedAiModel = (typeof localStorage !== 'undefined' ? localStorage.getItem('limz_selected_ai_model') : '') || 'replicate_flux';
+var savedAiModel = (typeof localStorage !== 'undefined' ? localStorage.getItem('limz_selected_ai_model') : '') || 'gemini_web';
+var savedRepKey = (typeof localStorage !== 'undefined' ? localStorage.getItem('limz_replicate_api_key') : '') || '';
+if (savedAiModel === 'replicate_flux' && !savedRepKey) {
+    savedAiModel = 'gemini_web';
+    try { localStorage.setItem('limz_selected_ai_model', 'gemini_web'); } catch(e) {}
+}
 var mintaGeminiState = {
-    model: savedAiModel, // 'replicate_flux', 'nano_banana', 'nano_banana_pro', 'flash_lite', 'flash', 'pro', 'argon'
+    model: savedAiModel, // 'gemini_web' default
     thinkingLevel: 'seimbang', // 'cepat', 'seimbang', 'mendalam'
     isListening: false,
     recognition: null,
     photoAttached: true,
-    selectedIndex: -1
+    selectedIndex: -1,
+    waitingForWebResult: false
 };
 
 var GEMINI_PHOTO_PRESETS = [
@@ -12729,9 +12735,19 @@ function toggleGeminiModelDropdown(e) {
 }
 
 function selectGeminiModel(modelKey) {
+    var repKey = (typeof localStorage !== 'undefined' ? localStorage.getItem('limz_replicate_api_key') : '') || '';
+    if (modelKey === 'replicate_flux' && !repKey) {
+        if (typeof openGeminiApiKeyModal === 'function') openGeminiApiKeyModal();
+        if (typeof showToast === 'function') {
+            showToast('🔑 Token Replicate GPU belum diisi. Mengalihkan ke Gemini Web (Gratis).');
+        }
+        modelKey = 'gemini_web';
+    }
+
     mintaGeminiState.model = modelKey;
 
     var modelNames = {
+        'gemini_web': '🌐 Gemini Web',
         'replicate_flux': '🚀 Flux.1 GPU',
         'nano_banana': 'Nano Banana',
         'nano_banana_pro': 'Nano Banana Pro',
@@ -12743,7 +12759,7 @@ function selectGeminiModel(modelKey) {
 
     var lbl = document.getElementById('lbl-gemini-selected-model');
     if (lbl) {
-        lbl.textContent = modelNames[modelKey] || '🚀 Flux.1 GPU';
+        lbl.textContent = modelNames[modelKey] || '🌐 Gemini Web';
     }
 
     try {
@@ -12751,7 +12767,7 @@ function selectGeminiModel(modelKey) {
     } catch(e) {}
 
     // Update active class & checkmarks
-    ['replicate-flux', 'nano-banana', 'nano-banana-pro', 'flash-lite', 'flash', 'pro', 'argon'].forEach(function(k) {
+    ['gemini-web', 'replicate-flux', 'nano-banana', 'nano-banana-pro', 'flash-lite', 'flash', 'pro', 'argon'].forEach(function(k) {
         var el = document.getElementById('item-model-' + k);
         var chk = document.getElementById('check-model-' + k);
         var isThis = (k === modelKey || k === modelKey.replace(/_/g, '-') || (k === 'flash-lite' && modelKey === 'flash_lite'));
@@ -12771,6 +12787,20 @@ function selectGeminiModel(modelKey) {
         var toastTitle = (modelKey === 'replicate_flux') ? '🚀 Engine Aktif: Replicate Cloud GPU (Flux.1 / SDXL)' : ('🤖 Model Gemini diubah ke: ' + (modelNames[modelKey] || modelKey));
         showToast(toastTitle);
     }
+}
+
+// Inisialisasi otomatis model selector saat script dimuat
+if (typeof window !== 'undefined') {
+    window.addEventListener('DOMContentLoaded', function() {
+        if (typeof selectGeminiModel === 'function') {
+            selectGeminiModel(savedAiModel);
+        }
+    });
+    setTimeout(function() {
+        if (typeof selectGeminiModel === 'function') {
+            selectGeminiModel(savedAiModel);
+        }
+    }, 200);
 }
 
 function toggleGeminiReasoningSubmenu(e) {
@@ -13009,12 +13039,17 @@ function showGeminiDualPreview(originalSrc, generatedSrc, captionText, promptTit
     var captionEl = document.getElementById('gemini-dual-caption-text');
     if (!overlay || !origImg || !genImg) return;
 
+    var safeGenSrc = generatedSrc;
+    if (typeof generatedSrc === 'object' && generatedSrc !== null) {
+        safeGenSrc = generatedSrc.image || generatedSrc.url || generatedSrc.data || '';
+    }
+
     mintaGeminiState.originalPhotoSrc = originalSrc;
-    mintaGeminiState.generatedPhotoSrc = generatedSrc;
+    mintaGeminiState.generatedPhotoSrc = safeGenSrc;
     mintaGeminiState.lastPromptTitle = promptTitle || 'AI Studio';
 
     origImg.src = originalSrc;
-    genImg.src = generatedSrc;
+    genImg.src = safeGenSrc;
 
     // Dinamisasi Badge Header: Replicate Cloud GPU vs Gemini AI
     var badgeEl = document.querySelector('#gemini-dual-gen-card .badge-ai') || document.querySelector('.badge-ai');
@@ -13075,6 +13110,205 @@ function toggleGeminiDualStageMaximize() {
     syncDualPreviewCardsAspect();
 }
 
+function openGeminiWebReceiverModal(promptText) {
+    var modal = document.getElementById('gemini-web-receiver-modal');
+    var promptEl = document.getElementById('gemini-web-prompt-preview');
+    if (promptEl) {
+        promptEl.textContent = promptText || 'Tolong ubah latar belakang foto ini secara fotorealistik dengan mengunci wajah dan busana asli 100%';
+    }
+    if (modal) {
+        modal.style.display = 'flex';
+    }
+    mintaGeminiState.waitingForWebResult = true;
+}
+
+function closeGeminiWebReceiverModal() {
+    var modal = document.getElementById('gemini-web-receiver-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+    mintaGeminiState.waitingForWebResult = false;
+}
+
+function reopenGeminiWebTab() {
+    window.open('https://gemini.google.com/app', '_blank');
+}
+
+function copyGeminiPromptToClipboard() {
+    var promptEl = document.getElementById('gemini-web-prompt-preview');
+    var text = (promptEl ? promptEl.textContent : '') || mintaGeminiState.lastPromptText || '';
+    if (!text) {
+        if (typeof showToast === 'function') showToast('⚠️ Prompt kosong.');
+        return;
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function() {
+            if (typeof showToast === 'function') showToast('📋 Teks prompt berhasil disalin ke Clipboard!');
+        }).catch(function() {
+            fallbackPromptCopy(text);
+        });
+    } else {
+        fallbackPromptCopy(text);
+    }
+}
+
+function fallbackPromptCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+        document.execCommand('copy');
+        if (typeof showToast === 'function') showToast('📋 Teks prompt berhasil disalin ke Clipboard!');
+    } catch(e) {}
+    document.body.removeChild(ta);
+}
+
+function copyCanvasPhotoToClipboard() {
+    var bgImg = document.getElementById('wm-simulator-bg');
+    if (!bgImg || !bgImg.src) {
+        if (typeof showToast === 'function') showToast('⚠️ Tidak ada foto aktif di kanvas.');
+        return;
+    }
+    createStandardImagePayload(bgImg, function(payload) {
+        if (!payload || !payload.base64) return;
+        try {
+            var canvas = document.createElement('canvas');
+            canvas.width = payload.width || 1200;
+            canvas.height = payload.height || 1600;
+            var ctx = canvas.getContext('2d');
+            ctx.drawImage(payload.htmlImage || bgImg, 0, 0);
+            canvas.toBlob(function(blob) {
+                if (blob && navigator.clipboard && window.ClipboardItem) {
+                    var item = new ClipboardItem({ 'image/png': blob });
+                    navigator.clipboard.write([item]).then(function() {
+                        if (typeof showToast === 'function') showToast('🖼️ Foto kanvas berhasil disalin ke Clipboard!');
+                    }).catch(function() {
+                        if (typeof showToast === 'function') showToast('⚠️ Browser membatasi salin gambar langsung.');
+                    });
+                }
+            }, 'image/png');
+        } catch(e) {}
+    });
+}
+
+function handleGeminiResultFileSelected(input) {
+    if (input && input.files && input.files[0]) {
+        applyPastedImageToActiveCanvas(input.files[0]);
+        input.value = '';
+    }
+}
+
+function pasteFromClipboardToCanvas() {
+    if (navigator.clipboard && navigator.clipboard.read) {
+        navigator.clipboard.read().then(function(items) {
+            var found = false;
+            for (var i = 0; i < items.length; i++) {
+                var item = items[i];
+                for (var j = 0; j < item.types.length; j++) {
+                    var type = item.types[j];
+                    if (type.indexOf('image') !== -1) {
+                        item.getType(type).then(function(blob) {
+                            applyPastedImageToActiveCanvas(blob);
+                        });
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) break;
+            }
+            if (!found) {
+                if (typeof showToast === 'function') {
+                    showToast('ℹ️ Belum ada foto di clipboard. Di Gemini Web, Klik Kanan foto hasil > Copy Image, lalu tekan tombol ini lagi.');
+                }
+            }
+        }).catch(function(err) {
+            if (typeof showToast === 'function') {
+                showToast('📋 Silakan tekan langsung tombol Ctrl + V pada keyboard Anda.');
+            }
+        });
+    } else {
+        if (typeof showToast === 'function') {
+            showToast('📋 Silakan tekan langsung tombol Ctrl + V pada keyboard Anda.');
+        }
+    }
+}
+
+function applyPastedImageToActiveCanvas(fileOrBase64) {
+    if (!fileOrBase64) return;
+
+    function applyDataUrl(dataUrl) {
+        if (!dataUrl || dataUrl.length < 50) return;
+
+        // 1. Simpan history undo
+        if (typeof pushPhotoHistory === 'function') {
+            pushPhotoHistory('Sebelum Terapkan Hasil Gemini Web');
+        }
+
+        // 2. Ganti foto panggung aktif di kanvas
+        var bgImg = document.getElementById('wm-simulator-bg');
+        if (bgImg) {
+            bgImg.src = dataUrl;
+        }
+
+        // 3. Update objek foto aktif di antrean stagedPhotos
+        if (typeof appState !== 'undefined') {
+            if (!appState.stagedPhotos) appState.stagedPhotos = [];
+            if (appState.stagedPhotos.length === 0) {
+                appState.stagedPhotos.push({
+                    id: 'gemini_web_' + Date.now(),
+                    name: 'Foto_Gemini_AI.jpg',
+                    dataUrl: dataUrl,
+                    url: dataUrl,
+                    processedUrl: dataUrl,
+                    isAiGenerated: true
+                });
+                appState.activeStagedIndex = 0;
+            } else if (appState.stagedPhotos[appState.activeStagedIndex]) {
+                var activeItem = appState.stagedPhotos[appState.activeStagedIndex];
+                if (!activeItem.rawOriginalDataUrl) {
+                    activeItem.rawOriginalDataUrl = activeItem.originalDataUrl || activeItem.dataUrl;
+                }
+                activeItem.dataUrl = dataUrl;
+                activeItem.url = dataUrl;
+                activeItem.processedUrl = dataUrl;
+                activeItem.isAiGenerated = true;
+            }
+
+            var thumb = document.getElementById('filmstrip-thumb-' + appState.activeStagedIndex);
+            if (thumb) thumb.src = dataUrl;
+
+            if (typeof renderStagedPhotosUI === 'function') renderStagedPhotosUI();
+            if (typeof syncPhotoWrapperDimensions === 'function') syncPhotoWrapperDimensions();
+            if (typeof updateWatermarkSimulatorDisplay === 'function') updateWatermarkSimulatorDisplay();
+            if (typeof updatePhotoGradingPreview === 'function') updatePhotoGradingPreview();
+        }
+
+        // 4. Catat history selesai
+        if (typeof pushPhotoHistory === 'function') {
+            pushPhotoHistory('✨ Hasil Generate Gemini Web (' + (mintaGeminiState.lastPromptText || 'Foto Baru') + ')');
+        }
+
+        // 5. Tutup modal receiver & dual preview
+        closeGeminiWebReceiverModal();
+        closeGeminiDualPreview();
+
+        if (typeof showToast === 'function') {
+            showToast('🎉 Sukses! Foto hasil generate dari Gemini Web langsung terpasang ke Kanvas kerja!');
+        }
+    }
+
+    if (typeof fileOrBase64 === 'string') {
+        applyDataUrl(fileOrBase64);
+    } else if (fileOrBase64 instanceof Blob || (typeof File !== 'undefined' && fileOrBase64 instanceof File)) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            applyDataUrl(e.target.result);
+        };
+        reader.readAsDataURL(fileOrBase64);
+    }
+}
+
 function openAndBridgeToWebGemini(customPrompt) {
     var bgImg = document.getElementById('wm-simulator-bg');
     if (!bgImg || !bgImg.src) {
@@ -13083,12 +13317,26 @@ function openAndBridgeToWebGemini(customPrompt) {
     }
 
     var input = document.getElementById('input-minta-gemini');
-    var promptText = customPrompt || (input ? input.value.trim() : '') || mintaGeminiState.lastPromptText || 'Tolong edit foto ini secara fotorealistik sesuai pencahayaan alami.';
+    var rawText = customPrompt || (input ? input.value.trim() : '') || mintaGeminiState.lastPromptText || 'Tolong ubah latar belakang foto ini secara fotorealistik sesuai instruksi, dengan mengunci wajah, postur tubuh, dan pakaian pengantin 100% utuh tanpa perubahan.';
+
+    // Susun prompt komprehensif instruksi AI untuk Gemini Web
+    var comprehensivePrompt = "Tolong ganti/ubah latar belakang foto ini secara fotorealistik: \"" + rawText + "\". PENTING: Kunci subjek 100%, jangan ubah atau distorsi wajah, mahkota/hiasan kepala, postur tubuh, tangan, maupun pakaian pengantin. Satukan pencahayaan dan bayangan subjek secara alami dan tampak menyatu realistis dengan background baru.";
+
+    mintaGeminiState.lastPromptText = rawText;
+    mintaGeminiState.waitingForWebResult = true;
+
+    // Buka tab resmi Web Gemini AI langsung saat user berinteraksi (menghindari popup blocker)
+    try {
+        window.open('https://gemini.google.com/app', '_blank');
+    } catch(e) {}
+
+    // Buka modal penerima di studio canvas
+    openGeminiWebReceiverModal(comprehensivePrompt);
 
     createStandardImagePayload(bgImg, function(payload) {
         if (!payload || !payload.base64) return;
 
-        // 1. Salin gambar resolusi penuh ke clipboard OS jika didukung browser
+        // 1. Salin gambar resolusi penuh ke clipboard OS
         try {
             var canvas = document.createElement('canvas');
             canvas.width = payload.width || 1200;
@@ -13102,25 +13350,27 @@ function openAndBridgeToWebGemini(customPrompt) {
                         var item = new ClipboardItem({ 'image/png': blob });
                         navigator.clipboard.write([item]).then(function() {
                             if (typeof showToast === 'function') {
-                                showToast('📋 Foto siap di Clipboard! Buka tab Gemini, tekan Ctrl+V.');
+                                showToast('📋 Foto kanvas & prompt siap di Clipboard! Di tab Gemini Web tekan Ctrl+V.');
                             }
                         }).catch(function() {
-                            if (navigator.clipboard.writeText) navigator.clipboard.writeText(promptText);
+                            if (navigator.clipboard.writeText) navigator.clipboard.writeText(comprehensivePrompt);
                         });
                     } catch (eClip) {
-                        if (navigator.clipboard.writeText) navigator.clipboard.writeText(promptText);
+                        if (navigator.clipboard.writeText) navigator.clipboard.writeText(comprehensivePrompt);
                     }
                 }
             }, 'image/png');
         } catch (eCanvas) { }
 
-        // 2. Buka tab resmi Web Gemini AI (gemini.google.com/app)
-        var webUrl = 'https://gemini.google.com/app';
-        window.open(webUrl, '_blank');
-
-        if (typeof showToast === 'function') {
-            showToast('🚀 Membuka Web Gemini AI! Tekan Ctrl+V di Gemini untuk upload foto, lalu copy hasil dan Ctrl+V kembali ke studio.');
-        }
+        // 2. Download cadangan file foto kanvas agar bisa di-drag langsung jika browser memblokir clipboard
+        try {
+            var dlLink = document.createElement('a');
+            dlLink.href = payload.base64;
+            dlLink.download = 'foto_kanvas_gemini.jpg';
+            document.body.appendChild(dlLink);
+            dlLink.click();
+            document.body.removeChild(dlLink);
+        } catch (eDl) { }
     });
 }
 
@@ -13254,11 +13504,72 @@ function generateHighFidelityCanvasAiPhoto(imgEl, aiData, promptText) {
     ctx.drawImage(imgEl, 0, 0, w, h);
     ctx.filter = 'none';
 
-    // 2. FOTOGRAFI STUDIO BERSIH & SEAMLESS (BEBAS DARI POTONGAN KOLASE GEOMETRIS)
+    // 2. FOTOGRAFI STUDIO BERSIH & SEAMLESS (BEBAS DARI POTONGAN OVAL / FAKE MASKING)
     // Seluruh efek menjaga keutuhan foto asli secara proporsional dan fotorealistik tanpa potongan kaku
 
     // 3. Efek Spesifik Sesuai Preset Prompt
-    if (lcmd.indexOf('goldenhour') !== -1) {
+    if (lcmd.indexOf('pegunungan') !== -1 || lcmd.indexOf('gunung') !== -1 || lcmd.indexOf('mountain') !== -1) {
+        // Alpine Atmospheric Natural Lighting Pass
+        ctx.save();
+        ctx.globalCompositeOperation = 'soft-light';
+        var alpineWash = ctx.createLinearGradient(0, 0, 0, h);
+        alpineWash.addColorStop(0, 'rgba(56, 189, 248, 0.28)');
+        alpineWash.addColorStop(0.7, 'rgba(254, 240, 138, 0.16)');
+        alpineWash.addColorStop(1, 'rgba(30, 65, 50, 0.20)');
+        ctx.fillStyle = alpineWash;
+        ctx.fillRect(0, 0, w, h);
+
+        ctx.globalCompositeOperation = 'screen';
+        var alpineRim = ctx.createRadialGradient(w * 0.5, h * 0.25, 20, w * 0.5, h * 0.40, w * 0.7);
+        alpineRim.addColorStop(0, 'rgba(255, 255, 240, 0.28)');
+        alpineRim.addColorStop(0.6, 'rgba(200, 240, 255, 0.10)');
+        alpineRim.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = alpineRim;
+        ctx.fillRect(0, 0, w, h);
+        ctx.restore();
+
+    } else if (lcmd.indexOf('pantai') !== -1 || lcmd.indexOf('beach') !== -1 || lcmd.indexOf('laut') !== -1) {
+        // Tropical Beach Sunset Lighting Pass
+        ctx.save();
+        ctx.globalCompositeOperation = 'soft-light';
+        var seaGrad = ctx.createLinearGradient(0, 0, 0, h);
+        seaGrad.addColorStop(0, 'rgba(251, 146, 60, 0.42)');
+        seaGrad.addColorStop(0.5, 'rgba(253, 186, 116, 0.32)');
+        seaGrad.addColorStop(0.7, 'rgba(14, 116, 144, 0.30)');
+        seaGrad.addColorStop(1, 'rgba(217, 119, 6, 0.22)');
+        ctx.fillStyle = seaGrad;
+        ctx.fillRect(0, 0, w, h);
+
+        ctx.globalCompositeOperation = 'screen';
+        var sunSea = ctx.createRadialGradient(w * 0.8, h * 0.35, 10, w * 0.8, h * 0.35, w * 0.6);
+        sunSea.addColorStop(0, 'rgba(255, 240, 200, 0.55)');
+        sunSea.addColorStop(0.5, 'rgba(251, 146, 60, 0.20)');
+        sunSea.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = sunSea;
+        ctx.fillRect(0, 0, w, h);
+        ctx.restore();
+
+    } else if (lcmd.indexOf('taman') !== -1 || lcmd.indexOf('garden') !== -1 || lcmd.indexOf('bunga') !== -1) {
+        // Botanical Garden Warm Lighting Pass
+        ctx.save();
+        ctx.globalCompositeOperation = 'soft-light';
+        var gardenWash = ctx.createLinearGradient(0, 0, 0, h);
+        gardenWash.addColorStop(0, 'rgba(167, 243, 208, 0.35)');
+        gardenWash.addColorStop(0.5, 'rgba(254, 240, 138, 0.20)');
+        gardenWash.addColorStop(1, 'rgba(6, 78, 59, 0.25)');
+        ctx.fillStyle = gardenWash;
+        ctx.fillRect(0, 0, w, h);
+
+        ctx.globalCompositeOperation = 'screen';
+        var gardenBeams = ctx.createRadialGradient(w * 0.2, 0, 20, w * 0.4, h * 0.4, w * 0.6);
+        gardenBeams.addColorStop(0, 'rgba(255, 255, 230, 0.35)');
+        gardenBeams.addColorStop(0.5, 'rgba(254, 240, 138, 0.12)');
+        gardenBeams.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = gardenBeams;
+        ctx.fillRect(0, 0, w, h);
+        ctx.restore();
+
+    } else if (lcmd.indexOf('goldenhour') !== -1) {
         // Golden hour sunset sky lighting & warm amber rim-light (Persis Screenshot 2)
         // A. Sky Sunset Atmosphere Wash (Top 55% frame)
         ctx.globalCompositeOperation = 'soft-light';
@@ -13732,7 +14043,15 @@ function generateHighFidelityCanvasAiPhoto(imgEl, aiData, promptText) {
 // FUNGSI CAPTION GEMINI SESUAI PROMPT & PRESET (PERSIS SCREENSHOT 1 & 2)
 function getGeminiPromptCaption(styleLabel, promptText) {
     var l = (promptText || styleLabel || '').toLowerCase();
-    if (l.indexOf('goldenhour') !== -1) {
+    if (l.indexOf('pegunungan') !== -1 || l.indexOf('gunung') !== -1 || l.indexOf('mountain') !== -1) {
+        return "Ini dia hasil foto yang sudah digenerate dengan background panorama pegunungan yang megah dan menyatu alami sesuai permintaan Anda:";
+    } else if (l.indexOf('pantai') !== -1 || l.indexOf('beach') !== -1 || l.indexOf('laut') !== -1) {
+        return "Ini dia hasil foto yang sudah digenerate dengan background suasana pantai sunset tropis yang indah sesuai permintaan Anda:";
+    } else if (l.indexOf('taman') !== -1 || l.indexOf('garden') !== -1) {
+        return "Ini dia hasil foto yang sudah digenerate dengan background taman bunga alami sesuai permintaan Anda:";
+    } else if (l.indexOf('background') !== -1 || l.indexOf('latar') !== -1) {
+        return "Ini dia hasil foto yang sudah digenerate dengan penggantian background realistis sesuai permintaan Anda:";
+    } else if (l.indexOf('goldenhour') !== -1) {
         return "Ini dia hasil foto yang sudah diedit dengan efek pencahayaan golden hour yang hangat dan alami, seolah diambil saat matahari terbenam:";
     } else if (l.indexOf('clones') !== -1) {
         return "Ini dia hasil foto yang sudah diedit dengan efek Multiplicity Clones (3 orang) sesuai permintaan Anda:";
@@ -13759,30 +14078,9 @@ function getGeminiPromptCaption(styleLabel, promptText) {
 }
 
 // =========================================================================
-// REVISI 118: INTELLIGENT FACE & ATTIRE LOCKING ENGINE (ZETTBOT ARCHITECTURE)
-// 1. Kunci 100% Wajah, Gaun & Postur pada Preset Gaya / Lensa / Lighting
-// 2. Kunci 100% Wajah Asli jika ada Perintah Eksplisit Ganti Baju (Face Lock Composite)
-// =========================================================================
-
-function hasExplicitClothingOrSubjectChange(promptText) {
-    if (!promptText) return false;
-    var l = String(promptText).toLowerCase();
-    var clothingKeywords = [
-        'ganti baju', 'ubah baju', 'ganti gaun', 'ubah gaun', 'ganti pakaian', 'ubah pakaian',
-        'ganti busana', 'ubah busana', 'ganti kostum', 'ganti celana', 'ganti jas', 'pakai jas',
-        'beskap', 'blangkon', 'kebaya', 'tuxedo', 'gaun malam', 'gaun pengantin baru',
-        'pakaian adat', 'baju adat', 'batik', 'dress', 'costume', 'suit', 'outfit',
-        'baju pengantin', 'busana adat', 'pakaian pengantin'
-    ];
-    for (var i = 0; i < clothingKeywords.length; i++) {
-        if (l.indexOf(clothingKeywords[i]) !== -1) return true;
-    }
-    return false;
-}
-
-// =========================================================================
-// REVISI 120: REALISTIC STUDIO PHOTOGRAPHY ENGINE (ZETTBOT ARCHITECTURE)
-// 100% REALISTIS, SATU FOTO UTUH MENYATU ALAMI, TANPA STIKER & TANPA ORANG ASING!
+// REVISI 121: TRUE MULTIMODAL IMAGE-TO-IMAGE AI ENGINE (ZETTBOT ARCHITECTURE)
+// MENGIRIMKAN FOTO FISIK KANVAS AKTIF KE AI, MENGUNCI 100% WAJAH, GAUN & BENTUK BADAN,
+// DAN MENGGANTI BACKGROUND DENGAN PENYATUAN FOTOREALISTIS ALAMI!
 // =========================================================================
 
 function submitMintaGeminiPrompt() {
@@ -13794,7 +14092,7 @@ function submitMintaGeminiPrompt() {
     }
 
     var bgImg = document.getElementById('wm-simulator-bg');
-    if (!bgImg || !bgImg.src || !bgImg.naturalWidth) {
+    if (!bgImg || !bgImg.src) {
         if (typeof showToast === 'function') showToast('⚠️ Pilih atau upload foto terlebih dahulu ke panggung studio.');
         return;
     }
@@ -13809,15 +14107,15 @@ function submitMintaGeminiPrompt() {
         }
     }
 
-    var expandedPrompt = matchedPreset ? (matchedPreset.prompt + ' User notes: ' + rawText) : rawText;
     var styleLabel = matchedPreset ? matchedPreset.label : rawText;
-
-    mintaGeminiState.lastPromptText = rawText;
+    var expandedPromptText = (matchedPreset && matchedPreset.prompt) ? (matchedPreset.label + ": " + matchedPreset.prompt) : rawText;
+    mintaGeminiState.lastPromptText = expandedPromptText;
     mintaGeminiState.lastPromptTitle = styleLabel;
 
-    var modelKey = mintaGeminiState.model;
+    var modelKey = mintaGeminiState.model || 'gemini_web';
     var thinkingLevel = mintaGeminiState.thinkingLevel;
     var modelDisplay = {
+        'gemini_web': '🌐 Gemini Web (Direct)',
         'replicate_flux': 'Replicate Cloud GPU (Flux.1 / SDXL)',
         'nano_banana': 'Gemini Nano Banana (2.5 Flash Image)',
         'nano_banana_pro': 'Gemini Nano Banana Pro (3 Pro Image)',
@@ -13825,7 +14123,7 @@ function submitMintaGeminiPrompt() {
         'flash': '3.8 Flash',
         'pro': '3.1 Pro',
         'argon': '4 Argon'
-    }[modelKey] || 'Replicate Cloud GPU';
+    }[modelKey] || '🌐 Gemini Web (Direct)';
 
     var sendBtn = document.getElementById('btn-minta-gemini-send');
     if (sendBtn) {
@@ -13833,50 +14131,128 @@ function submitMintaGeminiPrompt() {
         sendBtn.innerHTML = '⏳';
     }
 
-    if (typeof showToast === 'function') {
-        var engineTitle = (modelKey === 'replicate_flux') ? '🚀 [Replicate Cloud GPU]' : ('✨ [' + modelDisplay + ']');
-        showToast(engineTitle + ' Menerapkan transformasi: "' + styleLabel + '" secara fotorealistik pada foto pengantin...');
+    function finishUI() {
+        if (sendBtn) {
+            sendBtn.disabled = false;
+            sendBtn.innerHTML = '➤';
+        }
     }
 
-    // Konversi gambar kanvas ke base64 murni yang aman dan optimal
+    var geminiKey = localStorage.getItem('limz_gemini_api_key') || '';
+    var repKey = localStorage.getItem('limz_replicate_api_key') || '';
+
+    // 0. JALUR UTAMA & MUTLAK:
+    // Jika model dipilih adalah Gemini Web, ATAU belum memasukkan Token Replicate GPU / Gemini API Key:
+    // WAJIB LANGSUNG LUNCURKAN GEMINI WEB BRIDGE (TIDAK BOLEH MENAMPILKAN PREVIEW CANVAS PALSU)
+    if (modelKey === 'gemini_web' || !repKey) {
+        if (modelKey !== 'gemini_web') {
+            mintaGeminiState.model = 'gemini_web';
+            try { localStorage.setItem('limz_selected_ai_model', 'gemini_web'); } catch(e) {}
+            var lbl = document.getElementById('lbl-gemini-selected-model');
+            if (lbl) lbl.textContent = '🌐 Gemini Web';
+        }
+        finishUI();
+        openAndBridgeToWebGemini(expandedPromptText);
+        return;
+    }
+
+    if (typeof showToast === 'function') {
+        var engineTitle = (modelKey === 'replicate_flux') ? '🚀 [Replicate Cloud GPU]' : ('✨ [' + modelDisplay + ']');
+        showToast(engineTitle + ' Mengirim foto kanvas ke AI untuk generate: "' + styleLabel + '"...');
+    }
+
+    // 1. TANGKAP FOTO FISIK RIIL DARI LEMBAR KERJA KANVAS AKTIF (Base64 JPEG Kualitas Penuh)
     var safeBase64 = bgImg.src;
     try {
-        var maxDim = 1024;
-        var nw = bgImg.naturalWidth || 1024;
-        var nh = bgImg.naturalHeight || 1024;
+        var maxDim = 1536;
+        var nw = bgImg.naturalWidth || 1200;
+        var nh = bgImg.naturalHeight || 1600;
         var scale = Math.min(1, maxDim / Math.max(nw, nh));
         var tempC = document.createElement('canvas');
         tempC.width = Math.round(nw * scale);
         tempC.height = Math.round(nh * scale);
         var tCtx = tempC.getContext('2d');
-        tCtx.drawImage(bgImg, 0, 0, tempC.width, tempC.height);
-        var aiPayload = tempC.toDataURL('image/jpeg', 0.88);
-        if (!safeBase64.startsWith('data:image')) {
+        if (bgImg.style && bgImg.style.transform && bgImg.style.transform.indexOf('rotate') !== -1) {
+            var match = bgImg.style.transform.match(/rotate\(([-0-9.]+)deg\)/);
+            var deg = match ? parseFloat(match[1]) : 0;
+            tCtx.translate(tempC.width / 2, tempC.height / 2);
+            tCtx.rotate(deg * Math.PI / 180);
+            tCtx.drawImage(bgImg, -tempC.width / 2, -tempC.height / 2, tempC.width, tempC.height);
+        } else {
+            tCtx.drawImage(bgImg, 0, 0, tempC.width, tempC.height);
+        }
+        var aiPayload = tempC.toDataURL('image/jpeg', 0.92);
+        if (aiPayload && aiPayload.length > 50) {
             safeBase64 = aiPayload;
         }
     } catch (e) {
         safeBase64 = bgImg.src;
     }
 
-    // PROSES FOTOGRAFI REALISTIS (350ms studio workstation timing)
-    setTimeout(function() {
-        if (sendBtn) {
-            sendBtn.disabled = false;
-            sendBtn.innerHTML = '➤';
+    // 2. SUSUN DIRECTIVE KUNCI SUBJEK & INPAINTING BACKGROUND UNTUK AI
+    var subjectLockDirective = 
+        "You are an expert commercial portrait composite editor.\n" +
+        "CRITICAL MANDATORY INSTRUCTIONS:\n" +
+        "1. SUBJECT INTEGRITY 100%: Keep the exact person, face, facial features, makeup, traditional headpiece/mahkota, hair, body shape, posture, hands, and bridal clothing/attire 100% IDENTICAL and UNCHANGED from the provided input image. Do NOT alter, distort, cartoonize, or replace the person.\n" +
+        "2. BACKGROUND EDIT: Seamlessly and realistically replace ONLY the background behind the subject according to this request: \"" + rawText + "\".\n" +
+        "3. PHOTOREALISTIC BLENDING: Blend the lighting and environmental color bounce realistically around the subject's contours with natural depth of field and contact shadows, as if photographed on location with a Hasselblad medium format camera.";
+
+    // 3. JALUR REPLICATE CLOUD GPU (SDXL IMAGE-TO-IMAGE INPAINTING)
+    if (modelKey === 'replicate_flux') {
+        if (typeof google !== 'undefined' && google.script && google.script.run) {
+            google.script.run
+                .withSuccessHandler(function(res) {
+                    finishUI();
+                    if (res && res.success && res.generatedImage) {
+                        showGeminiDualPreview(safeBase64, res.generatedImage, (res.result && res.result.caption) ? res.result.caption : getGeminiPromptCaption(styleLabel, rawText), styleLabel, 'Replicate Cloud GPU (SDXL Image-to-Image)');
+                        if (typeof showToast === 'function') showToast('✅ Selesai: Background berhasil digenerate AI dengan wajah & busana terkunci!');
+                    } else {
+                        if (typeof showToast === 'function') showToast('⚠️ Replicate GPU tidak merespons. Mengalihkan ke Gemini Web...');
+                        openAndBridgeToWebGemini(expandedPromptText);
+                    }
+                })
+                .withFailureHandler(function(err) {
+                    finishUI();
+                    console.warn('Replicate GPU backend notice:', err);
+                    if (typeof showToast === 'function') showToast('⚠️ Replicate GPU error. Mengalihkan ke Gemini Web...');
+                    openAndBridgeToWebGemini(expandedPromptText);
+                })
+                .executeMintaGeminiServer(safeBase64, 'image/jpeg', subjectLockDirective, modelKey, thinkingLevel, repKey);
+            return;
         }
+    }
 
-        // RENDER SATU KESATUAN FOTO RAHMAN & ROSA SECARA FOTOREALISTIK
-        // Bebas dari stiker potongan 2D dan bebas dari orang asing!
-        var generatedImg = generateHighFidelityCanvasAiPhoto(bgImg, {}, rawText);
-        var caption = getGeminiPromptCaption(styleLabel, rawText);
-        var modelTag = (modelKey === 'replicate_flux') ? 'Replicate Cloud GPU (Flux / SDXL)' : modelDisplay;
+    // 4. JALUR GOOGLE GEMINI / NANO BANANA MULTIMODAL DIRECT
+    if (geminiKey) {
+        executeMintaGeminiClientFetch(geminiKey, safeBase64, subjectLockDirective, modelKey, thinkingLevel, styleLabel, modelDisplay);
+        return;
+    }
 
-        showGeminiDualPreview(safeBase64, generatedImg, caption, styleLabel, modelTag);
+    // 5. JALUR GOOGLE APPS SCRIPT BACKEND GEMINI
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run
+            .withSuccessHandler(function(res) {
+                finishUI();
+                if (res && res.success && res.generatedImage) {
+                    showGeminiDualPreview(safeBase64, res.generatedImage, (res.result && res.result.caption) ? res.result.caption : getGeminiPromptCaption(styleLabel, rawText), styleLabel, res.modelUsed || modelDisplay);
+                    if (typeof showToast === 'function') showToast('✅ Selesai: Background berhasil digenerate AI dengan wajah & busana terkunci!');
+                } else {
+                    if (typeof showToast === 'function') showToast('⚠️ Mengalihkan ke Gemini Web...');
+                    openAndBridgeToWebGemini(expandedPromptText);
+                }
+            })
+            .withFailureHandler(function(err) {
+                finishUI();
+                if (typeof showToast === 'function') showToast('⚠️ Mengalihkan ke Gemini Web...');
+                openAndBridgeToWebGemini(expandedPromptText);
+            })
+            .executeMintaGeminiServer(safeBase64, 'image/jpeg', subjectLockDirective, modelKey, thinkingLevel);
+        return;
+    }
 
-        if (typeof showToast === 'function') {
-            showToast('✅ Selesai: Efek "' + styleLabel + '" berhasil diterapkan secara fotorealistik pada foto pengantin!');
-        }
-    }, 350);
+    // 6. DEFAULT AKHIR: GEMINI WEB BRIDGE (TIDAK PERNAH LAGI FALLBACK KANVAS PALSU)
+    finishUI();
+    openAndBridgeToWebGemini(expandedPromptText);
 }
 
 // CLIENT-SIDE ENRICHMENT PROMPT INDONESIA KE ENGLISH COMMERCIAL PHOTOGRAPHY
@@ -13934,12 +14310,16 @@ function buildClientEnrichedPhotoPrompt(promptText) {
         parts.push('Indonesian wedding couple in elegant wedding attire');
     }
 
-    if (l.indexOf('pelaminan') !== -1 || l.indexOf('bunga') !== -1 || l.indexOf('dekor') !== -1) {
+    if (l.indexOf('pegunungan') !== -1 || l.indexOf('gunung') !== -1 || l.indexOf('mountain') !== -1) {
+        parts.push('majestic alpine mountain panorama backdrop with rocky peaks, morning valley mist, pine ridges, and soft natural daylight');
+    } else if (l.indexOf('pantai') !== -1 || l.indexOf('beach') !== -1 || l.indexOf('laut') !== -1) {
+        parts.push('stunning tropical beach sunset backdrop with soft ocean waves, radiant sun, and golden reflections');
+    } else if (l.indexOf('taman') !== -1 || l.indexOf('outdoor') !== -1 || l.indexOf('garden') !== -1 || l.indexOf('bunga') !== -1) {
+        parts.push('lush botanical garden backdrop with natural sunlight bokeh and blooming fresh flowers');
+    } else if (l.indexOf('pelaminan') !== -1 || l.indexOf('dekor') !== -1) {
         parts.push('luxurious Indonesian wedding stage backdrop with grand floral decorations and warm chandelier lights');
-    } else if (l.indexOf('pantai') !== -1) {
-        parts.push('stunning tropical beach sunset backdrop with soft ocean waves');
-    } else if (l.indexOf('taman') !== -1 || l.indexOf('outdoor') !== -1) {
-        parts.push('lush botanical garden backdrop with natural sunlight bokeh');
+    } else if (l.indexOf('studio') !== -1 || l.indexOf('luxury') !== -1 || l.indexOf('ballroom') !== -1) {
+        parts.push('opulent luxury wedding ballroom hall with elegant architectural lighting and warm bokeh');
     } else {
         parts.push('opulent wedding reception stage background with elegant fresh flower decorations');
     }
@@ -14458,6 +14838,15 @@ function initCanvaStyleCanvasWorkflow() {
             }
         }
         if (imageFiles.length > 0) {
+            // JIKA SEDANG MENUNGGU HASIL DARI GEMINI WEB ATAU MODAL RECEIVER AKTIF:
+            var receiverModal = document.getElementById('gemini-web-receiver-modal');
+            var isWaitingGeminiWeb = (typeof mintaGeminiState !== 'undefined' && mintaGeminiState.waitingForWebResult) || (receiverModal && receiverModal.style.display !== 'none');
+            if (isWaitingGeminiWeb) {
+                e.preventDefault();
+                applyPastedImageToActiveCanvas(imageFiles[0]);
+                return;
+            }
+
             handlePhotoFilesSelected(imageFiles);
             if (typeof showToast === 'function') {
                 showToast('📋 ' + imageFiles.length + ' Foto dari clipboard berhasil ditempel ke kanvas!');
