@@ -30,6 +30,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <!-- Google MediaPipe Face Mesh (Standar Evoto AI 468 Landmark Anatomi Wajah) -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+    <!-- Google MediaPipe Selfie Segmentation (Segmentasi Badan & Gaun Pengantin AI) -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js" crossorigin="anonymous"></script>
 
     <!-- Zero-Flicker Pre-Route Detection (Menghilangkan Kedipan Putih Monitor & Galeri) -->
     <script>
@@ -769,9 +771,9 @@
 
                                             <!-- SISI KANAN: HASIL GENERATE GEMINI AI -->
                                             <div class="gemini-dual-card generated-card" id="gemini-dual-gen-card">
-                                                <div class="gemini-dual-badge badge-ai">▶ HASIL GENERATE GEMINI AI • LIVE</div>
+                                                <div class="gemini-dual-badge badge-ai">▶ HASIL GENERATE CLOUD GPU (FLUX / SDXL) • LIVE</div>
                                                 <div class="gemini-dual-img-wrap">
-                                                    <img id="gemini-preview-generated-img" src="" alt="Hasil Generate Gemini AI">
+                                                    <img id="gemini-preview-generated-img" src="" alt="Hasil Generate Cloud GPU">
                                                 </div>
                                             </div>
                                         </div>
@@ -826,28 +828,15 @@
 
                                     <!-- MODEL SELECTION DROPDOWN POPOVER (PERSIS SCREENSHOT 2) -->
                                     <div class="minta-gemini-model-dropdown" id="minta-gemini-model-dropdown">
-                                        <!-- GEMINI WEB DIRECT BRIDGE (GRATIS & TANPA API KEY) -->
-                                        <div class="gemini-model-item active-model" id="item-model-gemini-web" onclick="selectGeminiModel('gemini_web')" style="background: rgba(245, 158, 11, 0.16); border-left: 3px solid #f59e0b;">
-                                            <span class="gemini-model-check" id="check-model-gemini-web" style="color: #f59e0b;">✓</span>
-                                            <div class="gemini-model-info">
-                                                <div style="display: flex; align-items: center; gap: 6px;">
-                                                    <span class="gemini-model-name" style="color: #f59e0b; font-weight: 800;">🌐 Gemini Web (Direct)</span>
-                                                    <span style="font-size: 8.5px; background: #d97706; color: #fff; padding: 1px 5px; border-radius: 4px; font-weight: 800;">GRATIS</span>
-                                                </div>
-                                                <span class="gemini-model-sub" style="color: #94a3b8;">Kirim foto kanvas ke Gemini Web &amp; kirim balik hasil ke kanvas</span>
-                                            </div>
-                                        </div>
-                                        <div class="gemini-dropdown-divider"></div>
-
                                         <!-- REPLICATE CLOUD GPU ENGINE (FLUX.1 SCHNELL / SDXL) - PRO AI (REVISI 117) -->
-                                        <div class="gemini-model-item" id="item-model-replicate-flux" onclick="selectGeminiModel('replicate_flux')">
-                                            <span class="gemini-model-check" id="check-model-replicate-flux"></span>
+                                        <div class="gemini-model-item active-model" id="item-model-replicate-flux" onclick="selectGeminiModel('replicate_flux')" style="background: rgba(2, 132, 199, 0.16); border-left: 3px solid #0284c7;">
+                                            <span class="gemini-model-check" id="check-model-replicate-flux" style="color: #38bdf8;">✓</span>
                                             <div class="gemini-model-info">
                                                 <div style="display: flex; align-items: center; gap: 6px;">
                                                     <span class="gemini-model-name" style="color: #38bdf8; font-weight: 800;">🚀 Replicate Cloud GPU</span>
                                                     <span style="font-size: 8.5px; background: #0284c7; color: #fff; padding: 1px 5px; border-radius: 4px; font-weight: 800;">PRO AI</span>
                                                 </div>
-                                                <span class="gemini-model-sub" style="color: #94a3b8;">Flux.1 Schnell / SDXL (Ubah Baju &amp; Render Bebas)</span>
+                                                <span class="gemini-model-sub" style="color: #94a3b8;">FLUX PuLID (Kunci Wajah Biometrik 100%)</span>
                                             </div>
                                         </div>
                                         <div class="gemini-dropdown-divider"></div>
@@ -932,8 +921,8 @@
                                             <span>+</span>
                                         </button>
                                         <input type="text" class="input-minta-gemini" id="input-minta-gemini" placeholder="Minta Gemini (atau ketik / untuk pintasan foto)..." autocomplete="off" oninput="handleGeminiInputTyping(this.value)" onkeydown="handleGeminiInputKeydown(event)">
-                                        <button type="button" class="btn-gemini-model-toggle" id="btn-minta-gemini-model-toggle" onclick="toggleGeminiModelDropdown(event)" title="Pilih Engine AI (🌐 Gemini Web Direct / Replicate Cloud GPU / Google Gemini)">
-                                            <span id="lbl-gemini-selected-model">🌐 Gemini Web</span>
+                                        <button type="button" class="btn-gemini-model-toggle" id="btn-minta-gemini-model-toggle" onclick="toggleGeminiModelDropdown(event)" title="Pilih Engine AI (🚀 Replicate Cloud GPU / 🌐 Gemini Web Direct / Google Gemini)">
+                                            <span id="lbl-gemini-selected-model">🚀 Flux.1 GPU</span>
                                             <span style="font-size: 9px; margin-left: 2px;">▾</span>
                                         </button>
                                         <button type="button" class="btn-gemini-action-btn" id="btn-minta-gemini-mic" onclick="toggleGeminiVoiceInput()" title="Perintah Suara (Speech-to-Text)">
