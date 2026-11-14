@@ -14340,7 +14340,7 @@ function submitMintaGeminiPrompt() {
                         showGeminiDualPreview(safeBase64, res.generatedImage, (res.result && res.result.caption) ? res.result.caption : getGeminiPromptCaption(styleLabel, rawText), styleLabel, res.modelUsed || 'Replicate Cloud GPU (MantraFoto AI)');
                         if (typeof showToast === 'function') showToast('✅ Selesai: Foto baru berhasil digenerate Replicate Cloud GPU secara fotorealistik menyatu alami!');
                     } else {
-                        var errMsg = (res && res.error) ? res.error : 'Replicate GPU tidak mengembalikan output gambar.';
+                        var errMsg = (res && res.error) ? res.error : ((res && res.message) ? res.message : 'Replicate GPU tidak mengembalikan output gambar.');
                         if (typeof showToast === 'function') showToast(errMsg);
                         alert(errMsg);
                     }
@@ -14383,7 +14383,7 @@ function submitMintaGeminiPrompt() {
                     showGeminiDualPreview(safeBase64, res.generatedImage, (res.result && res.result.caption) ? res.result.caption : getGeminiPromptCaption(styleLabel, rawText), styleLabel, res.modelUsed || modelDisplay);
                     if (typeof showToast === 'function') showToast('✅ Selesai: Background berhasil digenerate AI dengan wajah & busana terkunci!');
                 } else {
-                    var errMsg = (res && res.error) ? res.error : 'Google Gemini tidak mengembalikan output gambar.';
+                    var errMsg = (res && res.error) ? res.error : ((res && res.message) ? res.message : 'Google Gemini tidak mengembalikan output gambar.');
                     if (typeof showToast === 'function') showToast('⚠️ ' + errMsg);
                     alert(errMsg);
                 }
