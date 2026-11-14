@@ -14336,58 +14336,6 @@ function submitMintaGeminiPrompt() {
         safeBase64 = bgImg.src;
     }
 
-    // =====================================================================
-    // DETEKSI CERDAS: EFEK FOTOGRAFI & KAMERA TERHADAP FOTO ASLI (ZERO-HALUSINASI)
-    // Convex Mirror, Golden Hour, Ghost Trail Flash, Clones, Paparazzi, Frontlight, Bokeh, dll.
-    // Menjamin 100% Wajah Asli, Pakaian Asli & Ruangan/Pelaminan Asli Tetap Sama!
-    // =====================================================================
-    var lText = rawText.toLowerCase();
-    var isBackgroundReplacement = (
-        lText.indexOf('ganti background') !== -1 ||
-        lText.indexOf('ubah background') !== -1 ||
-        lText.indexOf('ganti latar') !== -1 ||
-        lText.indexOf('ubah latar') !== -1 ||
-        lText.indexOf('ganti baju') !== -1 ||
-        lText.indexOf('ubah baju') !== -1 ||
-        lText.indexOf('mesjid') !== -1 ||
-        lText.indexOf('pantai') !== -1 ||
-        lText.indexOf('istana') !== -1
-    );
-
-    var isStylePreset = (matchedPreset !== null) || (
-        lText.indexOf('convex') !== -1 ||
-        lText.indexOf('fisheye') !== -1 ||
-        lText.indexOf('mirror selfie') !== -1 ||
-        lText.indexOf('ghosttrail') !== -1 ||
-        lText.indexOf('directflash') !== -1 ||
-        lText.indexOf('clones') !== -1 ||
-        lText.indexOf('goldenhour') !== -1 ||
-        lText.indexOf('paparazi') !== -1 ||
-        lText.indexOf('frontlight') !== -1 ||
-        lText.indexOf('bokeh') !== -1 ||
-        lText.indexOf('shallow') !== -1 ||
-        lText.indexOf('blue hour') !== -1 ||
-        lText.indexOf('cinematic') !== -1 ||
-        lText.indexOf('softbox') !== -1 ||
-        lText.indexOf('moody') !== -1 ||
-        lText.indexOf('neon') !== -1
-    );
-
-    if (isStylePreset && !isBackgroundReplacement) {
-        if (typeof showToast === 'function') {
-            showToast('✨ Me-render efek "' + styleLabel + '" dengan mengunci wajah, pakaian & ruangan asli 100%...');
-        }
-        setTimeout(function() {
-            var localGen = generateHighFidelityCanvasAiPhoto(bgImg, {}, expandedPromptText);
-            finishUI();
-            var caption = getGeminiPromptCaption(styleLabel, rawText);
-            showGeminiDualPreview(safeBase64, localGen, caption, styleLabel, 'Studio AI (Wajah, Pakaian & Ruangan Asli Terkunci 100%)');
-            if (typeof showToast === 'function') {
-                showToast('✅ Selesai: Efek ' + styleLabel + ' berhasil diterapkan dengan subjek & suasana asli!');
-            }
-        }, 280);
-        return;
-    }
 
     // =====================================================================
     // OPSI A: PIPELINE MANTRAFOTO REPLICATE CLOUD GPU (3D/4D + FACELOCK IDENTITY)
