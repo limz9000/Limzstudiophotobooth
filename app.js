@@ -13947,28 +13947,37 @@ function generateHighFidelityCanvasAiPhoto(imgEl, aiData, promptText) {
         ctx.fillRect(cx - mirrorR, cy - mirrorR, mirrorR * 2, mirrorR * 2);
         ctx.restore();
 
-        // 4. Bingkai luar cermin cembung (Outer metallic & black rubber bezel)
+        // 4. Bingkai luar cermin cembung jalanan estetik (Orange Traffic Safety Mirror Hood & Metallic Bezel)
         ctx.save();
+        // A. Cincin kap oranye tebal khas cermin cembung jalanan
         ctx.beginPath();
-        ctx.arc(cx, cy, mirrorR + 10, 0, Math.PI * 2);
-        ctx.strokeStyle = '#1e293b';
-        ctx.lineWidth = 14;
+        ctx.arc(cx, cy, mirrorR + 14, 0, Math.PI * 2);
+        ctx.strokeStyle = '#ea580c';
+        ctx.lineWidth = 18;
         ctx.stroke();
 
+        // B. Cincin highlight oranye terang
         ctx.beginPath();
-        ctx.arc(cx, cy, mirrorR + 3, 0, Math.PI * 2);
+        ctx.arc(cx, cy, mirrorR + 9, 0, Math.PI * 2);
+        ctx.strokeStyle = '#fb923c';
+        ctx.lineWidth = 5;
+        ctx.stroke();
+
+        // C. Cincin logam krom bagian dalam
+        ctx.beginPath();
+        ctx.arc(cx, cy, mirrorR + 2, 0, Math.PI * 2);
         var rimGrad = ctx.createLinearGradient(cx - mirrorR, cy - mirrorR, cx + mirrorR, cy + mirrorR);
-        rimGrad.addColorStop(0, 'rgba(255, 255, 255, 0.7)');
-        rimGrad.addColorStop(0.3, 'rgba(100, 116, 139, 0.5)');
-        rimGrad.addColorStop(0.7, 'rgba(30, 41, 59, 0.8)');
-        rimGrad.addColorStop(1, 'rgba(255, 255, 255, 0.4)');
+        rimGrad.addColorStop(0, 'rgba(255, 255, 255, 0.85)');
+        rimGrad.addColorStop(0.3, 'rgba(148, 163, 184, 0.6)');
+        rimGrad.addColorStop(0.7, 'rgba(30, 41, 59, 0.85)');
+        rimGrad.addColorStop(1, 'rgba(255, 255, 255, 0.6)');
         ctx.strokeStyle = rimGrad;
         ctx.lineWidth = 4;
         ctx.stroke();
 
-        // Drop shadow melingkar di sekeliling cermin
-        var outerShadow = ctx.createRadialGradient(cx, cy, mirrorR + 10, cx, cy, mirrorR + 35);
-        outerShadow.addColorStop(0, 'rgba(0, 0, 0, 0.6)');
+        // D. Drop shadow melingkar di sekeliling cermin
+        var outerShadow = ctx.createRadialGradient(cx, cy, mirrorR + 15, cx, cy, mirrorR + 45);
+        outerShadow.addColorStop(0, 'rgba(0, 0, 0, 0.65)');
         outerShadow.addColorStop(1, 'rgba(0, 0, 0, 0)');
         ctx.fillStyle = outerShadow;
         ctx.fillRect(0, 0, w, h);
@@ -14325,6 +14334,59 @@ function submitMintaGeminiPrompt() {
         }
     } catch (e) {
         safeBase64 = bgImg.src;
+    }
+
+    // =====================================================================
+    // DETEKSI CERDAS: EFEK FOTOGRAFI & KAMERA TERHADAP FOTO ASLI (ZERO-HALUSINASI)
+    // Convex Mirror, Golden Hour, Ghost Trail Flash, Clones, Paparazzi, Frontlight, Bokeh, dll.
+    // Menjamin 100% Wajah Asli, Pakaian Asli & Ruangan/Pelaminan Asli Tetap Sama!
+    // =====================================================================
+    var lText = rawText.toLowerCase();
+    var isBackgroundReplacement = (
+        lText.indexOf('ganti background') !== -1 ||
+        lText.indexOf('ubah background') !== -1 ||
+        lText.indexOf('ganti latar') !== -1 ||
+        lText.indexOf('ubah latar') !== -1 ||
+        lText.indexOf('ganti baju') !== -1 ||
+        lText.indexOf('ubah baju') !== -1 ||
+        lText.indexOf('mesjid') !== -1 ||
+        lText.indexOf('pantai') !== -1 ||
+        lText.indexOf('istana') !== -1
+    );
+
+    var isStylePreset = (matchedPreset !== null) || (
+        lText.indexOf('convex') !== -1 ||
+        lText.indexOf('fisheye') !== -1 ||
+        lText.indexOf('mirror selfie') !== -1 ||
+        lText.indexOf('ghosttrail') !== -1 ||
+        lText.indexOf('directflash') !== -1 ||
+        lText.indexOf('clones') !== -1 ||
+        lText.indexOf('goldenhour') !== -1 ||
+        lText.indexOf('paparazi') !== -1 ||
+        lText.indexOf('frontlight') !== -1 ||
+        lText.indexOf('bokeh') !== -1 ||
+        lText.indexOf('shallow') !== -1 ||
+        lText.indexOf('blue hour') !== -1 ||
+        lText.indexOf('cinematic') !== -1 ||
+        lText.indexOf('softbox') !== -1 ||
+        lText.indexOf('moody') !== -1 ||
+        lText.indexOf('neon') !== -1
+    );
+
+    if (isStylePreset && !isBackgroundReplacement) {
+        if (typeof showToast === 'function') {
+            showToast('✨ Me-render efek "' + styleLabel + '" dengan mengunci wajah, pakaian & ruangan asli 100%...');
+        }
+        setTimeout(function() {
+            var localGen = generateHighFidelityCanvasAiPhoto(bgImg, {}, expandedPromptText);
+            finishUI();
+            var caption = getGeminiPromptCaption(styleLabel, rawText);
+            showGeminiDualPreview(safeBase64, localGen, caption, styleLabel, 'Studio AI (Wajah, Pakaian & Ruangan Asli Terkunci 100%)');
+            if (typeof showToast === 'function') {
+                showToast('✅ Selesai: Efek ' + styleLabel + ' berhasil diterapkan dengan subjek & suasana asli!');
+            }
+        }, 280);
+        return;
     }
 
     // =====================================================================
