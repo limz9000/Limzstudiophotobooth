@@ -12392,6 +12392,10 @@ function openGeminiApiKeyModal() {
     if (inputRep) {
         inputRep.value = localStorage.getItem('limz_replicate_api_key') || '';
     }
+    var inputOai = document.getElementById('input-openai-api-key');
+    if (inputOai) {
+        inputOai.value = localStorage.getItem('limz_openai_api_key') || '';
+    }
     modal.style.display = 'flex';
 }
 
@@ -12401,6 +12405,9 @@ function saveGeminiApiKeyClient() {
 
     var inputRep = document.getElementById('input-replicate-api-key');
     var repKey = inputRep ? inputRep.value.trim() : '';
+
+    var inputOai = document.getElementById('input-openai-api-key');
+    var openAiKey = inputOai ? inputOai.value.trim() : '';
 
     try {
         if (gemKey) {
@@ -12415,12 +12422,19 @@ function saveGeminiApiKeyClient() {
         if (repKey) {
             localStorage.setItem('limz_replicate_api_key', repKey);
             if (typeof appState !== 'undefined') appState.replicateApiKey = repKey;
-            selectGeminiModel('replicate_flux');
-            if (typeof showToast === 'function') {
-                showToast('🚀 Token Replicate aktif! Engine otomatis beralih ke Flux.1 GPU.');
-            }
         } else {
             localStorage.removeItem('limz_replicate_api_key');
+        }
+
+        if (openAiKey) {
+            localStorage.setItem('limz_openai_api_key', openAiKey);
+            if (typeof appState !== 'undefined') appState.openAiApiKey = openAiKey;
+            selectGeminiModel('openai_chatgpt');
+            if (typeof showToast === 'function') {
+                showToast('🟢 ChatGPT AI aktif! Engine otomatis beralih ke OpenAI DALL-E 3 & GPT-4o.');
+            }
+        } else {
+            localStorage.removeItem('limz_openai_api_key');
         }
     } catch (e) { }
 
@@ -12428,18 +12442,21 @@ function saveGeminiApiKeyClient() {
         google.script.run
             .withSuccessHandler(function(res) {
                 if (typeof showToast === 'function') {
-                    showToast('✅ Pengaturan AI & Cloud GPU berhasil disimpan ke server!');
+                    showToast('✅ Pengaturan AI (OpenAI, Gemini & Replicate) berhasil disimpan ke server!');
                 }
             })
-            .saveAiApiKeys(gemKey, repKey);
+            .saveAiApiKeys(gemKey, repKey, openAiKey);
 
         google.script.run.saveGeminiApiKey(gemKey);
         if (repKey) {
             google.script.run.saveReplicateApiKey(repKey);
         }
+        if (openAiKey) {
+            google.script.run.saveOpenAIApiKey(openAiKey);
+        }
     } else {
         if (typeof showToast === 'function') {
-            showToast('✅ Kunci AI & Cloud GPU disimpan di browser lokal!');
+            showToast('✅ Kunci AI disimpan di browser lokal!');
         }
     }
 
@@ -12601,7 +12618,8 @@ try {
         localStorage.setItem('limz_replicate_api_key', savedRepKey);
     }
 } catch(e) {}
-var savedAiModel = (typeof localStorage !== 'undefined' ? localStorage.getItem('limz_selected_ai_model') : '') || 'replicate_flux';
+var savedOpenAiKey = (typeof localStorage !== 'undefined' ? localStorage.getItem('limz_openai_api_key') : '') || '';
+var savedAiModel = (typeof localStorage !== 'undefined' ? localStorage.getItem('limz_selected_ai_model') : '') || (savedOpenAiKey ? 'openai_chatgpt' : 'replicate_flux');
 if (savedAiModel === 'gemini_web') {
     savedAiModel = 'replicate_flux';
     try { localStorage.setItem('limz_selected_ai_model', 'replicate_flux'); } catch(e) {}
@@ -12752,6 +12770,7 @@ function selectGeminiModel(modelKey) {
     mintaGeminiState.model = modelKey;
 
     var modelNames = {
+        'openai_chatgpt': '🟢 ChatGPT AI',
         'replicate_flux': '🚀 Flux.1 GPU',
         'nano_banana': 'Nano Banana',
         'nano_banana_pro': 'Nano Banana Pro',
@@ -12763,7 +12782,7 @@ function selectGeminiModel(modelKey) {
 
     var lbl = document.getElementById('lbl-gemini-selected-model');
     if (lbl) {
-        lbl.textContent = modelNames[modelKey] || '🚀 Flux.1 GPU';
+        lbl.textContent = modelNames[modelKey] || '🟢 ChatGPT AI';
     }
 
     try {
@@ -12771,10 +12790,10 @@ function selectGeminiModel(modelKey) {
     } catch(e) {}
 
     // Update active class & checkmarks
-    ['replicate-flux', 'nano-banana', 'nano-banana-pro', 'flash-lite', 'flash', 'pro', 'argon'].forEach(function(k) {
+    ['openai-chatgpt', 'replicate-flux', 'nano-banana', 'nano-banana-pro', 'flash-lite', 'flash', 'pro', 'argon'].forEach(function(k) {
         var el = document.getElementById('item-model-' + k);
         var chk = document.getElementById('check-model-' + k);
-        var isThis = (k === modelKey || k === modelKey.replace(/_/g, '-') || (k === 'flash-lite' && modelKey === 'flash_lite'));
+        var isThis = (k === modelKey || k === modelKey.replace(/_/g, '-') || (k === 'flash-lite' && modelKey === 'flash_lite') || (k === 'openai-chatgpt' && modelKey === 'openai_chatgpt'));
         if (el) {
             if (isThis) el.classList.add('active-model');
             else el.classList.remove('active-model');
@@ -14253,6 +14272,7 @@ function submitMintaGeminiPrompt() {
     var modelKey = mintaGeminiState.model || 'replicate_flux';
     var thinkingLevel = mintaGeminiState.thinkingLevel;
     var modelDisplay = {
+        'openai_chatgpt': '🟢 ChatGPT AI (DALL-E 3 & GPT-4o Vision)',
         'replicate_flux': '🚀 Replicate Cloud GPU (FLUX PuLID • Kunci Wajah)',
         'nano_banana': 'Gemini Nano Banana (2.5 Flash Image)',
         'nano_banana_pro': 'Gemini Nano Banana Pro (3 Pro Image)',
@@ -14277,6 +14297,7 @@ function submitMintaGeminiPrompt() {
 
     var geminiKey = localStorage.getItem('limz_gemini_api_key') || '';
     var repKey = localStorage.getItem('limz_replicate_api_key') || 'r8_KBqviEiH4UsrXRa1yZhNrgRkgoxQlif4RoUfi';
+    var openAiKey = localStorage.getItem('limz_openai_api_key') || '';
 
     // TANGKAP FOTO FISIK RIIL DARI LEMBAR KERJA KANVAS
     var safeBase64 = bgImg.src;
@@ -14315,6 +14336,55 @@ function submitMintaGeminiPrompt() {
     // PILIHAN B: REPLICATE CLOUD GPU (FLUX.1 / SDXL NEURAL INPAINTING)
     // SUBJEK ASLI DIKUNCI 100%, LATAR DILUKIS ULANG OLEH AI SECARA FOTOREALISTIK
     // =====================================================================
+    // =====================================================================
+    // PILIHAN 0: OPENAI CHATGPT AI (DALL-E 3 & GPT-4O VISION ENGINE)
+    // PRE-RENDER INSPECTION MENGUNCI WAJAH, BAJU & BACKGROUND RIIL
+    // =====================================================================
+    if (modelKey === 'openai_chatgpt') {
+        if (!openAiKey) {
+            if (typeof openGeminiApiKeyModal === 'function') openGeminiApiKeyModal();
+            if (typeof showToast === 'function') showToast('🔑 API Key OpenAI ChatGPT belum diisi.');
+            alert('API Key OpenAI ChatGPT belum dimasukkan. Silakan buka jendela pengaturan API untuk memasukkan API Key dari platform.openai.com/api-keys.');
+            finishUI();
+            return;
+        }
+
+        if (typeof showToast === 'function') {
+            showToast('🟢 [ChatGPT AI] Menginspeksi foto asli dengan GPT-4o Vision & me-render dengan DALL-E 3...');
+        }
+
+        if (typeof showToast === 'function') {
+            showToast('⏳ Memproses di OpenAI Cloud... Mohon tunggu 10-25 detik.');
+        }
+
+        if (typeof google !== 'undefined' && google.script && google.script.run) {
+            google.script.run
+                .withSuccessHandler(function(res) {
+                    finishUI();
+                    if (res && res.success && res.generatedImage) {
+                        showGeminiDualPreview(safeBase64, res.generatedImage, (res.result && res.result.caption) ? res.result.caption : getGeminiPromptCaption(styleLabel, rawText), styleLabel, res.modelUsed || '🟢 ChatGPT AI (DALL-E 3 & GPT-4o)');
+                        if (typeof showToast === 'function') showToast('✅ Selesai: Foto baru berhasil digenerate ChatGPT AI secara fotorealistik menyatu alami!');
+                    } else {
+                        var errMsg = (res && res.error) ? res.error : ((res && res.message) ? res.message : 'ChatGPT AI tidak mengembalikan output gambar.');
+                        if (typeof showToast === 'function') showToast('⚠️ ' + errMsg);
+                        alert(errMsg);
+                    }
+                })
+                .withFailureHandler(function(err) {
+                    finishUI();
+                    var errMsg = (err && err.message) ? err.message : String(err);
+                    console.error('ChatGPT AI backend notice:', err);
+                    if (typeof showToast === 'function') showToast('⚠️ ChatGPT AI Error: ' + errMsg);
+                    alert('ChatGPT AI Error: ' + errMsg);
+                })
+                .executeMintaGeminiServer(safeBase64, 'image/jpeg', expandedPromptText, modelKey, thinkingLevel, repKey, openAiKey);
+        } else {
+            finishUI();
+            if (typeof showToast === 'function') showToast('ℹ️ Berjalan di mode preview lokal.');
+        }
+        return;
+    }
+
     if (modelKey === 'replicate_flux') {
         if (!repKey) {
             if (typeof openGeminiApiKeyModal === 'function') openGeminiApiKeyModal();
@@ -14352,7 +14422,7 @@ function submitMintaGeminiPrompt() {
                     if (typeof showToast === 'function') showToast('⚠️ Replicate GPU Error: ' + errMsg);
                     alert('Replicate Cloud GPU Error: ' + errMsg);
                 })
-                .executeMintaGeminiServer(safeBase64, 'image/jpeg', expandedPromptText, modelKey, thinkingLevel, repKey);
+                .executeMintaGeminiServer(safeBase64, 'image/jpeg', expandedPromptText, modelKey, thinkingLevel, repKey, openAiKey);
         } else {
             finishUI();
             if (typeof showToast === 'function') showToast('ℹ️ Berjalan di mode preview lokal.');
@@ -14394,7 +14464,7 @@ function submitMintaGeminiPrompt() {
                 if (typeof showToast === 'function') showToast('⚠️ Gemini Error: ' + errMsg);
                 alert('Gemini Error: ' + errMsg);
             })
-            .executeMintaGeminiServer(safeBase64, 'image/jpeg', expandedPromptText, modelKey, thinkingLevel, repKey);
+            .executeMintaGeminiServer(safeBase64, 'image/jpeg', expandedPromptText, modelKey, thinkingLevel, repKey, openAiKey);
         return;
     }
 
