@@ -14685,7 +14685,7 @@ function executeMintaGeminiClientFetch(apiKey, imageSrc, promptText, modelKey, t
             prompt: promptText + ". Photorealistic studio portrait photography, authentic skin texture, realistic camera lighting, 8k resolution.",
             n: 1,
             size: "1024x1024",
-            response_format: "b64_json"
+            
         };
 
         fetch(imgGenUrl, {
