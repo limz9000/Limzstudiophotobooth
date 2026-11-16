@@ -6063,7 +6063,7 @@
             .withFailureHandler(function (err) {
                 console.warn('Gagal sinkron foto galeri:', err);
             })
-            .getPhotosByCollection(collId, 1, 0, false);
+            .getPhotosByCollection(collId, 1, 0, true);
     }
 
     var galleryPaginationState = {
@@ -7619,8 +7619,8 @@
                 var rawW = isRotated90 ? (img.naturalHeight || img.height) : (img.naturalWidth || img.width);
                 var rawH = isRotated90 ? (img.naturalWidth || img.width) : (img.naturalHeight || img.height);
 
-                // Standar visual emas 2K QHD (2048px): Super tajam di layar Retina/4K, payload Base64 hanya 1.2MB - 1.8MB (100% aman di GAS & Drive)
-                var maxDimension = 2048;
+                // Standar visual emas Full HD (1920px): Super tajam di layar Retina/4K, payload Base64 hanya ~700KB - 1.1MB (100% aman di GAS & Drive)
+                var maxDimension = 1920;
                 var finalW = rawW;
                 var finalH = rawH;
 
@@ -7712,7 +7712,7 @@
                     }
                 }
 
-                var watermarkedBase64 = canvas.toDataURL('image/jpeg', 0.88);
+                var watermarkedBase64 = canvas.toDataURL('image/jpeg', 0.82);
                 if (callback) callback(watermarkedBase64);
             } catch (err) {
                 console.warn('Gagal render watermark canvas:', err);
@@ -9066,7 +9066,7 @@
                     container.innerHTML = '<div style="grid-column: 1/-1; text-align:center; color:var(--accent-red); padding: 25px;">Gagal memuat foto: ' + err + '</div>';
                 }
             })
-            .getPhotosByCollection(collId, 1, 0, false);
+            .getPhotosByCollection(collId, 1, 0, true);
     }
 
     var uploadedPaginationState = {
@@ -13459,7 +13459,7 @@ function applyPastedImageToActiveCanvas(fileOrBase64) {
             if (appState.stagedPhotos.length === 0) {
                 appState.stagedPhotos.push({
                     id: 'gemini_web_' + Date.now(),
-                    name: 'Foto_Gemini_AI.jpg',
+                    name: 'Foto_Gemini_AI_' + Date.now() + '.jpg',
                     dataUrl: dataUrl,
                     url: dataUrl,
                     processedUrl: dataUrl,
@@ -13610,6 +13610,7 @@ function applyGeminiAiPhotoToStaged() {
         activeItem.url = newPhotoBase64;
         activeItem.processedUrl = newPhotoBase64;
         activeItem.isAiGenerated = true;
+        activeItem.name = 'Foto_AI_' + Date.now() + '.jpg';
 
         // Update thumbnail foto di filmstrip bawah
         var thumb = document.getElementById('filmstrip-thumb-' + appState.activeStagedIndex);
@@ -13619,6 +13620,9 @@ function applyGeminiAiPhotoToStaged() {
 
         renderStagedPhotosUI();
         syncPhotoWrapperDimensions();
+        if (typeof triggerAutoPublishIfEnabled === 'function') {
+            triggerAutoPublishIfEnabled();
+        }
     }
 
     // 4. Catat state akhir ke Undo History
