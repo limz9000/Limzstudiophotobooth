@@ -294,7 +294,7 @@
     function refreshOfflineQueueBadge() {
         getPendingOfflineQueueItems(function (items) {
             appState.pendingOfflineUploadsCount = items.length;
-            var btnUpload = document.getElementById('btn-start-upload');
+            var btnUpload = document.getElementById('btn-upload-all-staged') || document.getElementById('btn-start-upload');
             var countEl = document.getElementById('staged-photos-count');
 
             if (items.length > 0) {
@@ -3616,7 +3616,7 @@
         var multiBadge = document.getElementById('staged-multi-badge');
         var gifCount = document.getElementById('staged-gif-count');
         var btnGif = document.getElementById('btn-create-gif');
-        var btnStartUpload = document.getElementById('btn-start-upload');
+        var btnStartUpload = document.getElementById('btn-upload-all-staged') || document.getElementById('btn-start-upload');
 
         if (countEl) countEl.innerText = count;
         if (gifCount) gifCount.innerText = count;
@@ -7731,15 +7731,33 @@
      */
     function startStagedPhotosUpload() {
         if (!appState.stagedPhotos || appState.stagedPhotos.length === 0) {
-            showToast('Belum ada foto dalam antrian! Pilih atau tarik foto ke kotak teratas terlebih dahulu.');
+            showToast('Belum ada foto dalam antrian! Pilih atau tarik foto ke kotak studio terlebih dahulu.');
             return;
         }
 
-        var collId = document.getElementById('select-upload-collection') ? document.getElementById('select-upload-collection').value : appState.activeCollectionId;
+        var collSelect = document.getElementById('select-upload-collection');
+        var collId = collSelect ? collSelect.value : appState.activeCollectionId;
+
+        // Auto-resolve koleksi jika belum dipilih manual tapi ada koleksi/event yang tersedia
+        if (!collId && collSelect && collSelect.options && collSelect.options.length > 1) {
+            for (var ci = 1; ci < collSelect.options.length; ci++) {
+                if (collSelect.options[ci].value) {
+                    collSelect.selectedIndex = ci;
+                    collId = collSelect.options[ci].value;
+                    appState.activeCollectionId = collId;
+                    break;
+                }
+            }
+        }
+        if (!collId && appState.collections && appState.collections.length > 0) {
+            collId = appState.collections[0].id || appState.collections[0].collectionId;
+            appState.activeCollectionId = collId;
+            if (collSelect) collSelect.value = collId;
+        }
+
         if (!collId) {
-            showToast('Pilih koleksi tujuan terlebih dahulu!');
-            var selectEl = document.getElementById('select-upload-collection');
-            if (selectEl) selectEl.focus();
+            showToast('⚠️ Pilih atau buat Event/Koleksi tujuan terlebih dahulu!');
+            if (collSelect) collSelect.focus();
             return;
         }
         appState.activeCollectionId = collId;
@@ -7780,6 +7798,8 @@
             processNextInUploadPipeline();
         }
     }
+    window.startStagedPhotosUpload = startStagedPhotosUpload;
+    window.uploadAllStagedPhotos = startStagedPhotosUpload;
 
     /**
      * Mengunggah satu foto spesifik dari antrian stagedPhotos ke Cloud (Non-Blocking)
@@ -8041,8 +8061,9 @@
             }
 
             function attemptUpload(attemptCount) {
-                google.script.run
-                    .withSuccessHandler(function (res) {
+                if (typeof google !== 'undefined' && google.script && google.script.run) {
+                    google.script.run
+                        .withSuccessHandler(function (res) {
                         if (res && res.success) {
                             handleSuccess(res, base64Ready);
                         } else {
@@ -8067,6 +8088,30 @@
                         }
                     })
                     .uploadPhotoWithWatermark(uploadPayload);
+                } else {
+                    // MODE VERCEL & WEB STANDALONE REST API
+                    var webUrl = (appState && appState.webAppUrl) ? appState.webAppUrl : (localStorage.getItem('limz_webapp_url') || '');
+                    if (!webUrl) {
+                        handleFailure('WebApp URL Google Apps Script belum disetel di Pengaturan Database!', uploadPayload);
+                        return;
+                    }
+                    var endpoint = webUrl + (webUrl.indexOf('?') === -1 ? '?' : '&') + 'action=uploadPhotoWithWatermark';
+                    fetch(endpoint, {
+                        method: 'POST',
+                        body: JSON.stringify(uploadPayload)
+                    })
+                    .then(function(r) { return r.json(); })
+                    .then(function(res) {
+                        if (res && res.success) {
+                            handleSuccess(res, base64Ready);
+                        } else {
+                            handleFailure((res ? res.message : 'Ditolak server Cloud'), uploadPayload);
+                        }
+                    })
+                    .catch(function(err) {
+                        handleFailure('Koneksi timeout / terputus: ' + err, uploadPayload);
+                    });
+                }
             }
 
             attemptUpload(0);
@@ -8084,7 +8129,7 @@
         var progressBox = document.getElementById('upload-progress-box');
         var progressBar = document.getElementById('upload-progress-bar');
         var progressText = document.getElementById('upload-progress-text');
-        var uploadBtn = document.getElementById('btn-start-upload');
+        var uploadBtn = document.getElementById('btn-upload-all-staged') || document.getElementById('btn-start-upload');
 
         var remaining = (uploadPipeline.queue ? uploadPipeline.queue.length : 0);
         var currentItem = uploadPipeline.activeItem;
@@ -8120,7 +8165,7 @@
         var progressBox = document.getElementById('upload-progress-box');
         var progressText = document.getElementById('upload-progress-text');
         var progressBar = document.getElementById('upload-progress-bar');
-        var uploadBtn = document.getElementById('btn-start-upload');
+        var uploadBtn = document.getElementById('btn-upload-all-staged') || document.getElementById('btn-start-upload');
 
         if (progressBar) progressBar.style.width = '100%';
         if (progressText) {
@@ -15831,6 +15876,8 @@ function selectHslColorChannel(colorName, btn) {
 /* REVISI 99: AUTO-PUBLISH, SLIDER DBLCLICK RESET & CLEAR QUEUE ENGINE       */
 /* ========================================================================= */
 window.clearStagedQueue = clearStagedPhotos;
+window.uploadAllStagedPhotos = startStagedPhotosUpload;
+window.startStagedPhotosUpload = startStagedPhotosUpload;
 
 function resetSingleSlider(id) {
     var el = document.getElementById(id);
@@ -16015,8 +16062,10 @@ function triggerAutoPublishIfEnabled() {
     if (window._autoPublishDebounceTimer) clearTimeout(window._autoPublishDebounceTimer);
     window._autoPublishDebounceTimer = setTimeout(function () {
         if (!appState.autoPublishEnabled) return;
-        if (typeof uploadAllStagedPhotos === 'function') {
-            uploadAllStagedPhotos();
+        if (typeof window.uploadAllStagedPhotos === 'function') {
+            window.uploadAllStagedPhotos();
+        } else if (typeof startStagedPhotosUpload === 'function') {
+            startStagedPhotosUpload();
         }
     }, 700);
 }
